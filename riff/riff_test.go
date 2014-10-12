@@ -15,9 +15,9 @@ func TestParseHeader(t *testing.T) {
 		blockSize uint32
 		format    [4]byte
 	}{
-		{"fixtures/sample.rmi", RIFF, 29632, RmiFormat},
-		{"fixtures/sample.wav", RIFF, 53994, WavFormat},
-		{"fixtures/sample.avi", RIFF, 230256, AviFormat},
+		{"fixtures/sample.rmi", riffID, 29632, rmiFormatID},
+		{"fixtures/sample.wav", riffID, 53994, wavFormatID},
+		{"fixtures/sample.avi", riffID, 230256, aviFormatID},
 	}
 
 	for _, exp := range expectations {
