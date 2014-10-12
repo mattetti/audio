@@ -7,6 +7,8 @@ import (
 )
 
 // Chunk represents the header and containt of a sub block
+// See https://tech.ebu.ch/docs/tech/tech3285.pdf to see how
+// audio content is stored in a BWF/WAVE file.
 type Chunk struct {
 	ID   [4]byte
 	Size int

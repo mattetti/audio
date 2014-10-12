@@ -3,6 +3,7 @@ package riff
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"time"
 )
@@ -15,24 +16,43 @@ type Container struct {
 	// This size is the size of the block
 	// controlled by the RIFF header. Normally this equals the file size.
 	Size uint32
-	// Format name. This is the format name of the RIFF
+	// Format name.
+	// The representation of data in <wave-data>, and the content of the <format-specific-fields>
+	// of the ‘fmt’ chunk, depend on the format category.
+	// 0001h => Microsoft Pulse Code Modulation (PCM) format
+	// 0050h => MPEG-1 Audio (audio only)
 	Format [4]byte
 
 	// WAV stuff
 	// size of the wav specific fmt header
 	wavHeaderSize uint32
+	// A number indicating the WAVE format category of the file. The content of the
+	// <format-specific-fields> portion of the ‘fmt’ chunk, and the interpretation of
+	// the waveform data, depend on this value.
 	// PCM = 1 (i.e. Linear quantization) Values other than 1 indicate some form of compression.
 	WavAudioFormat uint16
+	// The number of channels represented in the waveform data: 1 for mono or 2 for stereo.
 	// Audio: Mono = 1, Stereo = 2, etc.
+	// The EBU has defined the Multi-channel Broadcast Wave
+	// Format [4] where more than two channels of audio are required.
 	NumChannels uint16
+	// The sampling rate (in sample per second) at which each channel should be played.
 	// 8000, 44100, etc.
 	SampleRate uint32
+	// The average number of bytes per second at which the waveform data should be
+	// transferred. Playback software can estimate the buffer size using this value.
 	// SampleRate * NumChannels * BitsPerSample/8
-	ByteRate uint32
+	AvgBytesPerSec uint32
 	// NumChannels * BitsPerSample/8 The number of bytes for one sample including
-	// all channels
+	// all channels.
+	// The block alignment (in bytes) of the waveform data. Playback software needs
+	// to process a multiple of <nBlockAlign> bytes of data at a time, so the value of
+	// <BlockAlign> can be used for buffer alignment.
 	BlockAlign uint16
 	// 8, 16, 24...
+	// Only available for PCM
+	// The <nBitsPerSample> field specifies the number of bits of data used to represent each sample of
+	// each channel. If there are multiple channels, the sample size is the same for each channel.
 	BitsPerSample uint16
 }
 
@@ -80,6 +100,17 @@ func (c *Container) Duration() (time.Duration, error) {
 	}
 }
 
+// String implements the Stringer interface.
+func (c *Container) String() string {
+	out := fmt.Sprintf("Format: %s - ", c.Format)
+	if c.Format == wavFormatID {
+		out += fmt.Sprintf("%d audio channels @ %d / %d bits - ", c.NumChannels, c.SampleRate, c.BitsPerSample)
+		d, _ := c.Duration()
+		out += fmt.Sprintf("Duration: %f seconds\n", d.Seconds())
+	}
+	return out
+}
+
 // NextChunk returns a convenient structure to parse the next chunk.
 // If the container is fully read, io.EOF is returned as an error.
 func (c *Container) NextChunk() (*Chunk, error) {
@@ -125,8 +156,25 @@ func (c *Container) parseWavHeaders() error {
 	if err != nil {
 		return nil
 	}
-	if id != fmtID {
-		return ErrUnexpectedData
+
+	for id != fmtID {
+		// JUNK chunk should be skipped
+		if id == junkID {
+			if size%2 == 1 {
+				size++
+			}
+		}
+		// BFW: bext chunk described here
+		// https://tech.ebu.ch/docs/tech/tech3285.pdf
+
+		// we don't support other chunks ATM, skip them all
+		if err := c.jumpTo(int(size)); err != nil {
+			return err
+		}
+		id, size, err = c.IDnSize()
+		if err != nil {
+			return err
+		}
 	}
 
 	c.wavHeaderSize = size
@@ -139,7 +187,7 @@ func (c *Container) parseWavHeaders() error {
 	if err := binary.Read(c.r, binary.LittleEndian, &c.SampleRate); err != nil {
 		return err
 	}
-	if err := binary.Read(c.r, binary.LittleEndian, &c.ByteRate); err != nil {
+	if err := binary.Read(c.r, binary.LittleEndian, &c.AvgBytesPerSec); err != nil {
 		return err
 	}
 	if err := binary.Read(c.r, binary.LittleEndian, &c.BlockAlign); err != nil {
@@ -160,6 +208,25 @@ func (c *Container) parseWavHeaders() error {
 
 // WavDuration returns the time duration of a wav container.
 func (c *Container) wavDuration() (time.Duration, error) {
-	duration := time.Duration((float64(c.Size) / float64(c.ByteRate)) * float64(time.Second))
+	duration := time.Duration((float64(c.Size) / float64(c.AvgBytesPerSec)) * float64(time.Second))
 	return duration, nil
+}
+
+// jumpTo advances the reader to the amount of bytes provided
+func (c *Container) jumpTo(bytesAhead int) error {
+	var err error
+	for bytesAhead > 0 {
+		readSize := bytesAhead
+		if readSize > 4000 {
+			readSize = 4000
+		}
+
+		buf := make([]byte, readSize)
+		err = binary.Read(c.r, binary.LittleEndian, &buf)
+		if err != nil {
+			return nil
+		}
+		bytesAhead -= readSize
+	}
+	return nil
 }
