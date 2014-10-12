@@ -111,7 +111,8 @@ func ExampleContainer_NextChunk() {
 		nextSample()
 	}
 
-	fmt.Printf("1542nd sample: %#X\n", nextSample())
+	sample := nextSample()
+	fmt.Printf("1542nd sample: %#X %#X\n", sample[0], sample[1])
 	// Output:
-	// 1542nd sample: 0XFE0XFF
+	// 1542nd sample: 0XFE 0XFF
 }
