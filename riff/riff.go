@@ -7,11 +7,12 @@ import (
 )
 
 var (
-	riffID      = [4]byte{'R', 'I', 'F', 'F'}
-	fmtID       = [4]byte{'f', 'm', 't', ' '}
-	wavFormatID = [4]byte{'W', 'A', 'V', 'E'}
-	rmiFormatID = [4]byte{'R', 'M', 'I', 'D'}
-	aviFormatID = [4]byte{'A', 'V', 'I', ' '}
+	riffID       = [4]byte{'R', 'I', 'F', 'F'}
+	fmtID        = [4]byte{'f', 'm', 't', ' '}
+	wavFormatID  = [4]byte{'W', 'A', 'V', 'E'}
+	dataFormatID = [4]byte{'d', 'a', 't', 'a'}
+	rmiFormatID  = [4]byte{'R', 'M', 'I', 'D'}
+	aviFormatID  = [4]byte{'A', 'V', 'I', ' '}
 	// ErrFmtNotSupported is a generic error reporting an unknown format.
 	ErrFmtNotSupported = errors.New("format not supported")
 	// ErrUnexpectedData is a generic error reporting that the parser encountered unexpected data.

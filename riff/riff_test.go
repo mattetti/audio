@@ -8,43 +8,7 @@ import (
 	"time"
 )
 
-func TestParseHeader(t *testing.T) {
-	expectations := []struct {
-		input     string
-		id        [4]byte
-		blockSize uint32
-		format    [4]byte
-	}{
-		{"fixtures/sample.rmi", riffID, 29632, rmiFormatID},
-		{"fixtures/sample.wav", riffID, 53994, wavFormatID},
-		{"fixtures/sample.avi", riffID, 230256, aviFormatID},
-	}
-
-	for _, exp := range expectations {
-		path, _ := filepath.Abs(exp.input)
-		f, err := os.Open(path)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer f.Close()
-		c := NewContainer(f)
-		err = c.ParseHeaders()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if c.ID != exp.id {
-			t.Fatalf("%s of %s didn't match %s, got %s", "ID", exp.input, exp.id, c.ID)
-		}
-		if c.BlockSize != exp.blockSize {
-			t.Fatalf("%s of %s didn't match %d, got %d", "BlockSize", exp.input, exp.blockSize, c.BlockSize)
-		}
-		if c.Format != exp.format {
-			t.Fatalf("%s of %s didn't match %q, got %q", "Format", exp.input, exp.format, c.Format)
-		}
-	}
-}
-
-func TestWavDuration(t *testing.T) {
+func TestDuration(t *testing.T) {
 	expectations := []struct {
 		input string
 		dur   time.Duration
@@ -65,23 +29,6 @@ func TestWavDuration(t *testing.T) {
 		}
 		if d != exp.dur {
 			t.Fatalf("%s of %s didn't match %f, got %f", "Duration", exp.input, exp.dur.Seconds(), d.Seconds())
-		}
-	}
-
-	for _, exp := range expectations {
-		path, _ := filepath.Abs(exp.input)
-		f, err := os.Open(path)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer f.Close()
-		c := NewContainer(f)
-		d, err := c.Duration()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if d != exp.dur {
-			t.Fatalf("Container duration of %s didn't match %f, got %f", exp.input, exp.dur.Seconds(), d.Seconds())
 		}
 	}
 

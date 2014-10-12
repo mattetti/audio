@@ -14,7 +14,7 @@ type Container struct {
 	ID [4]byte
 	// This size is the size of the block
 	// controlled by the RIFF header. Normally this equals the file size.
-	BlockSize uint32
+	Size uint32
 	// Format name. This is the format name of the RIFF
 	Format [4]byte
 
@@ -44,7 +44,7 @@ func (c *Container) ParseHeaders() error {
 		return err
 	}
 	c.ID = id
-	c.BlockSize = size
+	c.Size = size
 	if err := binary.Read(c.r, binary.BigEndian, &c.Format); err != nil {
 		return err
 	}
@@ -92,8 +92,8 @@ func (c *Container) NextChunk() (*Chunk, error) {
 	}
 	ch := &Chunk{
 		ID:   id,
-		Size: size,
-		R:    &ChunkReader{r: c.r, size: int(size)},
+		Size: int(size),
+		R:    c.r,
 	}
 	return ch, nil
 }
@@ -160,6 +160,6 @@ func (c *Container) parseWavHeaders() error {
 
 // WavDuration returns the time duration of a wav container.
 func (c *Container) wavDuration() (time.Duration, error) {
-	duration := time.Duration((float64(c.BlockSize) / float64(c.ByteRate)) * float64(time.Second))
+	duration := time.Duration((float64(c.Size) / float64(c.ByteRate)) * float64(time.Second))
 	return duration, nil
 }
