@@ -45,6 +45,7 @@ func walkFn(path string, fi os.FileInfo, err error) (e error) {
 	if (!strings.HasSuffix(fi.Name(), ".aif") && !strings.HasSuffix(fi.Name(), ".aiff")) || fi.IsDir() {
 		return
 	}
+	analyze(path)
 	return nil
 }
 
