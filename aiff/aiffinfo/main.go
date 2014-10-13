@@ -27,11 +27,10 @@ func main() {
 
 	if *fileToParse != "" {
 		analyze(*fileToParse)
-	} else {
-		err := filepath.Walk(*pathToParse, walkFn)
-		if err != nil {
-			log.Fatal(err)
-		}
+		return
+	}
+	if err := filepath.Walk(*pathToParse, walkFn); err != nil {
+		log.Fatal(err)
 	}
 }
 
