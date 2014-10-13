@@ -104,7 +104,7 @@ func (c *Container) Duration() (time.Duration, error) {
 func (c *Container) String() string {
 	out := fmt.Sprintf("Format: %s - ", c.Format)
 	if c.Format == wavFormatID {
-		out += fmt.Sprintf("%d audio channels @ %d / %d bits - ", c.NumChannels, c.SampleRate, c.BitsPerSample)
+		out += fmt.Sprintf("%d channels @ %d / %d bits - ", c.NumChannels, c.SampleRate, c.BitsPerSample)
 		d, _ := c.Duration()
 		out += fmt.Sprintf("Duration: %f seconds\n", d.Seconds())
 	}
@@ -168,6 +168,7 @@ func (c *Container) parseWavHeaders() error {
 		// https://tech.ebu.ch/docs/tech/tech3285.pdf
 
 		// we don't support other chunks ATM, skip them all
+		// TODO: push data to an optional channel
 		if err := c.jumpTo(int(size)); err != nil {
 			return err
 		}
