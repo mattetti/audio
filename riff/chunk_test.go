@@ -79,7 +79,7 @@ func TestNextChunk(t *testing.T) {
 
 }
 
-func ExampleContainer_NextChunk() {
+func ExampleParser_NextChunk() {
 	// Example showing how to access the sound data
 	path, _ := filepath.Abs("fixtures/sample.wav")
 	f, err := os.Open(path)

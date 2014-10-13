@@ -63,7 +63,7 @@ func analyze(path string) {
 	}
 	defer f.Close()
 	c := aiff.New(f)
-	if err := c.ParseHeaders(); err != nil {
+	if err := c.Parse(); err != nil {
 		log.Fatalf("Can't parse the headers of %s - %s\n", path, err)
 	}
 	fmt.Println(c)

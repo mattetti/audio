@@ -8,8 +8,8 @@ import (
 	"time"
 )
 
-// Container is a struct containing the overall container information.
-type Container struct {
+// Parser is a struct containing the overall container information.
+type Parser struct {
 	r io.Reader
 	// Must match RIFF
 	ID [4]byte
@@ -58,7 +58,7 @@ type Container struct {
 
 // ParseHeaders reads the header of the passed container and populat the container with parsed info.
 // Note that this code advances the container reader.
-func (c *Container) ParseHeaders() error {
+func (c *Parser) ParseHeaders() error {
 	id, size, err := c.IDnSize()
 	if err != nil {
 		return err
@@ -85,7 +85,7 @@ func (c *Container) ParseHeaders() error {
 
 // Duration returns the time duration for the current RIFF container
 // based on the sub format (wav etc...)
-func (c *Container) Duration() (time.Duration, error) {
+func (c *Parser) Duration() (time.Duration, error) {
 	if c == nil {
 		return 0, errors.New("can't calculate the duration of a nil pointer")
 	}
@@ -104,7 +104,7 @@ func (c *Container) Duration() (time.Duration, error) {
 }
 
 // String implements the Stringer interface.
-func (c *Container) String() string {
+func (c *Parser) String() string {
 	out := fmt.Sprintf("Format: %s - ", c.Format)
 	if c.Format == wavFormatID {
 		out += fmt.Sprintf("%d channels @ %d / %d bits - ", c.NumChannels, c.SampleRate, c.BitsPerSample)
@@ -116,7 +116,7 @@ func (c *Container) String() string {
 
 // NextChunk returns a convenient structure to parse the next chunk.
 // If the container is fully read, io.EOF is returned as an error.
-func (c *Container) NextChunk() (*Chunk, error) {
+func (c *Parser) NextChunk() (*Chunk, error) {
 	if c == nil {
 		return nil, errors.New("can't calculate the duration of a nil pointer")
 	}
@@ -133,7 +133,7 @@ func (c *Container) NextChunk() (*Chunk, error) {
 }
 
 // IDnSize returns the next ID + block size
-func (c *Container) IDnSize() ([4]byte, uint32, error) {
+func (c *Parser) IDnSize() ([4]byte, uint32, error) {
 	var ID [4]byte
 	var blockSize uint32
 	if err := binary.Read(c.r, binary.BigEndian, &ID); err != nil {
@@ -147,7 +147,7 @@ func (c *Container) IDnSize() ([4]byte, uint32, error) {
 
 // parseWavHeaders parses the fmt chunk that comes right after the RIFF header
 // This data is needed to calculate the duration of the file.
-func (c *Container) parseWavHeaders() error {
+func (c *Parser) parseWavHeaders() error {
 	if c == nil {
 		return errors.New("can't calculate the wav duration of a nil pointer")
 	}
@@ -211,13 +211,13 @@ func (c *Container) parseWavHeaders() error {
 }
 
 // WavDuration returns the time duration of a wav container.
-func (c *Container) wavDuration() (time.Duration, error) {
-	duration := time.Duration((float64(c.Size) / float64(c.AvgBytesPerSec)) * float64(time.Second))
+func (p *Parser) wavDuration() (time.Duration, error) {
+	duration := time.Duration((float64(p.Size) / float64(p.AvgBytesPerSec)) * float64(time.Second))
 	return duration, nil
 }
 
 // jumpTo advances the reader to the amount of bytes provided
-func (c *Container) jumpTo(bytesAhead int) error {
+func (p *Parser) jumpTo(bytesAhead int) error {
 	var err error
 	for bytesAhead > 0 {
 		readSize := bytesAhead
@@ -226,7 +226,7 @@ func (c *Container) jumpTo(bytesAhead int) error {
 		}
 
 		buf := make([]byte, readSize)
-		err = binary.Read(c.r, binary.LittleEndian, &buf)
+		err = binary.Read(p.r, binary.LittleEndian, &buf)
 		if err != nil {
 			return nil
 		}

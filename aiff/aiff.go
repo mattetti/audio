@@ -44,6 +44,11 @@ var (
 )
 
 // New is the entry point to this package.
-func New(r io.Reader) *Container {
-	return &Container{r: r}
+func New(r io.Reader) *Parser {
+	return &Parser{r: r}
+}
+
+// NewParser lets a dev pass a channel to receive audio data and unparsed chunks.
+func NewParser(r io.Reader, c chan *Chunk) *Parser {
+	return &Parser{r: r, Chan: c}
 }

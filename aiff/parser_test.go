@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func TestParseHeader(t *testing.T) {
+func TestParse(t *testing.T) {
 	expectations := []struct {
 		input           string
 		id              [4]byte
@@ -32,7 +32,7 @@ func TestParseHeader(t *testing.T) {
 		}
 		defer f.Close()
 		c := New(f)
-		err = c.ParseHeaders()
+		err = c.Parse()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -80,7 +80,7 @@ func TestDuration(t *testing.T) {
 		}
 		defer f.Close()
 		c := New(f)
-		err = c.ParseHeaders()
+		err = c.Parse()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -94,7 +94,7 @@ func TestDuration(t *testing.T) {
 	}
 }
 
-func ExampleContainer_Duration() {
+func ExampleParser_Duration() {
 	path, _ := filepath.Abs("fixtures/kick.aif")
 	f, err := os.Open(path)
 	if err != nil {
@@ -103,7 +103,7 @@ func ExampleContainer_Duration() {
 	defer f.Close()
 
 	c := New(f)
-	if err = c.ParseHeaders(); err != nil {
+	if err = c.Parse(); err != nil {
 		panic(err)
 	}
 	d, _ := c.Duration()

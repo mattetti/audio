@@ -21,10 +21,10 @@ var (
 	ErrUnexpectedData = errors.New("unexpected data content")
 )
 
-// New creates a container wrapper for a reader.
+// New creates a parser wrapper for a reader.
 // Note that the reader doesn't get rewinded as the container is processed.
-func New(r io.Reader) *Container {
-	return &Container{r: r}
+func New(r io.Reader) *Parser {
+	return &Parser{r: r}
 }
 
 // Duration returns the time duration of the passed reader if the sub format is supported.
