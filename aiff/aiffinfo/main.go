@@ -1,3 +1,4 @@
+// aiffinfo is a command line tool to gather information about aiff/aifc files.
 package main
 
 import (
@@ -8,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mattetti/utter/aiff"
+	"github.com/mattetti/audio/aiff"
 )
 
 var pathToParse = flag.String("path", ".", "Where to find aiff files")
@@ -61,7 +62,7 @@ func analyze(path string) {
 		panic(err)
 	}
 	defer f.Close()
-	c := aiff.NewContainer(f)
+	c := aiff.New(f)
 	if err := c.ParseHeaders(); err != nil {
 		log.Fatalf("Can't parse the headers of %s - %s\n", path, err)
 	}

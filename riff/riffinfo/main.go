@@ -1,3 +1,4 @@
+// riffinfo is a command line tool used to gather information about riff files.
 package main
 
 import (
@@ -8,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mattetti/utter/riff"
+	"github.com/mattetti/audio/riff"
 )
 
 var pathToParse = flag.String("path", ".", "Where to find wav files")
@@ -61,7 +62,7 @@ func analyze(path string) {
 		panic(err)
 	}
 	defer f.Close()
-	c := riff.NewContainer(f)
+	c := riff.New(f)
 	if err := c.ParseHeaders(); err != nil {
 		log.Fatalf("Can't parse the headers of %s - %s\n", path, err)
 	}

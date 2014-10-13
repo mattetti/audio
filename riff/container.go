@@ -64,6 +64,9 @@ func (c *Container) ParseHeaders() error {
 		return err
 	}
 	c.ID = id
+	if c.ID != riffID {
+		return fmt.Errorf("%s - %s", c.ID, ErrFmtNotSupported)
+	}
 	c.Size = size
 	if err := binary.Read(c.r, binary.BigEndian, &c.Format); err != nil {
 		return err

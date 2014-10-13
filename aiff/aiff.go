@@ -43,7 +43,7 @@ var (
 	ErrUnexpectedData = errors.New("unexpected data content")
 )
 
-// NewContainer is the entry point to this package.
-func NewContainer(r io.Reader) *Container {
+// New is the entry point to this package.
+func New(r io.Reader) *Container {
 	return &Container{r: r}
 }

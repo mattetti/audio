@@ -31,7 +31,7 @@ func TestParseHeader(t *testing.T) {
 			t.Fatal(err)
 		}
 		defer f.Close()
-		c := NewContainer(f)
+		c := New(f)
 		err = c.ParseHeaders()
 		if err != nil {
 			t.Fatal(err)
@@ -79,7 +79,7 @@ func TestDuration(t *testing.T) {
 			t.Fatal(err)
 		}
 		defer f.Close()
-		c := NewContainer(f)
+		c := New(f)
 		err = c.ParseHeaders()
 		if err != nil {
 			t.Fatal(err)
@@ -102,7 +102,7 @@ func ExampleContainer_Duration() {
 	}
 	defer f.Close()
 
-	c := NewContainer(f)
+	c := New(f)
 	if err = c.ParseHeaders(); err != nil {
 		panic(err)
 	}

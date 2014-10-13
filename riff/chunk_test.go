@@ -15,7 +15,7 @@ func TestWavNextChunk(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer f.Close()
-	c := NewContainer(f)
+	c := New(f)
 	if err := c.ParseHeaders(); err != nil {
 		t.Fatal(err)
 	}
@@ -41,7 +41,7 @@ func TestNextChunk(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer f.Close()
-	c := NewContainer(f)
+	c := New(f)
 	if err := c.ParseHeaders(); err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +87,7 @@ func ExampleContainer_NextChunk() {
 		panic(err)
 	}
 	defer f.Close()
-	c := NewContainer(f)
+	c := New(f)
 	if err := c.ParseHeaders(); err != nil {
 		panic(err)
 	}
