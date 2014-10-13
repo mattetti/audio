@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync"
 	"time"
 )
 
@@ -21,9 +22,9 @@ type Parser struct {
 	// if the dev hasn't reported the chunk parsing to be done.
 	// By default: 2s
 	ChunkParserTimeout time.Duration
-	// The ok channel is used to let the parser that it's ok to continue
+	// The waitgroup is used to let the parser that it's ok to continue
 	// after a chunk was passed to the optional parser channel.
-	okChan chan bool
+	Wg sync.WaitGroup
 
 	// ID is always 'FORM'. This indicates that this is a FORM chunk
 	ID [4]byte
@@ -50,95 +51,102 @@ type Parser struct {
 
 // Parse reads the aiff reader and populates the container structure with found information.
 // The sound data or unknown chunks are passed to the optional channel if available.
-func (c *Parser) Parse() error {
-	if err := binary.Read(c.r, binary.BigEndian, &c.ID); err != nil {
+func (p *Parser) Parse() error {
+	if err := binary.Read(p.r, binary.BigEndian, &p.ID); err != nil {
 		return err
 	}
 	// Must start by a FORM header/ID
-	if c.ID != formID {
-		return fmt.Errorf("%s - %s", ErrFmtNotSupported, c.ID)
+	if p.ID != formID {
+		return fmt.Errorf("%s - %s", ErrFmtNotSupported, p.ID)
 	}
 
-	if err := binary.Read(c.r, binary.BigEndian, &c.Size); err != nil {
+	if err := binary.Read(p.r, binary.BigEndian, &p.Size); err != nil {
 		return err
 	}
-	if err := binary.Read(c.r, binary.BigEndian, &c.Format); err != nil {
+	if err := binary.Read(p.r, binary.BigEndian, &p.Format); err != nil {
 		return err
 	}
 
 	// Must be a AIFF or AIFC form type
-	if c.Format != aiffID && c.Format != aifcID {
-		return fmt.Errorf("%s - %s", ErrFmtNotSupported, c.Format)
+	if p.Format != aiffID && p.Format != aifcID {
+		return fmt.Errorf("%s - %s", ErrFmtNotSupported, p.Format)
 	}
 
-	id, size, err := c.IDnSize()
-	if err != nil {
-		return err
-	}
-	for id != commID {
-
-		if c.Chan != nil {
-			okC := make(chan bool)
-			c.Chan <- &Chunk{ID: id, Size: int(size), R: c.r, okChan: okC}
-			timeout := c.ChunkParserTimeout
-			if timeout == 0 {
-				timeout = defaultChunkParserTimeout
-			}
-			for {
-				select {
-				case <-okC:
-					break
-				case <-time.After(timeout):
-					fmt.Printf(".")
-				}
-			}
-		} else {
-			// we don't support other chunks ATM, skip them all
-			// TODO: push data to an optional channel
-			if err := c.jumpTo(int(size)); err != nil {
-				return err
-			}
-		}
-		id, size, err = c.IDnSize()
+	var err error
+	for err != io.EOF {
+		id, size, err := p.IDnSize()
 		if err != nil {
-			return err
+			break
+		}
+		switch id {
+		case commID:
+			p.parseCommChunk(size)
+		default:
+			p.dispatchToChan(id, size)
 		}
 	}
 
-	c.commSize = size
+	if p.Chan != nil {
+		close(p.Chan)
+	}
 
-	if err := binary.Read(c.r, binary.BigEndian, &c.NumChans); err != nil {
+	if err == io.EOF {
+		return nil
+	}
+	return err
+}
+
+func (p *Parser) parseCommChunk(size uint32) error {
+	p.commSize = size
+
+	if err := binary.Read(p.r, binary.BigEndian, &p.NumChans); err != nil {
 		return fmt.Errorf("num of channels failed to parse - %s", err.Error())
 	}
-	if err := binary.Read(c.r, binary.BigEndian, &c.NumSampleFrames); err != nil {
+	if err := binary.Read(p.r, binary.BigEndian, &p.NumSampleFrames); err != nil {
 		return fmt.Errorf("num of sample frames failed to parse - %s", err.Error())
 	}
-	if err := binary.Read(c.r, binary.BigEndian, &c.SampleSize); err != nil {
+	if err := binary.Read(p.r, binary.BigEndian, &p.SampleSize); err != nil {
 		return fmt.Errorf("sample size failed to parse - %s", err.Error())
 	}
 	var srBytes [10]byte
-	if err := binary.Read(c.r, binary.BigEndian, &srBytes); err != nil {
+	if err := binary.Read(p.r, binary.BigEndian, &srBytes); err != nil {
 		return fmt.Errorf("sample rate failed to parse - %s", err.Error())
 	}
-	c.SampleRate = IeeeFloatToInt(srBytes)
+	p.SampleRate = IeeeFloatToInt(srBytes)
 
-	if c.Format == aifcID {
-		if err := binary.Read(c.r, binary.BigEndian, &c.Encoding); err != nil {
+	if p.Format == aifcID {
+		if err := binary.Read(p.r, binary.BigEndian, &p.Encoding); err != nil {
 			return fmt.Errorf("AIFC encoding failed to parse - %s", err)
 		}
 		// pascal style string with the description of the encoding
 		var size uint8
-		if err := binary.Read(c.r, binary.BigEndian, &size); err != nil {
+		if err := binary.Read(p.r, binary.BigEndian, &size); err != nil {
 			return fmt.Errorf("AIFC encoding failed to parse - %s", err)
 		}
 
 		desc := make([]byte, size)
-		if err := binary.Read(c.r, binary.BigEndian, &desc); err != nil {
+		if err := binary.Read(p.r, binary.BigEndian, &desc); err != nil {
 			return fmt.Errorf("AIFC encoding failed to parse - %s", err)
 		}
-		c.EncodingName = string(desc)
+		p.EncodingName = string(desc)
 	}
 
+	return nil
+
+}
+
+func (p *Parser) dispatchToChan(id [4]byte, size uint32) error {
+	if p.Chan == nil {
+		if err := p.jumpTo(int(size)); err != nil {
+			return err
+		}
+		return nil
+	}
+	okC := make(chan bool)
+	p.Wg.Add(1)
+	p.Chan <- &Chunk{ID: id, Size: int(size), R: p.r, okChan: okC, Wg: &p.Wg}
+	p.Wg.Wait()
+	// TODO: timeout
 	return nil
 }
 

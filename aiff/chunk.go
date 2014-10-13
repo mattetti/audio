@@ -4,18 +4,24 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+	"sync"
 )
 
 // Chunk is a struct representing a data chunk
 // the reader is shared with the container but convenience methods
 // are provided.
 // The reader always starts at the beggining of the data.
+// SSND chunk is the sound chunk
+// Chunk specs:
+// http://www.onicos.com/staff/iz/formats/aiff.html
+// AFAn seems to be an OS X specific chunk, meaning & format TBD
 type Chunk struct {
 	ID     [4]byte
 	Size   int
 	R      io.Reader
 	okChan chan bool
 	Pos    int
+	Wg     *sync.WaitGroup
 }
 
 // Done signals the parent parser that we are done reading the chunk
@@ -24,7 +30,7 @@ func (ch *Chunk) Done() {
 	if !ch.IsFullyRead() {
 		ch.drain()
 	}
-	ch.okChan <- true
+	ch.Wg.Done()
 }
 
 func (ch *Chunk) drain() {

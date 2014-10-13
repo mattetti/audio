@@ -1,6 +1,7 @@
 package aiff
 
 import (
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -62,6 +63,34 @@ func TestParse(t *testing.T) {
 			t.Fatalf("%s of %s didn't match %d, got %d", "SampleRate", exp.input, exp.sampleRate, c.SampleRate)
 		}
 	}
+}
+
+func TestNewParser(t *testing.T) {
+	path, _ := filepath.Abs("fixtures/kick.aif")
+	f, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	ch := make(chan *Chunk)
+	c := NewParser(f, ch)
+	go func() {
+		if err := c.Parse(); err != nil {
+			panic(err)
+		}
+	}()
+
+	for chunk := range ch {
+		id := string(chunk.ID[:])
+		fmt.Println(id, chunk.Size)
+		if id != "SSND" {
+			buf := make([]byte, chunk.Size)
+			chunk.ReadBE(buf)
+			fmt.Print(hex.Dump(buf))
+		}
+		chunk.Done()
+	}
+
 }
 
 func TestDuration(t *testing.T) {
