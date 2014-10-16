@@ -175,7 +175,7 @@ func (d *Decoder) Parse() error {
 		}
 	}
 
-	fmt.Println("Parser's done")
+	// All done
 	return nil
 }
 

@@ -2,7 +2,6 @@ package midi
 
 import (
 	"bytes"
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -42,7 +41,7 @@ func TestParsingFile(t *testing.T) {
 		timeFormat          timeFormat
 	}{
 		{"fixtures/elise.mid", 1, 4, 960, MetricalTF},
-		{"fixtures/elise1track.mid", 1, 4, 960, MetricalTF},
+		{"fixtures/elise1track.mid", 0, 1, 480, MetricalTF},
 	}
 
 	for _, exp := range expectations {
@@ -76,13 +75,12 @@ func TestParsingFile(t *testing.T) {
 		if len(p.Tracks) == 0 {
 			t.Fatal("Tracks not parsed")
 		}
-		fmt.Printf("%d tracks\n", len(p.Tracks))
+		t.Logf("%d tracks\n", len(p.Tracks))
 		//if p.Events[0].Text == "foo" {
 		//t.Fatalf("%#v\n", p.Events[0])
 		//}
 		//var found
 		for _, tr := range p.Tracks {
-			fmt.Println("New track")
 			for _, ev := range tr.Events {
 				t.Log(ev)
 			}

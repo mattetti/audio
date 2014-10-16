@@ -103,6 +103,12 @@ func (p *Decoder) parseEvent() (nextChunkType, error) {
 	// Extract values based on message type
 	switch e.MsgType {
 
+	// unknown but found in the wild (seems to come with 1 data bytes)
+	case 0x2, 0x3, 0x4, 0x5, 0x6:
+		if _, err := p.ReadByte(); err != nil {
+			return eventChunk, err
+		}
+
 	// Note Off
 	// This message is sent when a note is released (ended)
 	case 0x8:
