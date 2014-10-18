@@ -2,6 +2,7 @@ package caf
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -29,6 +30,7 @@ func TestParsingFile(t *testing.T) {
 		flags   uint16
 	}{
 		{"fixtures/ring.caf", fileHeaderID, 1, 0},
+		{"fixtures/bass.caf", fileHeaderID, 1, 0},
 	}
 
 	for _, exp := range expectations {
@@ -43,6 +45,7 @@ func TestParsingFile(t *testing.T) {
 		if err := d.Parse(); err != nil {
 			t.Fatal(err)
 		}
+		fmt.Println(d)
 		t.Logf("%+v\n", *d)
 
 		if d.Format != exp.format {

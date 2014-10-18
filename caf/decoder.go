@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"time"
 )
 
 type AudioDescChunk struct {
@@ -60,6 +61,7 @@ type Decoder struct {
 	FormatID [4]byte
 
 	// Flags specific to each format. May be set to 0 to indicate no format flags.
+	// Detailed specification linear PCM, MPEG-4 AAC, and AC-3
 	FormatFlags uint32
 
 	// The number of bytes in a packet of data. For formats with a variable packet size,
@@ -78,26 +80,40 @@ type Decoder struct {
 	// The number of bits of sample data for each channel in a frame of data.
 	// This field must be set to 0 if the data format (for instance any compressed format) does not contain separate samples for each channel
 	BitsPerChannel uint32
+
+	// Size of the audio data
+	//A size value of -1 indicates that the size of the data section for this chunk is unknown. In this case, the Audio Data chunk must appear last in the file
+	// so that the end of the Audio Data chunk is the same as the end of the file.
+	// This placement allows you to determine the data section size.
+	AudioDataSize int64
 }
 
+// String implements the stringer interface
+func (d *Decoder) String() string {
+	out := fmt.Sprintf("Format: %s - %s", string(d.Format[:]), string(d.FormatID[:]))
+	out += fmt.Sprintf("%d channels @ %d - ", d.ChannelsPerFrame, int(d.SampleRate))
+	out += fmt.Sprintf("data size: %d", d.AudioDataSize)
+
+	return out
+}
+
+// Parse reads the file content and store it.
 func (d *Decoder) Parse() error {
 	var err error
 
+	// File header
 	if err = d.Read(&d.Format); err != nil {
 		return err
 	}
 	if d.Format != fileHeaderID {
 		return fmt.Errorf("%s %s", string(d.Format[:]), ErrFmtNotSupported)
 	}
-
 	if err = d.Read(&d.Version); err != nil {
 		return err
 	}
-
 	if d.Version > 1 {
 		return fmt.Errorf("CAF v%s - %s", d.Version, ErrFmtNotSupported)
 	}
-
 	// ignore the flags value
 	if err = d.Read(&d.Flags); err != nil {
 		return err
@@ -108,7 +124,7 @@ func (d *Decoder) Parse() error {
 	if err != nil {
 		return err
 	}
-	if string(cType) != StreamDescriptionChunkID {
+	if cType != StreamDescriptionChunkID {
 		return fmt.Errorf("%s - Expected description chunk", ErrUnexpectedData)
 	}
 	if err := d.parseDescChunk(); err != nil {
@@ -127,6 +143,7 @@ func (d *Decoder) Parse() error {
 	return nil
 }
 
+// parseDescChunk parses the first chunk called description chunk.
 func (d *Decoder) parseDescChunk() error {
 	if err := d.Read(&d.SampleRate); err != nil {
 		return err
@@ -153,16 +170,23 @@ func (d *Decoder) parseDescChunk() error {
 	return nil
 }
 
-func (d *Decoder) chunkHeader() ([]byte, int64, error) {
+func (d *Decoder) Duration() time.Duration {
+	//duration := time.Duration((float64(p.Size) / float64(p.AvgBytesPerSec)) * float64(time.Second))
+	//duration := time.Duration(float64(p.NumSampleFrames) / float64(p.SampleRate) * float64(time.Second))
+
+	return 0
+}
+
+func (d *Decoder) chunkHeader() ([4]byte, int64, error) {
 	var err error
 	var cSize int64
-	cType := make([]byte, 4)
+	var cType [4]byte
 
 	if err = d.Read(&cType); err != nil {
-		return nil, 0, err
+		return cType, 0, err
 	}
 	if err = d.Read(&cSize); err != nil {
-		return nil, 0, err
+		return cType, 0, err
 	}
 
 	return cType, cSize, err
@@ -175,10 +199,32 @@ func (d *Decoder) parseChunk() error {
 		return err
 	}
 
-	t := string(cType)
+	t := cType
 	switch t {
+	case AudioDataChunkID:
+		d.AudioDataSize = cSize
+
+		// TODO:
+		// editCount uint32
+		// The modification status of the data section. You should initially set this field to 0, and should increment it each time the audio data in the file is modified.
+		// the rest of the data is the actual audio data.
+		var err error
+		bytesToSkip := cSize
+		for bytesToSkip > 0 {
+			readSize := bytesToSkip
+			if readSize > 4000 {
+				readSize = 4000
+			}
+			buf := make([]byte, readSize)
+			err = binary.Read(d.r, binary.LittleEndian, &buf)
+			if err != nil {
+				return nil
+			}
+			bytesToSkip -= readSize
+		}
+
 	default:
-		fmt.Println(t)
+		fmt.Println(string(t[:]))
 		buf := make([]byte, cSize)
 		return d.Read(buf)
 	}
