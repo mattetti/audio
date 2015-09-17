@@ -67,6 +67,11 @@ func (e *Event) String() string {
 	return out
 }
 
+func (e *Event) Encode() []byte {
+	//( << 4) | ch
+	return nil
+}
+
 // parseEvent extracts the event from the parser's reader.
 // See http://www.sonicspot.com/guide/midifiles.html
 func (p *Decoder) parseEvent() (nextChunkType, error) {
@@ -135,6 +140,7 @@ func (p *Decoder) parseEvent() (nextChunkType, error) {
 		if e.Note, err = p.Uint7(); err != nil {
 			return eventChunk, err
 		}
+		// aftertouch value
 		if e.Velocity, err = p.Uint7(); err != nil {
 			return eventChunk, err
 		}
@@ -445,7 +451,7 @@ func (p *Decoder) parseMetaMsg(e *Event) (nextChunkType, bool, error) {
 		//FF 58 04 nn dd cc bb Time Signature
 		//The time signature is expressed as four numbers. nn and dd
 		//represent the numerator and denominator of the time signature as it
-		//would be notated. The denominator is a neqative power of two: 2
+		//would be notated. The denominator is a negative power of two: 2
 		//represents a quarter-note, 3 represents an eighth-note, etc.
 		//The cc parameter expresses the number of MIDI clocks in a
 		//metronome click. The bb parameter expresses the number of
@@ -540,6 +546,17 @@ var eventMap = map[byte]string{
 	0xD: "ChannelAfterTouch",
 	0xE: "PitchWheelChange",
 	0xF: "Meta",
+}
+
+var eventByteMap = map[string]byte{
+	"NoteOff":           0x8,
+	"NoteOn":            0x9,
+	"AfterTouch":        0xA,
+	"ControlChange":     0xB,
+	"ProgramChange":     0xC,
+	"ChannelAfterTouch": 0xD,
+	"PitchWheelChange":  0xE,
+	"Meta":              0xF,
 }
 
 var metaCmdMap = map[byte]string{

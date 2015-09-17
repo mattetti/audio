@@ -134,7 +134,7 @@ func (d *Decoder) Parse() error {
 	// of delta time "ticks" which make up a quarter-note. For instance, if
 	// division is 96, then a time interval of an eighth-note between two
 	// events in the file would be 48.
-	if division&0x8000 == 0 {
+	if (division & 0x8000) == 0 {
 		d.TicksPerQuarterNote = division & 0x7FFF
 		d.TimeFormat = MetricalTF
 	} else {
