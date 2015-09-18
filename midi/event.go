@@ -103,10 +103,14 @@ func (e *Event) Encode() []byte {
 		binary.Write(buff, binary.BigEndian, e.NewValue)
 	case 0xC:
 		binary.Write(buff, binary.BigEndian, e.NewProgram)
+		binary.Write(buff, binary.BigEndian, e.NewValue)
 	case 0xD:
 		binary.Write(buff, binary.BigEndian, e.Pressure)
 	case 0xE:
-		// TODO
+		// pitchbend
+		lsb := byte(e.AbsPitchBend & 0x7F)
+		msb := byte((e.AbsPitchBend & (0x7F << 7)) >> 7)
+		binary.Write(buff, binary.BigEndian, []byte{lsb, msb})
 	case 0xF:
 		// TODO
 	}
@@ -235,6 +239,9 @@ func (p *Decoder) parseEvent() (nextChunkType, error) {
 	*/
 	case 0xC:
 		if e.NewProgram, err = p.Uint7(); err != nil {
+			return eventChunk, err
+		}
+		if e.NewValue, err = p.Uint7(); err != nil {
 			return eventChunk, err
 		}
 
