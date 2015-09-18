@@ -26,6 +26,6 @@ type Note struct {
 // KeyInt cdonverts an A-G note notation to a midi note number value.
 func KeyInt(n string, octave int) int {
 	key := notesToInt[strings.ToUpper(n)]
-	// octave starts at -1 but first note is at 0
-	return key + (octave+1)*12
+	// octave starts at -2 but first note is at 0
+	return key + (octave+2)*12
 }

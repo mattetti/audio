@@ -1,10 +1,15 @@
 package midi
 
+import (
+	"fmt"
+	"math"
+)
+
 // Time signature
 //FF 58 04 nn dd cc bb Time Signature
 //The time signature is expressed as four numbers. nn and dd
 //represent the numerator and denominator of the time signature as it
-//would be notated. The denominator is a neqative power of two: 2
+//would be notated. The denominator is a negative power of two: 2
 //represents a quarter-note, 3 represents an eighth-note, etc.
 //The cc parameter expresses the number of MIDI clocks in a
 //metronome click. The bb parameter expresses the number of
@@ -17,4 +22,9 @@ type TimeSignature struct {
 	Denominator                 uint8
 	ClocksPerTick               uint8
 	ThirtySecondNotesPerQuarter uint8
+}
+
+func (ts *TimeSignature) String() string {
+	denum := int(math.Exp2(float64(ts.Denominator)))
+	return fmt.Sprintf("%d/%d %d - %d", ts.Numerator, denum, ts.ClocksPerTick, ts.ThirtySecondNotesPerQuarter)
 }

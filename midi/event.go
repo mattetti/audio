@@ -1,8 +1,11 @@
 package midi
 
 import (
+	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
+	"log"
 )
 
 // Event
@@ -59,24 +62,62 @@ func (e *Event) String() string {
 	if k, ok = eventMap[e.MsgType]; !ok {
 		k = fmt.Sprintf("%#X", e.MsgType)
 	}
-	out := fmt.Sprintf("%s", k)
+	out := fmt.Sprintf("Ch %d @ %d \t%s", e.MsgChan, e.TimeDelta, k)
+	if e.Velocity > 0 {
+		out += fmt.Sprintf(" Vel: %d", e.Velocity)
+	}
 	if e.Cmd != 0 {
-		out = fmt.Sprintf("%s\t-\t%s", out, metaCmdMap[e.Cmd])
+		out = fmt.Sprintf("Ch %d @ %d \t%s", e.MsgChan, e.TimeDelta, metaCmdMap[e.Cmd])
+		switch e.Cmd {
+		case 0x3:
+			out = fmt.Sprintf("%s -> %s", out, e.SeqTrackName)
+		case 0x58:
+			out = fmt.Sprintf("%s -> %s", out, e.TimeSignature)
+		}
 	}
 
 	return out
 }
 
 func (e *Event) Encode() []byte {
-	//( << 4) | ch
-	return nil
+	buff := bytes.NewBuffer(nil)
+	buff.Write(EncodeVarint(e.TimeDelta))
+
+	// msg type and chan are stored together
+	msgData := []byte{(e.MsgType << 4) | e.MsgChan}
+	//fmt.Println(e.MsgChan)
+	//fmt.Printf("%X\n", (msgData[0]&0xF0)>>4)
+	buff.Write(msgData)
+	switch e.MsgType {
+	// unknown but found in the wild (seems to come with 1 data bytes)
+	case 0x2, 0x3, 0x4, 0x5, 0x6:
+		buff.Write([]byte{0x0})
+	// Note Off/On
+	case 0x8, 0x9, 0xA:
+		// note
+		binary.Write(buff, binary.BigEndian, e.Note)
+		// velocity
+		binary.Write(buff, binary.BigEndian, e.Velocity)
+	case 0xB:
+		binary.Write(buff, binary.BigEndian, e.Controller)
+		binary.Write(buff, binary.BigEndian, e.NewValue)
+	case 0xC:
+		binary.Write(buff, binary.BigEndian, e.NewProgram)
+	case 0xD:
+		binary.Write(buff, binary.BigEndian, e.Pressure)
+	case 0xE:
+		// TODO
+	case 0xF:
+		// TODO
+	}
+
+	return buff.Bytes()
 }
 
 // parseEvent extracts the event from the parser's reader.
 // See http://www.sonicspot.com/guide/midifiles.html
 func (p *Decoder) parseEvent() (nextChunkType, error) {
 	var err error
-	//t := &Track{}
 
 	// <delta-time> is stored as a variable-length quantity. It represents
 	// the amount of time before the following event. If the first event in
@@ -447,18 +488,35 @@ func (p *Decoder) parseMetaMsg(e *Event) (nextChunkType, bool, error) {
 			}
 			e.SmpteOffset = so
 
-		// Time signature
-		//FF 58 04 nn dd cc bb Time Signature
-		//The time signature is expressed as four numbers. nn and dd
-		//represent the numerator and denominator of the time signature as it
-		//would be notated. The denominator is a negative power of two: 2
-		//represents a quarter-note, 3 represents an eighth-note, etc.
-		//The cc parameter expresses the number of MIDI clocks in a
-		//metronome click. The bb parameter expresses the number of
-		//notated 32nd-notes in a MIDI quarter-note (24 MIDI clocks). This
-		//was added because there are already multiple programs which allow a
-		//user to specify that what MIDI thinks of as a quarter-note (24 clocks)
-		//is to be notated as, or related to in terms of, something else.
+			// Time signature
+			// FF 58 04 nn dd cc bb Time Signature
+			// The time signature is expressed as four numbers. nn and dd
+			// represent the numerator and denominator of the time signature as it
+			// would be notated. The denominator is a negative power of two: 2
+			// represents a quarter-note, 3 represents an eighth-note, etc.
+			// The cc parameter expresses the number of MIDI clocks in a
+			// metronome click. The bb parameter expresses the number of
+			// notated 32nd-notes in a MIDI quarter-note (24 MIDI clocks). This
+			// was added because there are already multiple programs which allow a
+			// user to specify that what MIDI thinks of as a quarter-note (24 clocks)
+			// is to be notated as, or related to in terms of, something else.
+			//
+			// This meta event is used to set a sequences time signature.
+			// The time signature defined with 4 bytes, a numerator, a denominator, a metronome
+			// pulse and number of 32nd notes per MIDI quarter-note. The numerator is specified as
+			// a literal value, but the denominator is specified as (get ready) the value to which
+			// the power of 2 must be raised to equal the number of subdivisions per whole note.
+			// For example, a value of 0 means a whole note because 2 to the power of 0 is 1
+			// (whole note), a value of 1 means a half-note because 2 to the power of 1 is 2
+			// (half-note), and so on. The metronome pulse specifies how often the metronome should
+			// click in terms of the number of clock signals per click, which come at a rate of 24
+			// per quarter-note. For example, a value of 24 would mean to click once every quarter-note
+			// (beat) and a value of 48 would mean to click once every half-note (2 beats).
+			// And finally, the fourth byte specifies the number of 32nd notes per 24 MIDI clock signals.
+			// This value is usually 8 because there are usually 8 32nd notes in a quarter-note.
+			// At least one Time Signature Event should appear in the first track chunk
+			// (or all track chunks in a Type 2 file) before any non-zero delta time events.
+			// If one is not specified 4/4, 24, 8 should be assumed.
 		case 0x58:
 			var l uint32
 			if l, _, err = p.VarLen(); err != nil {
@@ -534,6 +592,22 @@ func (p *Decoder) parseMetaMsg(e *Event) (nextChunkType, bool, error) {
 	}
 
 	return eventChunk, true, nil
+}
+
+// Size represents the byte size to encode the event
+func (e *Event) Size() uint32 {
+	switch e.MsgType {
+	case 0x2, 0x3, 0x4, 0x5, 0x6, 0xC, 0xD:
+		return 1
+	// Note Off, On, aftertouch, control change
+	case 0x8, 0x9, 0xA, 0xB, 0xE:
+		return 2
+	case 0xF:
+		// meta event
+		// NOT currently support, blowing up on purpose
+		log.Fatal(errors.New("Can't encode meta events, not supported yet"))
+	}
+	return 0
 }
 
 // http://www.midi.org/techspecs/midimessages.php

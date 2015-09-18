@@ -1,6 +1,11 @@
 package midi
 
-import "io"
+import (
+	"encoding/binary"
+	"errors"
+	"io"
+	"log"
+)
 
 const (
 	SingleTrack uint16 = iota
@@ -9,7 +14,9 @@ const (
 )
 
 type Encoder struct {
-	w io.Writer
+	// we need a write seeker because we will update the size at the enc
+	// and need to back to the beginning of the file.
+	w io.WriteSeeker
 
 	/*
 	   Format describes the tracks format
@@ -43,28 +50,86 @@ type Encoder struct {
 
 	TimeFormat timeFormat
 	Tracks     []*Track
+
+	size int
 }
 
-func NewEncoder(w io.Writer, format uint16, ppqn uint16) *Encoder {
+func NewEncoder(w io.WriteSeeker, format uint16, ppqn uint16) *Encoder {
 	return &Encoder{w: w, Format: format, TicksPerQuarterNote: ppqn}
 }
 
-func (e *Encoder) writeHeaders() {
+// NewTrack adds and return a new track (not thread safe)
+func (e *Encoder) NewTrack() *Track {
+	t := &Track{ticksPerBeat: e.TicksPerQuarterNote}
+	e.Tracks = append(e.Tracks, t)
+	return t
+}
+
+func (e *Encoder) writeHeaders() error {
 	// chunk id [4] headerChunkID
-	// size [uint32] 6
+	if _, err := e.w.Write(headerChunkID[:]); err != nil {
+		return err
+	}
+	// header size
+	if err := binary.Write(e.w, binary.BigEndian, uint32(6)); err != nil {
+		return err
+	}
 	// Format
-	// numtracks
-	// division [uint16] <-- contains the BPM/tempo
+	if err := binary.Write(e.w, binary.BigEndian, e.Format); err != nil {
+		return err
+	}
+	// numtracks (not trusting the field value, but checking the actual amount of tracks
+	if err := binary.Write(e.w, binary.BigEndian, uint16(len(e.Tracks))); err != nil {
+		return err
+	}
+	// division [uint16] <-- contains precision
+	if err := binary.Write(e.w, binary.BigEndian, e.TicksPerQuarterNote); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (e *Encoder) Write() error {
+	if e == nil {
+		return errors.New("Can't write a nil encoder")
+	}
+	e.writeHeaders()
+	for _, t := range e.Tracks {
+		if err := e.encodeTrack(t); err != nil {
+			return err
+		}
+	}
+	// go back and update body size in header
+	return nil
+}
+
+func (e *Encoder) encodeTrack(t *Track) error {
+	// chunk id [4]
+	if _, err := e.w.Write(trackChunkID[:]); err != nil {
+		return err
+	}
+	data, err := t.ChunkData()
+	if err != nil {
+		return err
+	}
+	// chunk size
+	if err := binary.Write(e.w, binary.BigEndian, uint32(len(data))); err != nil {
+		log.Fatalf("106", err)
+
+		return err
+	}
+	// chunk data
+	if _, err := e.w.Write(data); err != nil {
+		return err
+	}
+
 	return nil
 }
 
 // NoteOn returns a pointer to a new event of type NoteOn (without the delta timing data)
 func NoteOn(channel, key, vel int) *Event {
 	return &Event{
-		Channel:  uint8(channel),
+		MsgChan:  uint8(channel),
 		MsgType:  uint8(eventByteMap["NoteOn"]),
 		Note:     uint8(key),
 		Velocity: uint8(vel),
@@ -72,11 +137,11 @@ func NoteOn(channel, key, vel int) *Event {
 }
 
 // NoteOff return a pointer to a new event of type NoteOff (without the delta timing data)
-func NoteOff(channel, key, vel int) *Event {
+func NoteOff(channel, key int) *Event {
 	return &Event{
-		Channel:  uint8(channel),
+		MsgChan:  uint8(channel),
 		MsgType:  uint8(eventByteMap["NoteOff"]),
 		Note:     uint8(key),
-		Velocity: uint8(vel),
+		Velocity: 64,
 	}
 }

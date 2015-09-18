@@ -187,7 +187,6 @@ func (d *Decoder) parseTrack() (uint32, nextChunkType, error) {
 	if id != trackChunkID {
 		return 0, trackChunk, fmt.Errorf("%s - Expected track chunk ID %s, got %s", ErrUnexpectedData, trackChunkID, id)
 	}
-	// Add a track
 	d.Tracks = append(d.Tracks, &Track{Size: size})
 	return size, eventChunk, nil
 }
