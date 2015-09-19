@@ -69,7 +69,7 @@ func (ch *Chunk) ReadBE(dst interface{}) error {
 		return io.EOF
 	}
 	ch.Pos += intDataSize(dst)
-	return binary.Read(ch.R, binary.LittleEndian, dst)
+	return binary.Read(ch.R, binary.BigEndian, dst)
 }
 
 // ReadByte reads and returns a single byte

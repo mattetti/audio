@@ -60,3 +60,23 @@ func intDataSize(data interface{}) int {
 	}
 	return 0
 }
+
+// Uint24to32 converts a 3 byte uint23 into a uint32
+func Uint24to32(bytes []byte) uint32 {
+	var output uint32
+	output |= uint32(bytes[2]) << 0
+	output |= uint32(bytes[1]) << 8
+	output |= uint32(bytes[0]) << 16
+
+	return output
+}
+
+// Uint32toUint24Bytes converts a uint32 into a 3 byte uint24 representation
+func Uint32toUint24Bytes(n uint32) []byte {
+	bytes := make([]byte, 3)
+	bytes[0] = byte(n >> 16)
+	bytes[1] = byte(n >> 8)
+	bytes[2] = byte(n >> 0)
+
+	return bytes
+}
