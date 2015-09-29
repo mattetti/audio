@@ -61,7 +61,7 @@ func NewParser(r io.Reader, c chan *Chunk) *Parser {
 func ReadFrames(r io.Reader) (sampleRate, sampleSize, numChans int, frames [][]int) {
 	ch := make(chan *Chunk)
 	c := NewParser(r, ch)
-	sndDataFrames := make([][]int, c.NumSampleFrames, c.NumSampleFrames)
+	var sndDataFrames [][]int
 	go func() {
 		if err := c.Parse(); err != nil {
 			panic(err)
@@ -69,6 +69,9 @@ func ReadFrames(r io.Reader) (sampleRate, sampleSize, numChans int, frames [][]i
 	}()
 
 	for chunk := range ch {
+		if sndDataFrames == nil {
+			sndDataFrames = make([][]int, c.NumSampleFrames, c.NumSampleFrames)
+		}
 		id := string(chunk.ID[:])
 		if id == "SSND" {
 			var offset uint32
@@ -83,52 +86,55 @@ func ReadFrames(r io.Reader) (sampleRate, sampleSize, numChans int, frames [][]i
 			chunk.ReadBE(bufData)
 			buf := bytes.NewReader(bufData)
 
-			chunkSize := chunk.Size - 8
 			bytesPerSample := (c.SampleSize-1)/8 + 1
-			sampleCount := chunkSize / int(bytesPerSample)
+			frameCount := int(c.NumSampleFrames)
 
-			if c.NumSampleFrames != 0 {
-				for i := 0; i < sampleCount; i++ {
-					sampleBufData := make([]byte, bytesPerSample)
-					for j := uint16(0); j < c.NumChans; j++ {
-						_, err := buf.Read(sampleBufData)
-						if err != nil {
-							if err == io.EOF {
-								break
-							}
-							log.Println("error readding the buffer")
-							log.Fatal(err)
+			if c.NumSampleFrames == 0 {
+				chunk.Done()
+				continue
+			}
+
+			for i := 0; i < frameCount; i++ {
+				sampleBufData := make([]byte, bytesPerSample)
+				frame := make([]int, c.NumChans)
+
+				for j := uint16(0); j < c.NumChans; j++ {
+					_, err := buf.Read(sampleBufData)
+					if err != nil {
+						if err == io.EOF {
+							break
 						}
-						sampleBuf := bytes.NewBuffer(sampleBufData)
-						frame := make([]int, c.NumChans)
-						switch c.SampleSize {
-						case 8:
-							var v uint8
-							binary.Read(sampleBuf, binary.BigEndian, &v)
-							frame[j] = int(v)
-						case 16:
-							var v uint16
-							binary.Read(sampleBuf, binary.BigEndian, &v)
-							frame[j] = int(v)
-						case 24:
-							// TODO: check if the conversion might not be inversed depending on
-							// the encoding (BE vs LE)
-							var output uint32
-							output |= uint32(sampleBufData[2]) << 0
-							output |= uint32(sampleBufData[1]) << 8
-							output |= uint32(sampleBufData[0]) << 16
-							frame[j] = int(output)
-						case 32:
-							var v uint32
-							binary.Read(sampleBuf, binary.BigEndian, &v)
-							frame[j] = int(v)
-						default:
-							log.Fatalf("%v bitrate not supported", c.SampleSize)
-						}
-						sndDataFrames = append(sndDataFrames, frame)
+						log.Println("error reading the buffer")
+						log.Fatal(err)
 					}
 
+					sampleBuf := bytes.NewBuffer(sampleBufData)
+					switch c.SampleSize {
+					case 8:
+						var v uint8
+						binary.Read(sampleBuf, binary.BigEndian, &v)
+						frame[j] = int(v)
+					case 16:
+						var v uint16
+						binary.Read(sampleBuf, binary.BigEndian, &v)
+						frame[j] = int(v)
+					case 24:
+						// TODO: check if the conversion might not be inversed depending on
+						// the encoding (BE vs LE)
+						var output uint32
+						output |= uint32(sampleBufData[2]) << 0
+						output |= uint32(sampleBufData[1]) << 8
+						output |= uint32(sampleBufData[0]) << 16
+						frame[j] = int(output)
+					case 32:
+						var v uint32
+						binary.Read(sampleBuf, binary.BigEndian, &v)
+						frame[j] = int(v)
+					default:
+						log.Fatalf("%v bitrate not supported", c.SampleSize)
+					}
 				}
+				sndDataFrames[i] = frame
 
 			}
 		}

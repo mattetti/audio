@@ -11,7 +11,12 @@ func TestEncoderRoundTrip(t *testing.T) {
 		in  string
 		out string
 	}{
-		{"fixtures/kick.aif", "testOutput/kickClone.aiff"},
+		// 22050, 16bit, mono
+		{"fixtures/kick.aif", "testOutput/kick.aiff"},
+		// 44100, 16bit, mono
+		{"fixtures/subsynth.aif", "testOutput/subsynth.aif"},
+		// 44100, 16bit, stereo
+		{"fixtures/bloop.aif", "testOutput/bloop.aif"},
 	}
 
 	for i, tc := range testCases {
