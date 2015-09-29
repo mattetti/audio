@@ -10,11 +10,11 @@ to receive chunks.
 This package also allows for quick access to the AIFF LPCM raw audio data:
 
     in, err := os.Open("audiofile.aiff")
-		if err != nil {
-			log.Fatal("couldn't open audiofile.aiff %v", err)
-		}
-		sampleRate, sampleSize, numChans, frames := ReadFrames(in)
-		in.Close()
+    if err != nil {
+    	log.Fatal("couldn't open audiofile.aiff %v", err)
+    }
+    sampleRate, sampleSize, numChans, frames := ReadFrames(in)
+    in.Close()
 
 A frame is a slice where each entry is a channel and each value is the sample value.
 For instance, a frame in a stereo file will have 2 entries (left and right) and each entry will
