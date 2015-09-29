@@ -65,67 +65,6 @@ func (e *Encoder) NewTrack() *Track {
 	return t
 }
 
-func (e *Encoder) writeHeaders() error {
-	// chunk id [4] headerChunkID
-	if _, err := e.w.Write(headerChunkID[:]); err != nil {
-		return err
-	}
-	// header size
-	if err := binary.Write(e.w, binary.BigEndian, uint32(6)); err != nil {
-		return err
-	}
-	// Format
-	if err := binary.Write(e.w, binary.BigEndian, e.Format); err != nil {
-		return err
-	}
-	// numtracks (not trusting the field value, but checking the actual amount of tracks
-	if err := binary.Write(e.w, binary.BigEndian, uint16(len(e.Tracks))); err != nil {
-		return err
-	}
-	// division [uint16] <-- contains precision
-	if err := binary.Write(e.w, binary.BigEndian, e.TicksPerQuarterNote); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (e *Encoder) Write() error {
-	if e == nil {
-		return errors.New("Can't write a nil encoder")
-	}
-	e.writeHeaders()
-	for _, t := range e.Tracks {
-		if err := e.encodeTrack(t); err != nil {
-			return err
-		}
-	}
-	// go back and update body size in header
-	return nil
-}
-
-func (e *Encoder) encodeTrack(t *Track) error {
-	// chunk id [4]
-	if _, err := e.w.Write(trackChunkID[:]); err != nil {
-		return err
-	}
-	data, err := t.ChunkData()
-	if err != nil {
-		return err
-	}
-	// chunk size
-	if err := binary.Write(e.w, binary.BigEndian, uint32(len(data))); err != nil {
-		log.Fatalf("106", err)
-
-		return err
-	}
-	// chunk data
-	if _, err := e.w.Write(data); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // NoteOn returns a pointer to a new event of type NoteOn (without the delta timing data)
 func NoteOn(channel, key, vel int) *Event {
 	return &Event{
@@ -198,6 +137,69 @@ func PitchWheelChange(channel, int, val int) *Event {
 	}
 }
 
+// TODO
 func Meta(channel int) *Event {
+	return nil
+}
+
+// Write writes the binary representation to the writer
+func (e *Encoder) Write() error {
+	if e == nil {
+		return errors.New("Can't write a nil encoder")
+	}
+	e.writeHeaders()
+	for _, t := range e.Tracks {
+		if err := e.encodeTrack(t); err != nil {
+			return err
+		}
+	}
+	// go back and update body size in header
+	return nil
+}
+
+func (e *Encoder) writeHeaders() error {
+	// chunk id [4] headerChunkID
+	if _, err := e.w.Write(headerChunkID[:]); err != nil {
+		return err
+	}
+	// header size
+	if err := binary.Write(e.w, binary.BigEndian, uint32(6)); err != nil {
+		return err
+	}
+	// Format
+	if err := binary.Write(e.w, binary.BigEndian, e.Format); err != nil {
+		return err
+	}
+	// numtracks (not trusting the field value, but checking the actual amount of tracks
+	if err := binary.Write(e.w, binary.BigEndian, uint16(len(e.Tracks))); err != nil {
+		return err
+	}
+	// division [uint16] <-- contains precision
+	if err := binary.Write(e.w, binary.BigEndian, e.TicksPerQuarterNote); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (e *Encoder) encodeTrack(t *Track) error {
+	// chunk id [4]
+	if _, err := e.w.Write(trackChunkID[:]); err != nil {
+		return err
+	}
+	data, err := t.ChunkData()
+	if err != nil {
+		return err
+	}
+	// chunk size
+	if err := binary.Write(e.w, binary.BigEndian, uint32(len(data))); err != nil {
+		log.Fatalf("106", err)
+
+		return err
+	}
+	// chunk data
+	if _, err := e.w.Write(data); err != nil {
+		return err
+	}
+
 	return nil
 }
