@@ -82,15 +82,38 @@ func TestNewParser(t *testing.T) {
 
 	for chunk := range ch {
 		id := string(chunk.ID[:])
-		fmt.Println(id, chunk.Size)
+		t.Log(id, chunk.Size)
 		if id != "SSND" {
 			buf := make([]byte, chunk.Size)
 			chunk.ReadBE(buf)
-			fmt.Print(hex.Dump(buf))
+			t.Log(hex.Dump(buf))
 		}
 		chunk.Done()
 	}
 
+}
+
+func TestReadFrames(t *testing.T) {
+	path, _ := filepath.Abs("fixtures/kick.aif")
+	f, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	sampleRate, sampleSize, numChans, frames := ReadFrames(f)
+	if sampleRate != 22050 {
+		t.Fatalf("unexpected sample rate: %d", sampleRate)
+	}
+	if sampleSize != 16 {
+		t.Fatalf("unexpected sample size: %d", sampleSize)
+	}
+	if numChans != 1 {
+		t.Fatalf("unexpected channel number: %d", numChans)
+	}
+
+	if totalFrames := len(frames); totalFrames != 4484 {
+		t.Fatalf("unexpected total frames: %d", totalFrames)
+	}
 }
 
 func TestDuration(t *testing.T) {

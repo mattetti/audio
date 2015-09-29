@@ -1,5 +1,7 @@
 package aiff
 
+import "math"
+
 // IeeeFloatToInt converts a 10 byte IEEE float into an int.
 func IeeeFloatToInt(b [10]byte) int {
 	var i uint32
@@ -27,6 +29,62 @@ func IeeeFloatToInt(b [10]byte) int {
 	i >>= (29 - uint32(b[1]))
 
 	return int(i)
+}
+
+// IntToIeeeFloat converts an int into a 10 byte IEEE float.
+func IntToIeeeFloat(i int) [10]byte {
+	b := [10]byte{}
+	num := float64(i)
+
+	var sign int
+	var expon int
+	var fMant, fsMant float64
+	var hiMant, loMant uint
+
+	if num < 0 {
+		sign = 0x8000
+	} else {
+		sign = 0
+	}
+
+	if num == 0 {
+		expon = 0
+		hiMant = 0
+		loMant = 0
+	} else {
+		fMant, expon = math.Frexp(num)
+		if (expon > 16384) || !(fMant < 1) { /* Infinity or NaN */
+			expon = sign | 0x7FFF
+			hiMant = 0
+			loMant = 0 /* infinity */
+		} else { /* Finite */
+			expon += 16382
+			if expon < 0 { /* denormalized */
+				fMant = math.Ldexp(fMant, expon)
+				expon = 0
+			}
+			expon |= sign
+			fMant = math.Ldexp(fMant, 32)
+			fsMant = math.Floor(fMant)
+			hiMant = uint(fsMant)
+			fMant = math.Ldexp(fMant-fsMant, 32)
+			fsMant = math.Floor(fMant)
+			loMant = uint(fsMant)
+		}
+	}
+
+	b[0] = byte(expon >> 8)
+	b[1] = byte(expon)
+	b[2] = byte(hiMant >> 24)
+	b[3] = byte(hiMant >> 16)
+	b[4] = byte(hiMant >> 8)
+	b[5] = byte(hiMant)
+	b[6] = byte(loMant >> 24)
+	b[7] = byte(loMant >> 16)
+	b[8] = byte(loMant >> 8)
+	b[9] = byte(loMant)
+
+	return b
 }
 
 // intDataSize returns the size of the data required to represent the data when encoded.

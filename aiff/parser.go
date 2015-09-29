@@ -32,7 +32,7 @@ type Parser struct {
 	// Note that the data portion has been
 	// broken into two parts, formType and chunks
 	Size uint32
-	// describes what's in the 'FORM' chunk. For Audio IFF files,
+	// Format describes what's in the 'FORM' chunk. For Audio IFF files,
 	// formType (aka Format) is always 'AIFF'.
 	// This indicates that the chunks within the FORM pertain to sampled sound.
 	Format [4]byte

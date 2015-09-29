@@ -51,13 +51,14 @@ func New(r io.Reader) *Parser {
 	return &Parser{r: r}
 }
 
-// NewParser lets a dev pass a channel to receive audio data and unparsed chunks.
+// NewParser lets a dev pass a channel to receive audio data and raw chunks.
 func NewParser(r io.Reader, c chan *Chunk) *Parser {
 	return &Parser{r: r, Chan: c}
 }
 
-// Read processes the reader and returns the basic data: sample rate and audio frames.
-func ReadFrames(r io.Reader) (int, [][]int) {
+// Read processes the reader and returns the basic data and LPCM audio frames.
+// TODO: change the API to take a channel and write the frames to the channel.
+func ReadFrames(r io.Reader) (sampleRate, sampleSize, numChans int, frames [][]int) {
 	ch := make(chan *Chunk)
 	c := NewParser(r, ch)
 	sndDataFrames := make([][]int, c.NumSampleFrames, c.NumSampleFrames)
@@ -72,9 +73,12 @@ func ReadFrames(r io.Reader) (int, [][]int) {
 		if id == "SSND" {
 			var offset uint32
 			var blockSize uint32
+			// TODO: BE might depend on the encoding used to generate the aiff data.
+			// check encSowt or encTwos
 			chunk.ReadBE(&offset)
 			chunk.ReadBE(&blockSize)
 
+			// TODO: might want to use io.NewSectionReader
 			bufData := make([]byte, chunk.Size-8)
 			chunk.ReadBE(bufData)
 			buf := bytes.NewReader(bufData)
@@ -107,6 +111,8 @@ func ReadFrames(r io.Reader) (int, [][]int) {
 							binary.Read(sampleBuf, binary.BigEndian, &v)
 							frame[j] = int(v)
 						case 24:
+							// TODO: check if the conversion might not be inversed depending on
+							// the encoding (BE vs LE)
 							var output uint32
 							output |= uint32(sampleBufData[2]) << 0
 							output |= uint32(sampleBufData[1]) << 8
@@ -130,5 +136,5 @@ func ReadFrames(r io.Reader) (int, [][]int) {
 		chunk.Done()
 	}
 
-	return c.SampleRate, sndDataFrames
+	return int(c.SampleRate), int(c.SampleSize), int(c.NumChans), sndDataFrames
 }
