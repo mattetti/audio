@@ -19,7 +19,20 @@ func TestWavNextChunk(t *testing.T) {
 	if err := c.ParseHeaders(); err != nil {
 		t.Fatal(err)
 	}
+	// fmt
 	ch, err := c.NextChunk()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ch.ID != fmtID {
+		t.Fatalf("Expected the next chunk to have an ID of %q but got %q", fmtID, ch.ID)
+	}
+	if ch.Size != 16 {
+		t.Fatalf("Expected the next chunk to have a size of %d but got %d", 16, ch.Size)
+	}
+	ch.Done()
+	//
+	ch, err = c.NextChunk()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,6 +59,12 @@ func TestNextChunk(t *testing.T) {
 		t.Fatal(err)
 	}
 	ch, err := c.NextChunk()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ch.DecodeWavHeader(c)
+
+	ch, err = c.NextChunk()
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -16,7 +16,7 @@ var (
 // Parser is the wrapper structure for the AIFF container
 type Parser struct {
 	r io.Reader
-	// c is an Optional channel of chunks that is used to parse chunks
+	// Chan is an Optional channel of chunks that is used to parse chunks
 	Chan chan *Chunk
 	// ChunkParserTimeout is the duration after which the main parser keeps going
 	// if the dev hasn't reported the chunk parsing to be done.

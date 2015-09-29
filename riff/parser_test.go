@@ -1,6 +1,7 @@
 package riff
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -62,6 +63,8 @@ func TestParseWavHeaders(t *testing.T) {
 
 	for _, exp := range expectations {
 		path, _ := filepath.Abs(exp.input)
+		t.Log(path)
+
 		f, err := os.Open(path)
 		if err != nil {
 			t.Fatal(err)
@@ -71,6 +74,19 @@ func TestParseWavHeaders(t *testing.T) {
 		if err := c.ParseHeaders(); err != nil {
 			t.Fatalf("%s for %s when parsing headers", err, path)
 		}
+		ch, err := c.NextChunk()
+		if err != nil {
+			t.Fatal(err)
+		}
+		ch.DecodeWavHeader(c)
+		for string(ch.ID[:]) != string(fmtID[:]) {
+			ch, err = c.NextChunk()
+			if err != nil && err != io.EOF {
+				t.Fatal(err)
+			}
+			ch.DecodeWavHeader(c)
+		}
+
 		if c.wavHeaderSize != exp.headerSize {
 			t.Fatalf("%s didn't match %d, got %d", "header size", exp.headerSize, c.wavHeaderSize)
 		}
@@ -80,6 +96,7 @@ func TestParseWavHeaders(t *testing.T) {
 		if c.NumChannels != exp.numChans {
 			t.Fatalf("%s didn't match %d, got %d", "# of channels", exp.numChans, c.NumChannels)
 		}
+
 		if c.SampleRate != exp.sampleRate {
 			t.Fatalf("%s didn't match %d, got %d", "SampleRate", exp.sampleRate, c.SampleRate)
 		}

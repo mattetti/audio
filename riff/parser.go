@@ -5,12 +5,23 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync"
 	"time"
 )
 
 // Parser is a struct containing the overall container information.
 type Parser struct {
 	r io.Reader
+	// Chan is an Optional channel of chunks that is used to parse chunks
+	Chan chan *Chunk
+	// ChunkParserTimeout is the duration after which the main parser keeps going
+	// if the dev hasn't reported the chunk parsing to be done.
+	// By default: 2s
+	ChunkParserTimeout time.Duration
+	// The waitgroup is used to let the parser that it's ok to continue
+	// after a chunk was passed to the optional parser channel.
+	Wg sync.WaitGroup
+
 	// Must match RIFF
 	ID [4]byte
 	// This size is the size of the block
@@ -72,14 +83,6 @@ func (c *Parser) ParseHeaders() error {
 		return err
 	}
 
-	// Extra header parsing if the format is known
-	switch c.Format {
-	case wavFormatID:
-		if err := c.parseWavHeaders(); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
@@ -90,7 +93,7 @@ func (c *Parser) Duration() (time.Duration, error) {
 		return 0, errors.New("can't calculate the duration of a nil pointer")
 	}
 	if c.ID == [4]byte{} {
-		err := c.ParseHeaders()
+		err := c.Parse()
 		if err != nil {
 			return 0, nil
 		}
@@ -124,6 +127,14 @@ func (c *Parser) NextChunk() (*Chunk, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// TODO: check if that applies to other chunks
+	if id == junkID {
+		if size%2 == 1 {
+			size++
+		}
+	}
+
 	ch := &Chunk{
 		ID:   id,
 		Size: int(size),
@@ -145,69 +156,67 @@ func (c *Parser) IDnSize() ([4]byte, uint32, error) {
 	return ID, blockSize, nil
 }
 
-// parseWavHeaders parses the fmt chunk that comes right after the RIFF header
-// This data is needed to calculate the duration of the file.
-func (c *Parser) parseWavHeaders() error {
-	if c == nil {
+// Parse parses the content of the file and populate the useful fields.
+// If the parser has a chan set, chunks are sent to the channel.
+func (p *Parser) Parse() error {
+	if p == nil {
 		return errors.New("can't calculate the wav duration of a nil pointer")
 	}
-	if c.ID != riffID {
-		return errors.New("headers not parsed, can't get the wav duration")
-	}
-
-	id, size, err := c.IDnSize()
-	if err != nil {
-		return nil
-	}
-
-	for id != fmtID {
-		// JUNK chunk should be skipped
-		if id == junkID {
-			if size%2 == 1 {
-				size++
-			}
-		}
-		// BFW: bext chunk described here
-		// https://tech.ebu.ch/docs/tech/tech3285.pdf
-
-		// we don't support other chunks ATM, skip them all
-		// TODO: push data to an optional channel
-		if err := c.jumpTo(int(size)); err != nil {
-			return err
-		}
-		id, size, err = c.IDnSize()
+	if p.Size == 0 {
+		id, size, err := p.IDnSize()
 		if err != nil {
 			return err
 		}
+		p.ID = id
+		if p.ID != riffID {
+			return fmt.Errorf("%s - %s", p.ID, ErrFmtNotSupported)
+		}
+		p.Size = size
+		if err := binary.Read(p.r, binary.BigEndian, &p.Format); err != nil {
+			return err
+		}
 	}
 
-	c.wavHeaderSize = size
-	if err := binary.Read(c.r, binary.LittleEndian, &c.WavAudioFormat); err != nil {
-		return err
+	var chunk *Chunk
+	var err error
+	for err == nil {
+		chunk, err = p.NextChunk()
+		if err != nil {
+			break
+		}
+
+		chunk.Wg = &p.Wg
+		chunk.Wg.Add(1)
+
+		if chunk.ID == fmtID {
+			chunk.DecodeWavHeader(p)
+		} else if p.Chan != nil {
+			okC := make(chan bool)
+			chunk.okChan = okC
+			p.Chan <- chunk
+			// TODO: timeout
+		} else {
+			chunk.Done()
+		}
+
+		// BFW: bext chunk described here
+		// https://tech.ebu.ch/docs/tech/tech3285.pdf
+
+		if !chunk.IsFullyRead() {
+			chunk.drain()
+		}
+
 	}
-	if err := binary.Read(c.r, binary.LittleEndian, &c.NumChannels); err != nil {
-		return err
-	}
-	if err := binary.Read(c.r, binary.LittleEndian, &c.SampleRate); err != nil {
-		return err
-	}
-	if err := binary.Read(c.r, binary.LittleEndian, &c.AvgBytesPerSec); err != nil {
-		return err
-	}
-	if err := binary.Read(c.r, binary.LittleEndian, &c.BlockAlign); err != nil {
-		return err
-	}
-	if err := binary.Read(c.r, binary.LittleEndian, &c.BitsPerSample); err != nil {
-		return err
+	p.Wg.Wait()
+
+	if p.Chan != nil {
+		close(p.Chan)
 	}
 
-	// if we aren't dealing with a PCM file, we advance to reader to the
-	// end of the chunck.
-	if size > 16 {
-		extra := make([]byte, size-16)
-		binary.Read(c.r, binary.LittleEndian, &extra)
+	if err == io.EOF {
+		return nil
 	}
-	return nil
+	return err
 }
 
 // WavDuration returns the time duration of a wav container.

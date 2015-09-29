@@ -4,16 +4,71 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+	"sync"
 )
 
 // Chunk represents the header and containt of a sub block
 // See https://tech.ebu.ch/docs/tech/tech3285.pdf to see how
 // audio content is stored in a BWF/WAVE file.
 type Chunk struct {
-	ID   [4]byte
-	Size int
-	Pos  int
-	R    io.Reader
+	ID     [4]byte
+	Size   int
+	Pos    int
+	R      io.Reader
+	okChan chan bool
+	Wg     *sync.WaitGroup
+}
+
+func (ch *Chunk) DecodeWavHeader(p *Parser) error {
+	if ch.ID == fmtID {
+		p.wavHeaderSize = uint32(ch.Size)
+		if err := ch.ReadLE(&p.WavAudioFormat); err != nil {
+			return err
+		}
+		if err := ch.ReadLE(&p.NumChannels); err != nil {
+			return err
+		}
+		if err := ch.ReadLE(&p.SampleRate); err != nil {
+			return err
+		}
+		if err := ch.ReadLE(&p.AvgBytesPerSec); err != nil {
+			return err
+		}
+		if err := ch.ReadLE(&p.BlockAlign); err != nil {
+			return err
+		}
+		if err := ch.ReadLE(&p.BitsPerSample); err != nil {
+			return err
+		}
+
+		// if we aren't dealing with a PCM file, we advance to reader to the
+		// end of the chunck.
+		if ch.Size > 16 {
+			extra := make([]byte, ch.Size-16)
+			ch.ReadLE(&extra)
+		}
+	}
+	ch.Done()
+	return nil
+}
+
+// Done signals the parent parser that we are done reading the chunk
+// if the chunk isn't fully read, this code will do so before signaling.
+func (ch *Chunk) Done() {
+	if !ch.IsFullyRead() {
+		ch.drain()
+	}
+	if ch.Wg != nil {
+		ch.Wg.Done()
+	}
+}
+
+// IsFullyRead checks if we're finished reading the chunk
+func (ch *Chunk) IsFullyRead() bool {
+	if ch == nil || ch.R == nil {
+		return true
+	}
+	return ch.Size <= ch.Pos
 }
 
 // ReadLE reads the Little Endian chunk data into the passed struct
@@ -47,10 +102,19 @@ func (ch *Chunk) ReadByte() (byte, error) {
 	return r, err
 }
 
-// IsFullyRead checks if we finished reading the chunk
-func (ch *Chunk) IsFullyRead() bool {
-	if ch == nil || ch.R == nil {
-		return true
+func (ch *Chunk) drain() {
+	bytesAhead := ch.Size - ch.Pos
+	for bytesAhead > 0 {
+		readSize := bytesAhead
+		if readSize > 4000 {
+			readSize = 4000
+		}
+
+		// TODO: test -> io.CopyN(ioutil.Discard, ch.R, readSize)
+		buf := make([]byte, readSize)
+		if err := binary.Read(ch.R, binary.LittleEndian, &buf); err != nil {
+			return
+		}
+		bytesAhead -= readSize
 	}
-	return ch.Size <= ch.Pos
 }
