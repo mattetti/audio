@@ -11,12 +11,20 @@ func TestEncoderRoundTrip(t *testing.T) {
 		in  string
 		out string
 	}{
+		// 22050, 8bit, mono
+		{"fixtures/kick8b.aiff", "testOutput/kick8b.aiff"},
 		// 22050, 16bit, mono
-		{"fixtures/kick.aif", "testOutput/kick.aiff"},
+		{"fixtures/kick.aif", "testOutput/kick.aif"},
+		// 22050, 16bit, mono
+		{"fixtures/kick32b.aiff", "testOutput/kick32b.aiff"},
 		// 44100, 16bit, mono
 		{"fixtures/subsynth.aif", "testOutput/subsynth.aif"},
 		// 44100, 16bit, stereo
 		{"fixtures/bloop.aif", "testOutput/bloop.aif"},
+		// 48000, 16bit, stereo
+		{"fixtures/zipper.aiff", "testOutput/zipper.aiff"},
+		// 48000, 24bit, stereo
+		{"fixtures/zipper24b.aiff", "testOutput/zipper24b.aiff"},
 	}
 
 	for i, tc := range testCases {
