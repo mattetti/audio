@@ -1,5 +1,7 @@
 package wav
 
+import "fmt"
+
 // Info represents the metadata of the wav file
 type Info struct {
 	// NumChannels is the number of channels represented in the waveform data:
@@ -20,4 +22,8 @@ type Info struct {
 	// The <nBitsPerSample> field specifies the number of bits of data used to represent each sample of
 	// each channel. If there are multiple channels, the sample size is the same for each channel.
 	BitsPerSample uint16
+}
+
+func (i *Info) String() string {
+	return fmt.Sprintf("%d Hz @ %d bits, Channels: %d", i.SampleRate, i.BitsPerSample, i.NumChannels)
 }

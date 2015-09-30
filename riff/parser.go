@@ -193,12 +193,7 @@ func (p *Parser) Parse() error {
 		} else if p.Chan != nil {
 			okC := make(chan bool)
 			chunk.okChan = okC
-			select {
-			case p.Chan <- chunk:
-			case <-time.After(30 * time.Second):
-				fmt.Println("chunk timed out")
-				chunk.Done()
-			}
+			p.Chan <- chunk
 		} else {
 			chunk.Done()
 		}

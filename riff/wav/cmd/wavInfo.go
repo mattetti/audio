@@ -1,3 +1,4 @@
+// wavInfo is a command line tool extracting metadata information from a wav file.
 package main
 
 import (
@@ -31,9 +32,9 @@ func main() {
 	}()
 
 	for chunk := range ch {
-		fmt.Println(string(chunk.ID[:]))
+		// without this, the goroutines will deadlock
+		chunk.Done()
 	}
 
-	//info, frames, err := d.ReadFrames()
-	//fmt.Println(info, frames, err)
+	fmt.Println(d.Info)
 }
