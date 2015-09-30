@@ -162,6 +162,7 @@ func (p *Parser) Parse() error {
 	if p == nil {
 		return errors.New("can't calculate the wav duration of a nil pointer")
 	}
+
 	if p.Size == 0 {
 		id, size, err := p.IDnSize()
 		if err != nil {
