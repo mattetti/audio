@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+	"io/ioutil"
 	"sync"
 )
 
@@ -79,7 +80,7 @@ func (ch *Chunk) ReadLE(dst interface{}) error {
 	if ch.IsFullyRead() {
 		return io.EOF
 	}
-	ch.Pos += intDataSize(dst)
+	ch.Pos += binary.Size(dst)
 	return binary.Read(ch.R, binary.LittleEndian, dst)
 }
 
@@ -88,7 +89,7 @@ func (ch *Chunk) ReadBE(dst interface{}) error {
 	if ch.IsFullyRead() {
 		return io.EOF
 	}
-	ch.Pos += intDataSize(dst)
+	ch.Pos += binary.Size(dst)
 	return binary.Read(ch.R, binary.LittleEndian, dst)
 }
 
@@ -105,16 +106,11 @@ func (ch *Chunk) ReadByte() (byte, error) {
 func (ch *Chunk) drain() {
 	bytesAhead := ch.Size - ch.Pos
 	for bytesAhead > 0 {
-		readSize := bytesAhead
-		if readSize > 4000 {
-			readSize = 4000
-		}
+		readSize := int64(bytesAhead)
 
-		// TODO: test -> io.CopyN(ioutil.Discard, ch.R, readSize)
-		buf := make([]byte, readSize)
-		if err := binary.Read(ch.R, binary.LittleEndian, &buf); err != nil {
+		if _, err := io.CopyN(ioutil.Discard, ch.R, readSize); err != nil {
 			return
 		}
-		bytesAhead -= readSize
+		bytesAhead -= int(readSize)
 	}
 }

@@ -92,7 +92,7 @@ func (c *Parser) Duration() (time.Duration, error) {
 	if c == nil {
 		return 0, errors.New("can't calculate the duration of a nil pointer")
 	}
-	if c.ID == [4]byte{} {
+	if c.ID == [4]byte{} || c.AvgBytesPerSec == 0 {
 		err := c.Parse()
 		if err != nil {
 			return 0, nil
@@ -129,11 +129,11 @@ func (c *Parser) NextChunk() (*Chunk, error) {
 	}
 
 	// TODO: check if that applies to other chunks
-	if id == junkID {
-		if size%2 == 1 {
-			size++
-		}
+	//if id == junkID {
+	if size%2 == 1 {
+		size++
 	}
+	//}
 
 	ch := &Chunk{
 		ID:   id,
@@ -193,8 +193,12 @@ func (p *Parser) Parse() error {
 		} else if p.Chan != nil {
 			okC := make(chan bool)
 			chunk.okChan = okC
-			p.Chan <- chunk
-			// TODO: timeout
+			select {
+			case p.Chan <- chunk:
+			case <-time.After(30 * time.Second):
+				fmt.Println("chunk timed out")
+				chunk.Done()
+			}
 		} else {
 			chunk.Done()
 		}
@@ -221,6 +225,9 @@ func (p *Parser) Parse() error {
 
 // WavDuration returns the time duration of a wav container.
 func (p *Parser) wavDuration() (time.Duration, error) {
+	if p.Size == 0 || p.AvgBytesPerSec == 0 {
+		return 0, fmt.Errorf("can't extract the duration due to the file not properly parsed")
+	}
 	duration := time.Duration((float64(p.Size) / float64(p.AvgBytesPerSec)) * float64(time.Second))
 	return duration, nil
 }

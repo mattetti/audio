@@ -23,6 +23,27 @@ func NewDecoder(r io.Reader) *Decoder {
 	}
 }
 
+// Parse reads the content of the file, populates the decoder fields
+// and pass the chunks to the provided channel.
+// Note that the channel consumer needs to call Done() on the chunk
+// to release the wait group and deain the chunk if needed.
+func (d *Decoder) Parse(ch chan *riff.Chunk) error {
+	d.parser.Chan = ch
+
+	if err := d.parser.Parse(); err != nil {
+		return err
+	}
+
+	d.Info = &Info{
+		NumChannels:    d.parser.NumChannels,
+		SampleRate:     d.parser.SampleRate,
+		AvgBytesPerSec: d.parser.AvgBytesPerSec,
+		BitsPerSample:  d.parser.BitsPerSample,
+	}
+
+	return nil
+}
+
 // Duration returns the time duration of the decoded wav file.
 func (d *Decoder) Duration() (time.Duration, error) {
 	return d.parser.Duration()

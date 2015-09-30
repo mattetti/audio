@@ -110,14 +110,25 @@ func ExampleParser_NextChunk() {
 	if err := c.ParseHeaders(); err != nil {
 		panic(err)
 	}
-	soundData, err := c.NextChunk()
-	if err != nil {
-		panic(err)
+
+	var chunk *Chunk
+	for err == nil {
+		chunk, err = c.NextChunk()
+		if err != nil {
+			panic(err)
+		}
+		if chunk.ID == fmtID {
+			chunk.DecodeWavHeader(c)
+		} else if chunk.ID == dataFormatID {
+			break
+		}
+		chunk.Done()
 	}
+	soundData := chunk
 
 	nextSample := func() []byte {
-		var s = make([]byte, c.BlockAlign)
-		if err := soundData.ReadLE(s); err != nil {
+		s := make([]byte, c.BlockAlign)
+		if err := soundData.ReadLE(&s); err != nil {
 			panic(err)
 		}
 		return s
@@ -126,8 +137,11 @@ func ExampleParser_NextChunk() {
 	// jump to a specific sample since first samples are blank
 	desideredPos := 1541
 	bytePos := desideredPos * 2
-	for soundData.Pos < bytePos {
+	for i := 0; soundData.Pos < bytePos; i++ {
 		nextSample()
+		if i > soundData.Size {
+			panic(fmt.Errorf("%+v read way too many bytes, we're out of bounds", soundData))
+		}
 	}
 
 	sample := nextSample()
