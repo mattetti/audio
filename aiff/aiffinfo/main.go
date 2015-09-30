@@ -90,8 +90,10 @@ func analyze(path string) {
 		log.Fatalf("Can't parse the headers of %s - %s\n", path, err)
 	}
 	f.Seek(0, 0)
-	sampleRate, data := aiff.ReadFrames(f)
+	sampleRate, sampleSize, numChans, data := aiff.ReadFrames(f)
 	fmt.Println("sampleRate", sampleRate)
-	fmt.Printf("data: %#v\n", data)
+	fmt.Println("sampleSize", sampleSize)
+	fmt.Println("numChans", numChans)
+	fmt.Printf("frames: %+v\n", data)
 	fmt.Println(c)
 }
