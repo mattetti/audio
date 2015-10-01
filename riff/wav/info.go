@@ -24,6 +24,9 @@ type Info struct {
 	BitsPerSample uint16
 }
 
+// String implements the Stringer interface
 func (i *Info) String() string {
-	return fmt.Sprintf("%d Hz @ %d bits, Channels: %d", i.SampleRate, i.BitsPerSample, i.NumChannels)
+	return fmt.Sprintf("%d Hz @ %d bits, %d channel(s), %d avg bytes/sec", i.SampleRate, i.BitsPerSample, i.NumChannels, i.AvgBytesPerSec)
 }
+
+// TODO: create a generic file info interface and make this implement it.

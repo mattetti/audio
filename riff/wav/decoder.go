@@ -12,7 +12,7 @@ import (
 type Decoder struct {
 	r      io.Reader
 	parser *riff.Parser
-	Info   *Info
+	info   *Info
 }
 
 // New creates a parser for the passed wav reader.
@@ -35,14 +35,30 @@ func (d *Decoder) Parse(ch chan *riff.Chunk) error {
 		return err
 	}
 
-	d.Info = &Info{
+	return nil
+}
+
+// Info returns the generic file information.
+// Note that the information is cached can be called multiple times safely.
+func (d *Decoder) Info() (*Info, error) {
+	if d.info != nil {
+		return d.info, nil
+	}
+
+	if d.parser.WavAudioFormat == 0 {
+		if err := d.parser.Parse(); err != nil {
+			return nil, err
+		}
+	}
+
+	d.info = &Info{
 		NumChannels:    d.parser.NumChannels,
 		SampleRate:     d.parser.SampleRate,
 		AvgBytesPerSec: d.parser.AvgBytesPerSec,
 		BitsPerSample:  d.parser.BitsPerSample,
 	}
 
-	return nil
+	return d.info, nil
 }
 
 // Duration returns the time duration of the decoded wav file.
@@ -50,6 +66,8 @@ func (d *Decoder) Duration() (time.Duration, error) {
 	return d.parser.Duration()
 }
 
+// DecodeRawPCM converts a 'data' wav RAW PCM chunk into frames of samples.
+// Each frame can contain one or more channels with their own value.
 func (d *Decoder) DecodeRawPCM(chunk *riff.Chunk) ([][]int, error) {
 	if chunk.ID != riff.DataFormatID {
 		return nil, fmt.Errorf("can't decode chunk with ID %s as PCM data", string(chunk.ID[:]))
@@ -108,16 +126,13 @@ func (d *Decoder) ReadFrames() (info *Info, sndDataFrames [][]int, err error) {
 		chunk.Wg.Done()
 	}
 
-	d.Info = &Info{
-		NumChannels:    d.parser.NumChannels,
-		SampleRate:     d.parser.SampleRate,
-		AvgBytesPerSec: d.parser.AvgBytesPerSec,
-		BitsPerSample:  d.parser.BitsPerSample,
-	}
-
-	return d.Info, sndDataFrames, nil
+	info, err = d.Info()
+	return info, sndDataFrames, err
 }
 
+// sampleDecodeFunc returns a function that can be used to convert
+// a byte range into an int value based on the amount of bits used per sample.
+// Note that 8bit samples are unsigned, all other values are signed.
 func sampleDecodeFunc(bitsPerSample uint16) (func([]byte) int, error) {
 	bytesPerSample := bitsPerSample / 8
 	switch bytesPerSample {
