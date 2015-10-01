@@ -54,14 +54,19 @@ type Parser struct {
 	// transferred. Playback software can estimate the buffer size using this value.
 	// SampleRate * NumChannels * BitsPerSample/8
 	AvgBytesPerSec uint32
+	// BlockAlign = SignificantBitsPerSample / 8 * NumChannels
+	// It is the number of bytes per sample slice. This value is not affected by the number of channels and can be calculated with the formula:
 	// NumChannels * BitsPerSample/8 The number of bytes for one sample including
 	// all channels.
 	// The block alignment (in bytes) of the waveform data. Playback software needs
 	// to process a multiple of <nBlockAlign> bytes of data at a time, so the value of
 	// <BlockAlign> can be used for buffer alignment.
 	BlockAlign uint16
-	// 8, 16, 24...
+	// BitsPerSample 8, 16, 24...
 	// Only available for PCM
+	// This value specifies the number of bits used to define each sample. This value is usually 8, 16, 24 or 32.
+	// If the number of bits is not byte aligned (a multiple of 8) then the number of bytes used per sample is
+	// rounded up to the nearest byte size and the unused bytes are set to 0 and ignored.
 	// The <nBitsPerSample> field specifies the number of bits of data used to represent each sample of
 	// each channel. If there are multiple channels, the sample size is the same for each channel.
 	BitsPerSample uint16
@@ -128,12 +133,12 @@ func (c *Parser) NextChunk() (*Chunk, error) {
 		return nil, err
 	}
 
-	// TODO: check if that applies to other chunks
-	//if id == junkID {
+	// all RIFF chunks (including WAVE "data" chunks) must be word aligned.
+	// If the data uses an odd number of bytes, a padding byte with a value of zero must be placed at the end of the sample data.
+	// The "data" chunk header's size should not include this byte.
 	if size%2 == 1 {
 		size++
 	}
-	//}
 
 	ch := &Chunk{
 		ID:   id,

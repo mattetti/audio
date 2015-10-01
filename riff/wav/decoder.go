@@ -1,6 +1,7 @@
 package wav
 
 import (
+	"fmt"
 	"io"
 	"time"
 
@@ -49,8 +50,48 @@ func (d *Decoder) Duration() (time.Duration, error) {
 	return d.parser.Duration()
 }
 
+func (d *Decoder) DecodeRawPCM(chunk *riff.Chunk) ([][]int, error) {
+	if chunk.ID != riff.DataFormatID {
+		return nil, fmt.Errorf("can't decode chunk with ID %s as PCM data", string(chunk.ID[:]))
+	}
+
+	// Multi-channel digital audio samples are stored as interlaced wave data which simply means
+	// that the audio samples of a multi-channel (such as stereo and surround)
+	// wave file are stored by cycling through the audio samples for each channel
+	// before advancing to the next sample time.
+	// This is done so that the audio files can be played or streamed before the entire file can be read.
+	// This is handy when playing a large file from disk (that may not completely fit into memory) or
+	// streaming a file over the Internet.
+	//
+	// One point about sample data that may cause some confusion is that when samples are represented with 8-bits,
+	// they are specified as unsigned values. All other sample bit-sizes are specified as signed values.
+	// For example a 16-bit sample can range from -32,768 to +32,767 with a mid-point (silence) at 0.
+
+	bytesPerSample := int(d.parser.BitsPerSample / 8)
+	numSamples := chunk.Size / bytesPerSample
+	numFrames := numSamples / int(d.parser.NumChannels)
+	sndDataFrames := make([][]int, numSamples)
+
+	decodeF, err := sampleDecodeFunc(d.parser.BitsPerSample)
+	if err != nil {
+		return nil, err
+	}
+	sBuf := make([]byte, d.parser.BitsPerSample/8)
+
+	for i := 0; i < numFrames; i++ {
+		for j := uint16(0); j < d.parser.NumChannels; j++ {
+			if err := chunk.ReadLE(&sBuf); err != nil {
+				return sndDataFrames, err
+			}
+			sndDataFrames[i][j] = decodeF(sBuf)
+		}
+	}
+
+	return sndDataFrames, nil
+}
+
 // ReadFrames decodes the file and returns its info and the audio frames
-func (d *Decoder) ReadFrames() (*Info, [][]int, error) {
+func (d *Decoder) ReadFrames() (info *Info, sndDataFrames [][]int, err error) {
 	ch := make(chan *riff.Chunk)
 	d.parser.Chan = ch
 
@@ -60,11 +101,9 @@ func (d *Decoder) ReadFrames() (*Info, [][]int, error) {
 		}
 	}()
 
-	var sndDataFrames [][]int
 	for chunk := range ch {
-		id := string(chunk.ID[:])
-		if id == "data" {
-			// decode LPCM data
+		if chunk.ID == riff.DataFormatID {
+			sndDataFrames, err = d.DecodeRawPCM(chunk)
 		}
 		chunk.Wg.Done()
 	}
@@ -77,4 +116,29 @@ func (d *Decoder) ReadFrames() (*Info, [][]int, error) {
 	}
 
 	return d.Info, sndDataFrames, nil
+}
+
+func sampleDecodeFunc(bitsPerSample uint16) (func([]byte) int, error) {
+	bytesPerSample := bitsPerSample / 8
+	switch bytesPerSample {
+	case 1:
+		// 8bit values are unsigned
+		return func(s []byte) int {
+			return int(uint8(s[0]))
+		}, nil
+	case 2:
+		return func(s []byte) int {
+			return int(s[0]) + int(s[1])<<8
+		}, nil
+	case 3:
+		return func(s []byte) int {
+			return int(s[0]) + int(s[1])<<8 + int(s[2])<<16
+		}, nil
+	case 4:
+		return func(s []byte) int {
+			return int(s[0]) + int(s[1])<<8 + int(s[2])<<16 + int(s[3])<<24
+		}, nil
+	default:
+		return nil, fmt.Errorf("unhandled bytesPerSample! b:%d", bytesPerSample)
+	}
 }

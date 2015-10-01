@@ -9,10 +9,13 @@ import (
 var (
 	riffID = [4]byte{'R', 'I', 'F', 'F'}
 	fmtID  = [4]byte{'f', 'm', 't', ' '}
-	// To align RIFF chunks to certain boundaries (i.e. 2048bytes for CD-ROMs) the RIFF specification includes a JUNK chunk. Its contents are to be skipped when reading. When writing RIFFs, JUNK chunks should not have odd number as Size.
-	junkID       = [4]byte{'J', 'U', 'N', 'K'}
-	wavFormatID  = [4]byte{'W', 'A', 'V', 'E'}
-	dataFormatID = [4]byte{'d', 'a', 't', 'a'}
+	// To align RIFF chunks to certain boundaries (i.e. 2048bytes for CD-ROMs) the RIFF specification includes a JUNK chunk.
+	// Its contents are to be skipped when reading. When writing RIFFs, JUNK chunks should not have odd number as Size.
+	junkID      = [4]byte{'J', 'U', 'N', 'K'}
+	wavFormatID = [4]byte{'W', 'A', 'V', 'E'}
+	// DataFormatID is the Wave Data Chunk ID, it contains the digital audio sample data which can be decoded using the format
+	// and compression method specified in the Wave Format Chunk. If the Compression Code is 1 (uncompressed PCM), then the Wave Data contains raw sample values.
+	DataFormatID = [4]byte{'d', 'a', 't', 'a'}
 	rmiFormatID  = [4]byte{'R', 'M', 'I', 'D'}
 	aviFormatID  = [4]byte{'A', 'V', 'I', ' '}
 	// ErrFmtNotSupported is a generic error reporting an unknown format.
