@@ -94,14 +94,14 @@ func (d *Decoder) DecodeRawPCM(chunk *riff.Chunk) ([][]int, error) {
 
 	decodeF, err := sampleDecodeFunc(d.parser.BitsPerSample)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not get sample decode func %v", err)
 	}
 	sBuf := make([]byte, d.parser.BitsPerSample/8)
 
 	for i := 0; i < numFrames; i++ {
 		for j := uint16(0); j < d.parser.NumChannels; j++ {
 			if err := chunk.ReadLE(&sBuf); err != nil {
-				return sndDataFrames, err
+				return sndDataFrames, fmt.Errorf("failed to read sample %v", err)
 			}
 			sndDataFrames[i][j] = decodeF(sBuf)
 		}

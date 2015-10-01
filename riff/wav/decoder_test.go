@@ -6,6 +6,8 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	"github.com/mattetti/audio/riff"
 )
 
 func TestDecoder_Duration(t *testing.T) {
@@ -104,4 +106,33 @@ func ExampleDecoder_Info() {
 	f.Close()
 	fmt.Println(info)
 	// Output: 22050 Hz @ 16 bits, 1 channel(s), 44100 avg bytes/sec, duration: 204.172335ms
+}
+
+func ExampleDecoder_Parse() {
+	f, err := os.Open("fixtures/bass.wav")
+	if err != nil {
+		log.Fatal(err)
+	}
+	d := NewDecoder(f)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+
+	ch := make(chan *riff.Chunk)
+
+	go func() {
+		if err := d.Parse(ch); err != nil {
+			log.Fatal(err)
+		}
+	}()
+
+	for chunk := range ch {
+		fmt.Println(string(chunk.ID[:]))
+		// without this, the goroutines will deadlock
+		chunk.Done()
+	}
+
+	// Output:
+	// data
 }
