@@ -57,8 +57,10 @@ func (d *Decoder) Info() (*Info, error) {
 		AvgBytesPerSec: d.parser.AvgBytesPerSec,
 		BitsPerSample:  d.parser.BitsPerSample,
 	}
+	var err error
+	d.info.Duration, err = d.Duration()
 
-	return d.info, nil
+	return d.info, err
 }
 
 // Duration returns the time duration of the decoded wav file.

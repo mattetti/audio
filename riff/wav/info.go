@@ -1,6 +1,9 @@
 package wav
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 // Info represents the metadata of the wav file
 type Info struct {
@@ -22,11 +25,13 @@ type Info struct {
 	// The <nBitsPerSample> field specifies the number of bits of data used to represent each sample of
 	// each channel. If there are multiple channels, the sample size is the same for each channel.
 	BitsPerSample uint16
+	// Duration of the audio content
+	Duration time.Duration
 }
 
 // String implements the Stringer interface
 func (i *Info) String() string {
-	return fmt.Sprintf("%d Hz @ %d bits, %d channel(s), %d avg bytes/sec", i.SampleRate, i.BitsPerSample, i.NumChannels, i.AvgBytesPerSec)
+	return fmt.Sprintf("%d Hz @ %d bits, %d channel(s), %d avg bytes/sec, duration: %s", i.SampleRate, i.BitsPerSample, i.NumChannels, i.AvgBytesPerSec, i.Duration)
 }
 
 // TODO: create a generic file info interface and make this implement it.

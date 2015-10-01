@@ -58,6 +58,7 @@ func TestDecoder_Info(t *testing.T) {
 				SampleRate:     22050,
 				AvgBytesPerSec: 44100,
 				BitsPerSample:  16,
+				Duration:       time.Duration(204172335 * time.Nanosecond),
 			},
 		},
 	}
@@ -79,10 +80,13 @@ func TestDecoder_Info(t *testing.T) {
 			t.Fatalf("expected info to have a sample rate of %d but it has %s", tc.info.SampleRate, info.SampleRate)
 		}
 		if info.AvgBytesPerSec != tc.info.AvgBytesPerSec {
-			t.Fatalf("expected info to have %d avg bytes per sec but it has\n%s", tc.info.AvgBytesPerSec, info.AvgBytesPerSec)
+			t.Fatalf("expected info to have %d avg bytes per sec but it has %s", tc.info.AvgBytesPerSec, info.AvgBytesPerSec)
 		}
 		if info.BitsPerSample != tc.info.BitsPerSample {
-			t.Fatalf("expected info to have %d bits per sample but it has\n%s", tc.info.BitsPerSample, info.BitsPerSample)
+			t.Fatalf("expected info to have %d bits per sample but it has %s", tc.info.BitsPerSample, info.BitsPerSample)
+		}
+		if info.Duration != tc.info.Duration {
+			t.Fatalf("expected info to have duration of %s but it has %s", tc.info.Duration, info.Duration)
 		}
 	}
 
@@ -99,5 +103,5 @@ func ExampleDecoder_Info() {
 	}
 	f.Close()
 	fmt.Println(info)
-	// Output: 22050 Hz @ 16 bits, 1 channel(s), 44100 avg bytes/sec
+	// Output: 22050 Hz @ 16 bits, 1 channel(s), 44100 avg bytes/sec, duration: 204.172335ms
 }
