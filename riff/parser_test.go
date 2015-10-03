@@ -1,6 +1,7 @@
 package riff
 
 import (
+	"bytes"
 	"io"
 	"os"
 	"path/filepath"
@@ -78,13 +79,20 @@ func TestParseWavHeaders(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		ch.DecodeWavHeader(c)
-		for string(ch.ID[:]) != string(fmtID[:]) {
-			ch, err = c.NextChunk()
-			if err != nil && err != io.EOF {
-				t.Fatal(err)
+
+		for ; ch != nil; ch, err = c.NextChunk() {
+			if err != nil {
+				if err != io.EOF {
+					t.Fatal(err)
+				}
+				break
 			}
-			ch.DecodeWavHeader(c)
+
+			if bytes.Compare(ch.ID[:], fmtID[:]) == 0 {
+				ch.DecodeWavHeader(c)
+			} else {
+				ch.Done()
+			}
 		}
 
 		if c.wavHeaderSize != exp.headerSize {

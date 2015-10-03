@@ -3,6 +3,7 @@ package riff
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"sync"
@@ -21,6 +22,9 @@ type Chunk struct {
 }
 
 func (ch *Chunk) DecodeWavHeader(p *Parser) error {
+	if ch == nil {
+		return fmt.Errorf("can't decode a nil chunk")
+	}
 	if ch.ID == fmtID {
 		p.wavHeaderSize = uint32(ch.Size)
 		if err := ch.ReadLE(&p.WavAudioFormat); err != nil {
@@ -49,7 +53,6 @@ func (ch *Chunk) DecodeWavHeader(p *Parser) error {
 			ch.ReadLE(&extra)
 		}
 	}
-	ch.Done()
 	return nil
 }
 
@@ -57,7 +60,7 @@ func (ch *Chunk) DecodeWavHeader(p *Parser) error {
 // if the chunk isn't fully read, this code will do so before signaling.
 func (ch *Chunk) Done() {
 	if !ch.IsFullyRead() {
-		ch.drain()
+		ch.Drain()
 	}
 	if ch.Wg != nil {
 		ch.Wg.Done()
@@ -103,7 +106,8 @@ func (ch *Chunk) ReadByte() (byte, error) {
 	return r, err
 }
 
-func (ch *Chunk) drain() {
+// Drain discards the rest of the chunk
+func (ch *Chunk) Drain() {
 	bytesAhead := ch.Size - ch.Pos
 	for bytesAhead > 0 {
 		readSize := int64(bytesAhead)

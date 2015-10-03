@@ -3,6 +3,7 @@ package riff
 import (
 	"errors"
 	"io"
+	"sync"
 	"time"
 )
 
@@ -27,7 +28,7 @@ var (
 // New creates a parser wrapper for a reader.
 // Note that the reader doesn't get rewinded as the container is processed.
 func New(r io.Reader) *Parser {
-	return &Parser{r: r}
+	return &Parser{r: r, Wg: &sync.WaitGroup{}}
 }
 
 // Duration returns the time duration of the passed reader if the sub format is supported.

@@ -20,7 +20,7 @@ type Parser struct {
 	ChunkParserTimeout time.Duration
 	// The waitgroup is used to let the parser that it's ok to continue
 	// after a chunk was passed to the optional parser channel.
-	Wg sync.WaitGroup
+	Wg *sync.WaitGroup
 
 	// Must match RIFF
 	ID [4]byte
@@ -140,11 +140,12 @@ func (c *Parser) NextChunk() (*Chunk, error) {
 		size++
 	}
 
+	// the decoder's wait group isn't automatically set on the chunk.
 	ch := &Chunk{
 		ID:   id,
 		Size: int(size),
 		R:    c.r,
-		Wg:   &c.Wg,
+		//Wg:   &c.Wg,
 	}
 	return ch, nil
 }
@@ -192,29 +193,31 @@ func (p *Parser) Parse() error {
 			break
 		}
 
-		chunk.Wg.Add(1)
-
 		if chunk.ID == fmtID {
 			chunk.DecodeWavHeader(p)
-		} else if p.Chan != nil {
-			okC := make(chan bool)
-			chunk.okChan = okC
-			p.Chan <- chunk
-			// the channel has to release otherwise the goroutine is locked
-			chunk.Wg.Wait()
 		} else {
-			chunk.Done()
+			if p.Chan != nil {
+				if chunk.Wg == nil {
+					chunk.Wg = p.Wg
+				}
+				chunk.Wg.Add(1)
+				p.Chan <- chunk
+				// the channel has to release otherwise the goroutine is locked
+				chunk.Wg.Wait()
+			}
 		}
 
 		// BFW: bext chunk described here
 		// https://tech.ebu.ch/docs/tech/tech3285.pdf
 
 		if !chunk.IsFullyRead() {
-			chunk.drain()
+			chunk.Drain()
 		}
 
 	}
-	p.Wg.Wait()
+	if p.Wg != nil {
+		p.Wg.Wait()
+	}
 
 	if p.Chan != nil {
 		close(p.Chan)
