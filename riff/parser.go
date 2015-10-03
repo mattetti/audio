@@ -144,6 +144,7 @@ func (c *Parser) NextChunk() (*Chunk, error) {
 		ID:   id,
 		Size: int(size),
 		R:    c.r,
+		Wg:   &c.Wg,
 	}
 	return ch, nil
 }
@@ -191,7 +192,6 @@ func (p *Parser) Parse() error {
 			break
 		}
 
-		chunk.Wg = &p.Wg
 		chunk.Wg.Add(1)
 
 		if chunk.ID == fmtID {
@@ -200,6 +200,8 @@ func (p *Parser) Parse() error {
 			okC := make(chan bool)
 			chunk.okChan = okC
 			p.Chan <- chunk
+			// the channel has to release otherwise the goroutine is locked
+			chunk.Wg.Wait()
 		} else {
 			chunk.Done()
 		}

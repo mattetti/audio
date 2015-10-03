@@ -115,19 +115,19 @@ func ReadFrames(r io.Reader) (sampleRate, sampleSize, numChans int, frames [][]i
 						binary.Read(sampleBuf, binary.BigEndian, &v)
 						frame[j] = int(v)
 					case 16:
-						var v uint16
+						var v int16
 						binary.Read(sampleBuf, binary.BigEndian, &v)
 						frame[j] = int(v)
 					case 24:
 						// TODO: check if the conversion might not be inversed depending on
 						// the encoding (BE vs LE)
-						var output uint32
-						output |= uint32(sampleBufData[2]) << 0
-						output |= uint32(sampleBufData[1]) << 8
-						output |= uint32(sampleBufData[0]) << 16
+						var output int32
+						output |= int32(sampleBufData[2]) << 0
+						output |= int32(sampleBufData[1]) << 8
+						output |= int32(sampleBufData[0]) << 16
 						frame[j] = int(output)
 					case 32:
-						var v uint32
+						var v int32
 						binary.Read(sampleBuf, binary.BigEndian, &v)
 						frame[j] = int(v)
 					default:
