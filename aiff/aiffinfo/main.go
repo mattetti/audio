@@ -5,12 +5,20 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
+	"image"
+	"image/color"
+	"image/png"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/mattetti/audio/aiff"
+)
+
+const (
+	// Height per channel.
+	ImgHeight = 400
 )
 
 var pathToParse = flag.String("path", ".", "Where to find aiff files")
@@ -90,10 +98,77 @@ func analyze(path string) {
 		log.Fatalf("Can't parse the headers of %s - %s\n", path, err)
 	}
 	f.Seek(0, 0)
-	sampleRate, sampleSize, numChans, data := aiff.ReadFrames(f)
+	sampleRate, sampleSize, numChans, frames := aiff.ReadFrames(f)
+	smpFile, err := os.Create("samples.txt")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer smpFile.Close()
+
+	imgFile, err := os.Create("waveform.png")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer imgFile.Close()
+
 	fmt.Println("sampleRate", sampleRate)
 	fmt.Println("sampleSize", sampleSize)
 	fmt.Println("numChans", numChans)
-	fmt.Printf("frames: %+v\n", data)
+	fmt.Printf("frames: %d\n", len(frames))
 	fmt.Println(c)
+
+	max := 0
+	for _, f := range frames {
+		for _, v := range f {
+			if v > max {
+				max = v
+			} else if v*-1 > max {
+				max = v * -1
+			}
+		}
+	}
+
+	img := image.NewRGBA(image.Rect(0, 0, len(frames), ImgHeight*int(numChans)))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for i := 0; i < len(frames); i++ {
+		for channel := 0; channel < int(numChans); channel++ {
+			v := frames[i][channel]
+
+			// drawing in the rectable, y=0 is the max, y=height-1 = is the minimun
+			// y=height/2 is thw halfway point.
+			if v > 0 {
+				v = (frames[i][channel] * ImgHeight / 2) / max
+				v = ImgHeight/2 - v
+			} else {
+				v = (abs(frames[i][channel]) * ImgHeight / 2) / max
+				v = ImgHeight/2 + v
+			}
+
+			// max
+			//img.Set(i, 0, color.RGBA{255, 0, 0, 255})
+			// half
+			img.Set(i, ImgHeight/2, color.RGBA{255, 255, 255, 127})
+			// min
+			//img.Set(i, ImgHeight-1, color.RGBA{255, 0, 0, 255})
+
+			img.Set(i, v, color.Black)
+			// 2nd point to make it thicker
+			img.Set(i, v+1, color.Black)
+			if channel == 0 {
+				smpFile.Write([]byte(fmt.Sprintf("%d, ", v)))
+			}
+		}
+	}
+
+	png.Encode(imgFile, img)
+}
+
+func abs(x int) int {
+	if x < 0 {
+		return -x
+	}
+	return x
 }
