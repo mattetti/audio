@@ -65,7 +65,7 @@ func TestParse(t *testing.T) {
 	}
 }
 
-func TestNewParser(t *testing.T) {
+func TestNewDecoder(t *testing.T) {
 	path, _ := filepath.Abs("fixtures/kick.aif")
 	f, err := os.Open(path)
 	if err != nil {
@@ -73,7 +73,7 @@ func TestNewParser(t *testing.T) {
 	}
 	defer f.Close()
 	ch := make(chan *Chunk)
-	c := NewParser(f, ch)
+	c := NewDecoder(f, ch)
 	go func() {
 		if err := c.Parse(); err != nil {
 			panic(err)
@@ -100,15 +100,18 @@ func TestReadFrames(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer f.Close()
-	sampleRate, sampleSize, numChans, frames := ReadFrames(f)
-	if sampleRate != 22050 {
-		t.Fatalf("unexpected sample rate: %d", sampleRate)
+	info, frames, err := ReadFrames(f)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if sampleSize != 16 {
-		t.Fatalf("unexpected sample size: %d", sampleSize)
+	if info.SampleRate != 22050 {
+		t.Fatalf("unexpected sample rate: %d", info.SampleRate)
 	}
-	if numChans != 1 {
-		t.Fatalf("unexpected channel number: %d", numChans)
+	if info.BitsPerSample != 16 {
+		t.Fatalf("unexpected sample size: %d", info.BitsPerSample)
+	}
+	if info.NumChannels != 1 {
+		t.Fatalf("unexpected channel number: %d", info.NumChannels)
 	}
 
 	if totalFrames := len(frames); totalFrames != 4484 {
@@ -146,7 +149,7 @@ func TestDuration(t *testing.T) {
 	}
 }
 
-func ExampleParser_Duration() {
+func ExampleDecoder_Duration() {
 	path, _ := filepath.Abs("fixtures/kick.aif")
 	f, err := os.Open(path)
 	if err != nil {

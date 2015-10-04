@@ -4,7 +4,7 @@ It extracts the basic information of the file and provide decoded frames for AIF
 Other chunks, including AIFC frames can be accessed by using a channel.
 
 Besides the parsing functionality, this package also provides a way for developers to access the duration of an aiff/aifc file.
-For an example of how to use the custom parser, look at the aiffinfo CLI tool which uses `NewParser` constructor and a channel
+For an example of how to use the custom parser, look at the aiffinfo CLI tool which uses `NewDecoder` constructor and a channel
 to receive chunks.
 
 This package also allows for quick access to the AIFF LPCM raw audio data:
@@ -13,7 +13,7 @@ This package also allows for quick access to the AIFF LPCM raw audio data:
     if err != nil {
     	log.Fatal("couldn't open audiofile.aiff %v", err)
     }
-    sampleRate, sampleSize, numChans, frames := ReadFrames(in)
+    info, frames, err := ReadFrames(in)
     in.Close()
 
 A frame is a slice where each entry is a channel and each value is the sample value.

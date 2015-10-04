@@ -47,20 +47,15 @@ var (
 )
 
 // New is the entry point to this package.
-func New(r io.Reader) *Parser {
-	return &Parser{r: r}
-}
-
-// NewParser lets a dev pass a channel to receive audio data and raw chunks.
-func NewParser(r io.Reader, c chan *Chunk) *Parser {
-	return &Parser{r: r, Chan: c}
+func New(r io.Reader) *Decoder {
+	return &Decoder{r: r}
 }
 
 // Read processes the reader and returns the basic data and LPCM audio frames.
-// TODO: change the API to take a channel and write the frames to the channel.
-func ReadFrames(r io.Reader) (sampleRate, sampleSize, numChans int, frames [][]int) {
+// Very naive and inneficient approach loading the entire data set in memory.
+func ReadFrames(r io.Reader) (info *Info, frames [][]int, err error) {
 	ch := make(chan *Chunk)
-	c := NewParser(r, ch)
+	c := NewDecoder(r, ch)
 	var sndDataFrames [][]int
 	go func() {
 		if err := c.Parse(); err != nil {
@@ -142,5 +137,17 @@ func ReadFrames(r io.Reader) (sampleRate, sampleSize, numChans int, frames [][]i
 		chunk.Done()
 	}
 
-	return int(c.SampleRate), int(c.SampleSize), int(c.NumChans), sndDataFrames
+	duration, err := c.Duration()
+	if err != nil {
+		return nil, sndDataFrames, err
+	}
+
+	info = &Info{
+		NumChannels:   int(c.NumChans),
+		SampleRate:    c.SampleRate,
+		BitsPerSample: int(c.SampleSize),
+		Duration:      duration,
+	}
+
+	return info, sndDataFrames, err
 }

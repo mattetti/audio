@@ -21,6 +21,7 @@ const (
 	ImgHeight = 400
 )
 
+var ImgWidth = 2048
 var pathToParse = flag.String("path", ".", "Where to find aiff files")
 var fileToParse = flag.String("file", "", "The wav file to analyze (instead of a path)")
 var logChunks = flag.Bool("v", false, "Should the parser log chunks (not SSND)")
@@ -74,7 +75,7 @@ func analyze(path string) {
 	defer f.Close()
 	if *logChunks {
 		ch := make(chan *aiff.Chunk)
-		c := aiff.NewParser(f, ch)
+		c := aiff.NewDecoder(f, ch)
 		go func() {
 			if err := c.Parse(); err != nil {
 				panic(err)
@@ -98,12 +99,10 @@ func analyze(path string) {
 		log.Fatalf("Can't parse the headers of %s - %s\n", path, err)
 	}
 	f.Seek(0, 0)
-	sampleRate, sampleSize, numChans, frames := aiff.ReadFrames(f)
-	smpFile, err := os.Create("samples.txt")
+	info, frames, err := aiff.ReadFrames(f)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer smpFile.Close()
 
 	imgFile, err := os.Create("waveform.png")
 	if err != nil {
@@ -111,9 +110,9 @@ func analyze(path string) {
 	}
 	defer imgFile.Close()
 
-	fmt.Println("sampleRate", sampleRate)
-	fmt.Println("sampleSize", sampleSize)
-	fmt.Println("numChans", numChans)
+	fmt.Println("sampleRate", info.SampleRate)
+	fmt.Println("sampleSize", info.BitsPerSample)
+	fmt.Println("numChans", info.NumChannels)
 	fmt.Printf("frames: %d\n", len(frames))
 	fmt.Println(c)
 
@@ -128,13 +127,19 @@ func analyze(path string) {
 		}
 	}
 
-	img := image.NewRGBA(image.Rect(0, 0, len(frames), ImgHeight*int(numChans)))
+	img := image.NewRGBA(image.Rect(0, 0, ImgWidth, ImgHeight*int(info.NumChannels)))
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	// instead of graphing all points, we only take a proportional sample based on
+	// the width of the image
+	sampling := len(frames) / ImgWidth
+	samplingCounter := 0
+	smplBuf := make([][]int, sampling)
+	smpl := 0
 	for i := 0; i < len(frames); i++ {
-		for channel := 0; channel < int(numChans); channel++ {
+		for channel := 0; channel < int(info.NumChannels); channel++ {
 			v := frames[i][channel]
 
 			// drawing in the rectable, y=0 is the max, y=height-1 = is the minimun
@@ -147,19 +152,30 @@ func analyze(path string) {
 				v = ImgHeight/2 + v
 			}
 
-			// max
-			//img.Set(i, 0, color.RGBA{255, 0, 0, 255})
-			// half
-			img.Set(i, ImgHeight/2, color.RGBA{255, 255, 255, 127})
-			// min
-			//img.Set(i, ImgHeight-1, color.RGBA{255, 0, 0, 255})
-
-			img.Set(i, v, color.Black)
-			// 2nd point to make it thicker
-			img.Set(i, v+1, color.Black)
-			if channel == 0 {
-				smpFile.Write([]byte(fmt.Sprintf("%d, ", v)))
+			if samplingCounter != sampling {
+				if channel == 0 {
+					smplBuf[samplingCounter] = make([]int, info.NumChannels)
+				}
+				smplBuf[samplingCounter][channel] = v
+				if channel == (info.NumChannels - 1) {
+					samplingCounter++
+				}
+				continue
 			}
+			v = avg(smplBuf[channel])
+			samplingCounter = 0
+			smpl++
+
+			// max
+			img.Set(smpl, 0, color.RGBA{255, 0, 0, 255})
+			// half
+			img.Set(smpl, ImgHeight/2, color.RGBA{255, 255, 255, 127})
+			// min
+			img.Set(smpl, ImgHeight-1, color.RGBA{255, 0, 0, 255})
+
+			img.Set(smpl, v, color.Black)
+			// 2nd point to make it thicker
+			img.Set(smpl, v+1, color.Black)
 		}
 	}
 
@@ -171,4 +187,12 @@ func abs(x int) int {
 		return -x
 	}
 	return x
+}
+
+func avg(xs []int) int {
+	var total int
+	for i := 0; i < len(xs); i++ {
+		total += xs[i]
+	}
+	return total / len(xs)
 }

@@ -33,7 +33,10 @@ func TestEncoderRoundTrip(t *testing.T) {
 		if err != nil {
 			t.Fatalf("couldn't open %s %v", tc.in, err)
 		}
-		sampleRate, sampleSize, numChans, frames := ReadFrames(in)
+		info, frames, err := ReadFrames(in)
+		if err != nil {
+			t.Fatal(err)
+		}
 		in.Close()
 
 		out, err := os.Create(tc.out)
@@ -42,7 +45,7 @@ func TestEncoderRoundTrip(t *testing.T) {
 		}
 		defer out.Close()
 
-		e := NewEncoder(out, sampleRate, sampleSize, numChans)
+		e := NewEncoder(out, info.SampleRate, info.BitsPerSample, info.NumChannels)
 		e.Frames = frames
 		if err := e.Write(); err != nil {
 			t.Fatal(err)
@@ -55,16 +58,19 @@ func TestEncoderRoundTrip(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		nsampleRate, nsampleSize, nnumChans, nframes := ReadFrames(nf)
+		ninfo, nframes, err := ReadFrames(nf)
 		nf.Close()
-		if nsampleRate != sampleRate {
-			t.Fatalf("sample rate didn't support roundtripping exp: %d, got: %d", sampleRate, nsampleRate)
+		if err != nil {
+			t.Fatal(err)
 		}
-		if nsampleSize != sampleSize {
-			t.Fatalf("sample size didn't support roundtripping exp: %d, got: %d", sampleSize, nsampleSize)
+		if ninfo.SampleRate != info.SampleRate {
+			t.Fatalf("sample rate didn't support roundtripping exp: %d, got: %d", info.SampleRate, ninfo.SampleRate)
 		}
-		if nnumChans != numChans {
-			t.Fatalf("the number of channels didn't support roundtripping exp: %d, got: %d", numChans, nnumChans)
+		if ninfo.BitsPerSample != info.BitsPerSample {
+			t.Fatalf("sample size didn't support roundtripping exp: %d, got: %d", info.BitsPerSample, ninfo.BitsPerSample)
+		}
+		if ninfo.NumChannels != info.NumChannels {
+			t.Fatalf("the number of channels didn't support roundtripping exp: %d, got: %d", info.NumChannels, ninfo.NumChannels)
 		}
 
 		if len(frames) != len(nframes) {

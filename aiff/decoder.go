@@ -10,18 +10,18 @@ import (
 )
 
 var (
-	defaultChunkParserTimeout = 2 * time.Second
+	defaultChunkDecoderTimeout = 2 * time.Second
 )
 
-// Parser is the wrapper structure for the AIFF container
-type Parser struct {
+// Decoder is the wrapper structure for the AIFF container
+type Decoder struct {
 	r io.Reader
 	// Chan is an Optional channel of chunks that is used to parse chunks
 	Chan chan *Chunk
-	// ChunkParserTimeout is the duration after which the main parser keeps going
+	// ChunkDecoderTimeout is the duration after which the main parser keeps going
 	// if the dev hasn't reported the chunk parsing to be done.
 	// By default: 2s
-	ChunkParserTimeout time.Duration
+	ChunkDecoderTimeout time.Duration
 	// The waitgroup is used to let the parser that it's ok to continue
 	// after a chunk was passed to the optional parser channel.
 	Wg sync.WaitGroup
@@ -49,9 +49,14 @@ type Parser struct {
 	EncodingName string
 }
 
+// NewDecoder lets a dev pass a channel to receive audio data and raw chunks.
+func NewDecoder(r io.Reader, c chan *Chunk) *Decoder {
+	return &Decoder{r: r, Chan: c}
+}
+
 // Parse reads the aiff reader and populates the container structure with found information.
 // The sound data or unknown chunks are passed to the optional channel if available.
-func (p *Parser) Parse() error {
+func (p *Decoder) Parse() error {
 	if err := binary.Read(p.r, binary.BigEndian, &p.ID); err != nil {
 		return err
 	}
@@ -96,7 +101,7 @@ func (p *Parser) Parse() error {
 	return err
 }
 
-func (p *Parser) parseCommChunk(size uint32) error {
+func (p *Decoder) parseCommChunk(size uint32) error {
 	p.commSize = size
 
 	if err := binary.Read(p.r, binary.BigEndian, &p.NumChans); err != nil {
@@ -135,7 +140,7 @@ func (p *Parser) parseCommChunk(size uint32) error {
 
 }
 
-func (p *Parser) dispatchToChan(id [4]byte, size uint32) error {
+func (p *Decoder) dispatchToChan(id [4]byte, size uint32) error {
 	if p.Chan == nil {
 		if err := p.jumpTo(int(size)); err != nil {
 			return err
@@ -151,7 +156,7 @@ func (p *Parser) dispatchToChan(id [4]byte, size uint32) error {
 }
 
 // Duration returns the time duration for the current AIFF container
-func (p *Parser) Duration() (time.Duration, error) {
+func (p *Decoder) Duration() (time.Duration, error) {
 	if p == nil {
 		return 0, errors.New("can't calculate the duration of a nil pointer")
 	}
@@ -160,7 +165,7 @@ func (p *Parser) Duration() (time.Duration, error) {
 }
 
 // String implements the Stringer interface.
-func (c *Parser) String() string {
+func (c *Decoder) String() string {
 	out := fmt.Sprintf("Format: %s - ", c.Format)
 	if c.Format == aifcID {
 		out += fmt.Sprintf("%s - ", c.EncodingName)
@@ -174,7 +179,7 @@ func (c *Parser) String() string {
 }
 
 // IDnSize returns the next ID + block size
-func (c *Parser) IDnSize() ([4]byte, uint32, error) {
+func (c *Decoder) IDnSize() ([4]byte, uint32, error) {
 	var ID [4]byte
 	var blockSize uint32
 	if err := binary.Read(c.r, binary.BigEndian, &ID); err != nil {
@@ -187,7 +192,7 @@ func (c *Parser) IDnSize() ([4]byte, uint32, error) {
 }
 
 // jumpTo advances the reader to the amount of bytes provided
-func (c *Parser) jumpTo(bytesAhead int) error {
+func (c *Decoder) jumpTo(bytesAhead int) error {
 	var err error
 	for bytesAhead > 0 {
 		readSize := bytesAhead

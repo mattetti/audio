@@ -111,7 +111,7 @@ func (e *Encoder) Write() error {
 		return fmt.Errorf("%v when writing comm chan numbers", err)
 	}
 	// sample rate in IeeeFloat (10 bytes)
-	if err := e.Add(IntToIeeeFloat(e.SampleRate)); err != nil {
+	if err := e.Add(IntToIeeeFloat(int(e.SampleRate))); err != nil {
 		return fmt.Errorf("%v when writing comm sample rate", err)
 	}
 
@@ -122,7 +122,7 @@ func (e *Encoder) Write() error {
 	}
 
 	// blocksize uint32
-	chunksize := (e.SampleSize/8)*e.NumChans*len(e.Frames) + 8
+	chunksize := uint32((int(e.SampleSize)/8)*int(e.NumChans)*len(e.Frames) + 8)
 	if err := e.Add(uint32(chunksize)); err != nil {
 		return fmt.Errorf("%v when writing SSND chunk size header", err)
 	}
