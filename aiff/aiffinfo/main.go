@@ -1,4 +1,5 @@
 // aiffinfo is a command line tool to gather information about aiff/aifc files.
+// Note that github.com/llgcode/draw2d is a dependency to run this code and generate the waveform.
 package main
 
 import (
@@ -7,24 +8,29 @@ import (
 	"fmt"
 	"image"
 	"image/color"
-	"image/png"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/llgcode/draw2d/draw2dimg"
 	"github.com/mattetti/audio/aiff"
 )
 
 const (
 	// Height per channel.
-	ImgHeight = 400
+	chanHeight = 400
+	ImgWidth   = 2048
 )
 
-var ImgWidth = 2048
 var pathToParse = flag.String("path", ".", "Where to find aiff files")
 var fileToParse = flag.String("file", "", "The wav file to analyze (instead of a path)")
 var logChunks = flag.Bool("v", false, "Should the parser log chunks (not SSND)")
+var waveformNameFlag = flag.String("waveform", "waveform.png", "the filename of the waveform output")
+
+type point struct {
+	X, Y float64
+}
 
 func main() {
 	flag.Usage = func() {
@@ -104,15 +110,9 @@ func analyze(path string) {
 		log.Fatal(err)
 	}
 
-	imgFile, err := os.Create("waveform.png")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer imgFile.Close()
-
-	fmt.Println("sampleRate", info.SampleRate)
-	fmt.Println("sampleSize", info.BitsPerSample)
-	fmt.Println("numChans", info.NumChannels)
+	fmt.Println("sample Rate", info.SampleRate)
+	fmt.Println("sample Size", info.BitsPerSample)
+	fmt.Println("number of Channels", info.NumChannels)
 	fmt.Printf("frames: %d\n", len(frames))
 	fmt.Println(c)
 
@@ -127,59 +127,103 @@ func analyze(path string) {
 		}
 	}
 
-	img := image.NewRGBA(image.Rect(0, 0, ImgWidth, ImgHeight*int(info.NumChannels)))
+	imgHeight := chanHeight * int(info.NumChannels)
+	img := image.NewRGBA(image.Rect(0, 0, ImgWidth, imgHeight))
+	if err != nil {
+		log.Fatal(err)
+	}
+	gc := draw2dimg.NewGraphicContext(img)
+
+	gc.SetLineWidth(1)
+	// min (max y == bottom of the graph)
+	gc.MoveTo(0, float64(imgHeight-1))
+	gc.LineTo(ImgWidth, float64(imgHeight-1))
+	gc.SetStrokeColor(color.RGBA{255, 255, 255, 100})
+	gc.Stroke()
+
+	for i := 0; i < info.NumChannels; i++ {
+		// max for chan
+		gc.MoveTo(0, float64(i*chanHeight+1))
+		gc.LineTo(ImgWidth, float64(i*chanHeight+1))
+		gc.SetStrokeColor(color.RGBA{255, 255, 255, 100})
+		gc.Stroke()
+		// middle
+		gc.MoveTo(0, float64(i*chanHeight+(chanHeight/2)))
+		gc.LineTo(ImgWidth, float64(i*chanHeight+(chanHeight/2)))
+		gc.SetStrokeColor(color.RGBA{255, 255, 255, 127})
+		gc.Stroke()
+	}
+
+	gc.SetStrokeColor(color.RGBA{0x44, 0x44, 0x44, 0xff})
+
+	gc.SetLineWidth(2)
+	// instead of graphing all points, we only take an averaged sample based on
+	// the width of the image
+	sampling := len(frames) / ImgWidth
+	samplingCounter := make([]int, info.NumChannels)
+	smplBuf := make([][]int, info.NumChannels)
+	for i := 0; i < info.NumChannels; i++ {
+		smplBuf[i] = make([]int, sampling)
+	}
+	smpl := 0
+	// last channel position so we can better render multi channel files
+	lastChanPos := make([]*point, info.NumChannels)
+
+	for i := 0; i < len(frames); i++ {
+		for channel := 0; channel < int(info.NumChannels); channel++ {
+			if i == 0 {
+				lastChanPos[channel] = &point{
+					X: 0,
+					Y: float64((channel * chanHeight) + chanHeight/2),
+				}
+			}
+			lastPos := lastChanPos[channel]
+			gc.MoveTo(lastPos.X, lastPos.Y)
+
+			v := frames[i][channel]
+
+			// y=0 is the max, y=height-1 = is the minimun
+			// y=height/2 is the halfway point. We need to convert our values
+			// to conform.
+			if v > 0 {
+				v = (v * chanHeight / 2) / max
+				// positive number, we need to go towards 0 (max value)
+				v = chanHeight/2 - v
+			} else {
+				v = (abs(v) * chanHeight / 2) / max
+				// negative number, we want to go away from 0
+				v = chanHeight/2 + v
+			}
+
+			// adjust the position for the channel we are on
+			v = (channel * chanHeight) + v
+
+			// if we aren't "sampling" this sample, we still gather the values
+			// to report an average when we actually do sample the value. (this avoids drawing
+			// outliers).
+			if samplingCounter[channel] != sampling {
+				// set the sample buffer value for this channel at this position
+				smplBuf[channel][samplingCounter[channel]] = v
+				samplingCounter[channel]++
+				continue
+			}
+			// average the skipped samples to avoid drawing an outliner
+			v = avg(smplBuf[channel])
+			samplingCounter[channel] = 0
+
+			pos := &point{X: float64(smpl), Y: float64(v)}
+			gc.LineTo(pos.X, pos.Y)
+			gc.Stroke()
+			lastChanPos[channel] = pos
+			smpl++
+		}
+	}
+
+	err = draw2dimg.SaveToPngFile(*waveformNameFlag, img)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// instead of graphing all points, we only take a proportional sample based on
-	// the width of the image
-	sampling := len(frames) / ImgWidth
-	samplingCounter := 0
-	smplBuf := make([][]int, sampling)
-	smpl := 0
-	for i := 0; i < len(frames); i++ {
-		for channel := 0; channel < int(info.NumChannels); channel++ {
-			v := frames[i][channel]
-
-			// drawing in the rectable, y=0 is the max, y=height-1 = is the minimun
-			// y=height/2 is thw halfway point.
-			if v > 0 {
-				v = (frames[i][channel] * ImgHeight / 2) / max
-				v = ImgHeight/2 - v
-			} else {
-				v = (abs(frames[i][channel]) * ImgHeight / 2) / max
-				v = ImgHeight/2 + v
-			}
-
-			if samplingCounter != sampling {
-				if channel == 0 {
-					smplBuf[samplingCounter] = make([]int, info.NumChannels)
-				}
-				smplBuf[samplingCounter][channel] = v
-				if channel == (info.NumChannels - 1) {
-					samplingCounter++
-				}
-				continue
-			}
-			v = avg(smplBuf[channel])
-			samplingCounter = 0
-			smpl++
-
-			// max
-			img.Set(smpl, 0, color.RGBA{255, 0, 0, 255})
-			// half
-			img.Set(smpl, ImgHeight/2, color.RGBA{255, 255, 255, 127})
-			// min
-			img.Set(smpl, ImgHeight-1, color.RGBA{255, 0, 0, 255})
-
-			img.Set(smpl, v, color.Black)
-			// 2nd point to make it thicker
-			img.Set(smpl, v+1, color.Black)
-		}
-	}
-
-	png.Encode(imgFile, img)
 }
 
 func abs(x int) int {
