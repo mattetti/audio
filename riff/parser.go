@@ -80,7 +80,7 @@ func (c *Parser) ParseHeaders() error {
 		return err
 	}
 	c.ID = id
-	if c.ID != riffID {
+	if c.ID != RiffID {
 		return fmt.Errorf("%s - %s", c.ID, ErrFmtNotSupported)
 	}
 	c.Size = size
@@ -176,7 +176,7 @@ func (p *Parser) Parse() error {
 			return err
 		}
 		p.ID = id
-		if p.ID != riffID {
+		if p.ID != RiffID {
 			return fmt.Errorf("%s - %s", p.ID, ErrFmtNotSupported)
 		}
 		p.Size = size
@@ -193,7 +193,7 @@ func (p *Parser) Parse() error {
 			break
 		}
 
-		if chunk.ID == fmtID {
+		if chunk.ID == FmtID {
 			chunk.DecodeWavHeader(p)
 		} else {
 			if p.Chan != nil {

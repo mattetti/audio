@@ -7,6 +7,8 @@ import (
 	"io"
 	"sync"
 	"time"
+
+	"github.com/mattetti/audio/misc"
 )
 
 var (
@@ -117,7 +119,7 @@ func (p *Decoder) parseCommChunk(size uint32) error {
 	if err := binary.Read(p.r, binary.BigEndian, &srBytes); err != nil {
 		return fmt.Errorf("sample rate failed to parse - %s", err.Error())
 	}
-	p.SampleRate = IeeeFloatToInt(srBytes)
+	p.SampleRate = misc.IeeeFloatToInt(srBytes)
 
 	if p.Format == aifcID {
 		if err := binary.Read(p.r, binary.BigEndian, &p.Encoding); err != nil {

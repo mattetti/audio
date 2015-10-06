@@ -59,7 +59,7 @@ func (ch *Chunk) ReadLE(dst interface{}) error {
 	if ch.IsFullyRead() {
 		return io.EOF
 	}
-	ch.Pos += intDataSize(dst)
+	ch.Pos += binary.Size(dst)
 	return binary.Read(ch.R, binary.LittleEndian, dst)
 }
 
@@ -68,7 +68,7 @@ func (ch *Chunk) ReadBE(dst interface{}) error {
 	if ch.IsFullyRead() {
 		return io.EOF
 	}
-	ch.Pos += intDataSize(dst)
+	ch.Pos += binary.Size(dst)
 	return binary.Read(ch.R, binary.BigEndian, dst)
 }
 

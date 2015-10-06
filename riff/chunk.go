@@ -25,7 +25,7 @@ func (ch *Chunk) DecodeWavHeader(p *Parser) error {
 	if ch == nil {
 		return fmt.Errorf("can't decode a nil chunk")
 	}
-	if ch.ID == fmtID {
+	if ch.ID == FmtID {
 		p.wavHeaderSize = uint32(ch.Size)
 		if err := ch.ReadLE(&p.WavAudioFormat); err != nil {
 			return err

@@ -157,8 +157,9 @@ func analyze(path string) {
 	gc.SetStrokeColor(color.RGBA{0x44, 0x44, 0x44, 0xff})
 
 	gc.SetLineWidth(2)
-	// instead of graphing all points, we only take an averaged sample based on
+	// instead of graphing all points, we only take an average sample based on
 	// the width of the image
+	// TODO: smarter sampling based on duration
 	sampling := len(frames) / ImgWidth
 	samplingCounter := make([]int, info.NumChannels)
 	smplBuf := make([][]int, info.NumChannels)

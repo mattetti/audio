@@ -16,9 +16,9 @@ func TestParseHeader(t *testing.T) {
 		size   uint32
 		format [4]byte
 	}{
-		{"fixtures/sample.rmi", riffID, 29632, rmiFormatID},
-		{"fixtures/sample.wav", riffID, 53994, wavFormatID},
-		{"fixtures/sample.avi", riffID, 230256, aviFormatID},
+		{"fixtures/sample.rmi", RiffID, 29632, rmiFormatID},
+		{"fixtures/sample.wav", RiffID, 53994, wavFormatID},
+		{"fixtures/sample.avi", RiffID, 230256, aviFormatID},
 	}
 
 	for _, exp := range expectations {
@@ -88,7 +88,7 @@ func TestParseWavHeaders(t *testing.T) {
 				break
 			}
 
-			if bytes.Compare(ch.ID[:], fmtID[:]) == 0 {
+			if bytes.Compare(ch.ID[:], FmtID[:]) == 0 {
 				ch.DecodeWavHeader(c)
 			} else {
 				ch.Done()

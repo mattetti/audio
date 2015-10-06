@@ -24,8 +24,8 @@ func TestWavNextChunk(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ch.ID != fmtID {
-		t.Fatalf("Expected the next chunk to have an ID of %q but got %q", fmtID, ch.ID)
+	if ch.ID != FmtID {
+		t.Fatalf("Expected the next chunk to have an ID of %q but got %q", FmtID, ch.ID)
 	}
 	if ch.Size != 16 {
 		t.Fatalf("Expected the next chunk to have a size of %d but got %d", 16, ch.Size)
@@ -117,7 +117,7 @@ func ExampleParser_NextChunk() {
 		if err != nil {
 			panic(err)
 		}
-		if chunk.ID == fmtID {
+		if chunk.ID == FmtID {
 			chunk.DecodeWavHeader(c)
 		} else if chunk.ID == DataFormatID {
 			break

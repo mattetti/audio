@@ -1,4 +1,4 @@
-package aiff
+package misc
 
 import (
 	"bytes"
