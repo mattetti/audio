@@ -56,6 +56,7 @@ func (d *Decoder) Info() (*Info, error) {
 		SampleRate:     d.parser.SampleRate,
 		AvgBytesPerSec: d.parser.AvgBytesPerSec,
 		BitsPerSample:  d.parser.BitsPerSample,
+		WavAudioFormat: d.parser.WavAudioFormat,
 	}
 	var err error
 	d.info.Duration, err = d.Duration()
@@ -90,7 +91,7 @@ func (d *Decoder) DecodeRawPCM(chunk *riff.Chunk) ([][]int, error) {
 	bytesPerSample := int(d.parser.BitsPerSample / 8)
 	numSamples := chunk.Size / bytesPerSample
 	numFrames := numSamples / int(d.parser.NumChannels)
-	sndDataFrames := make([][]int, numSamples)
+	sndDataFrames := make([][]int, numFrames)
 
 	decodeF, err := sampleDecodeFunc(d.parser.BitsPerSample)
 	if err != nil {
@@ -101,6 +102,7 @@ func (d *Decoder) DecodeRawPCM(chunk *riff.Chunk) ([][]int, error) {
 	for i := 0; i < numFrames; i++ {
 		sndDataFrames[i] = make([]int, d.parser.NumChannels)
 		for j := uint16(0); j < d.parser.NumChannels; j++ {
+
 			if err := chunk.ReadLE(&sBuf); err != nil {
 				return sndDataFrames, fmt.Errorf("failed to read sample %v", err)
 			}
@@ -150,7 +152,11 @@ func sampleDecodeFunc(bitsPerSample uint16) (func([]byte) int, error) {
 		}, nil
 	case 3:
 		return func(s []byte) int {
-			return int(s[0]) + int(s[1])<<8 + int(s[2])<<16
+			var output int32
+			output |= int32(s[2]) << 0
+			output |= int32(s[1]) << 8
+			output |= int32(s[0]) << 16
+			return int(output)
 		}, nil
 	case 4:
 		return func(s []byte) int {

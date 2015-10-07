@@ -27,6 +27,11 @@ type Info struct {
 	BitsPerSample uint16
 	// Duration of the audio content
 	Duration time.Duration
+	// A number indicating the WAVE format category of the file. The content of the
+	// <format-specific-fields> portion of the ‘fmt’ chunk, and the interpretation of
+	// the waveform data, depend on this value.
+	// PCM = 1 (i.e. Linear quantization) Values other than 1 indicate some form of compression.
+	WavAudioFormat uint16
 }
 
 // String implements the Stringer interface

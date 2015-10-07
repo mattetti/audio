@@ -17,7 +17,7 @@ func TestParseHeader(t *testing.T) {
 		format [4]byte
 	}{
 		{"fixtures/sample.rmi", RiffID, 29632, rmiFormatID},
-		{"fixtures/sample.wav", RiffID, 53994, wavFormatID},
+		{"fixtures/sample.wav", RiffID, 53994, WavFormatID},
 		{"fixtures/sample.avi", RiffID, 230256, aviFormatID},
 	}
 

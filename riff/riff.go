@@ -13,7 +13,7 @@ var (
 	// To align RIFF chunks to certain boundaries (i.e. 2048bytes for CD-ROMs) the RIFF specification includes a JUNK chunk.
 	// Its contents are to be skipped when reading. When writing RIFFs, JUNK chunks should not have odd number as Size.
 	junkID      = [4]byte{'J', 'U', 'N', 'K'}
-	wavFormatID = [4]byte{'W', 'A', 'V', 'E'}
+	WavFormatID = [4]byte{'W', 'A', 'V', 'E'}
 	// DataFormatID is the Wave Data Chunk ID, it contains the digital audio sample data which can be decoded using the format
 	// and compression method specified in the Wave Format Chunk. If the Compression Code is 1 (uncompressed PCM), then the Wave Data contains raw sample values.
 	DataFormatID = [4]byte{'d', 'a', 't', 'a'}

@@ -104,7 +104,7 @@ func (c *Parser) Duration() (time.Duration, error) {
 		}
 	}
 	switch c.Format {
-	case wavFormatID:
+	case WavFormatID:
 		return c.wavDuration()
 	default:
 		return 0, ErrFmtNotSupported
@@ -114,7 +114,7 @@ func (c *Parser) Duration() (time.Duration, error) {
 // String implements the Stringer interface.
 func (c *Parser) String() string {
 	out := fmt.Sprintf("Format: %s - ", c.Format)
-	if c.Format == wavFormatID {
+	if c.Format == WavFormatID {
 		out += fmt.Sprintf("%d channels @ %d / %d bits - ", c.NumChannels, c.SampleRate, c.BitsPerSample)
 		d, _ := c.Duration()
 		out += fmt.Sprintf("Duration: %f seconds\n", d.Seconds())
