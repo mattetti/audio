@@ -100,12 +100,13 @@ func analyze(path string) {
 		}
 		return
 	}
-	c := aiff.New(f)
-	if err := c.Parse(); err != nil {
+	d := aiff.NewDecoder(f, nil)
+	if err := d.Parse(); err != nil {
 		log.Fatalf("Can't parse the headers of %s - %s\n", path, err)
 	}
 	f.Seek(0, 0)
-	info, frames, err := aiff.ReadFrames(f)
+	d = aiff.NewDecoder(f, nil)
+	info, frames, err := d.Frames()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -114,7 +115,7 @@ func analyze(path string) {
 	fmt.Println("sample Size", info.BitsPerSample)
 	fmt.Println("number of Channels", info.NumChannels)
 	fmt.Printf("frames: %d\n", len(frames))
-	fmt.Println(c)
+	fmt.Println(d)
 
 	max := 0
 	for _, f := range frames {

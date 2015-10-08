@@ -74,6 +74,7 @@ func (e *Encoder) numSampleFrames() int {
 	return len(e.Frames)
 }
 
+// TODO: rename
 func (e *Encoder) Write() error {
 	if e == nil {
 		return fmt.Errorf("can't write a nil encoder")

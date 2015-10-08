@@ -33,7 +33,8 @@ func TestEncoderRoundTrip(t *testing.T) {
 		if err != nil {
 			t.Fatalf("couldn't open %s %v", tc.in, err)
 		}
-		info, frames, err := ReadFrames(in)
+		r := NewDecoder(in, nil)
+		info, frames, err := r.Frames()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -58,7 +59,8 @@ func TestEncoderRoundTrip(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		ninfo, nframes, err := ReadFrames(nf)
+		r = NewDecoder(nf, nil)
+		ninfo, nframes, err := r.Frames()
 		nf.Close()
 		if err != nil {
 			t.Fatal(err)

@@ -32,7 +32,7 @@ func TestParse(t *testing.T) {
 			t.Fatal(err)
 		}
 		defer f.Close()
-		c := New(f)
+		c := NewDecoder(f, nil)
 		err = c.Parse()
 		if err != nil {
 			t.Fatal(err)
@@ -100,7 +100,8 @@ func TestReadFrames(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer f.Close()
-	info, frames, err := ReadFrames(f)
+	r := NewDecoder(f, nil)
+	info, frames, err := r.Frames()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,7 +135,7 @@ func TestDuration(t *testing.T) {
 			t.Fatal(err)
 		}
 		defer f.Close()
-		c := New(f)
+		c := NewDecoder(f, nil)
 		err = c.Parse()
 		if err != nil {
 			t.Fatal(err)
@@ -157,7 +158,7 @@ func ExampleDecoder_Duration() {
 	}
 	defer f.Close()
 
-	c := New(f)
+	c := NewDecoder(f, nil)
 	if err = c.Parse(); err != nil {
 		panic(err)
 	}

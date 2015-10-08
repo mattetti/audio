@@ -13,7 +13,8 @@ This package also allows for quick access to the AIFF LPCM raw audio data:
     if err != nil {
     	log.Fatal("couldn't open audiofile.aiff %v", err)
     }
-    info, frames, err := ReadFrames(in)
+		r := New(in)
+    info, frames, err := r.Frames()
     in.Close()
 
 A frame is a slice where each entry is a channel and each value is the sample value.

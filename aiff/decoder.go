@@ -1,10 +1,12 @@
 package aiff
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"sync"
 	"time"
 
@@ -51,7 +53,8 @@ type Decoder struct {
 	EncodingName string
 }
 
-// NewDecoder lets a dev pass a channel to receive audio data and raw chunks.
+// NewDecoder creates a new reader reading the given reader and pushing audio data to the given channel.
+// It is the caller's responsibility to call Close on the Decoder when done.
 func NewDecoder(r io.Reader, c chan *Chunk) *Decoder {
 	return &Decoder{r: r, Chan: c}
 }
@@ -101,6 +104,108 @@ func (p *Decoder) Parse() error {
 		return nil
 	}
 	return err
+}
+
+// Frames processes the reader and returns the basic data and LPCM audio frames.
+// Very naive and inneficient approach loading the entire data set in memory.
+func (r *Decoder) Frames() (info *Info, frames [][]int, err error) {
+	ch := make(chan *Chunk)
+	r.Chan = ch
+	var sndDataFrames [][]int
+	go func() {
+		if err := r.Parse(); err != nil {
+			panic(err)
+		}
+	}()
+
+	for chunk := range ch {
+		if sndDataFrames == nil {
+			sndDataFrames = make([][]int, r.NumSampleFrames, r.NumSampleFrames)
+		}
+		id := string(chunk.ID[:])
+		if id == "SSND" {
+			var offset uint32
+			var blockSize uint32
+			// TODO: BE might depend on the encoding used to generate the aiff data.
+			// check encSowt or encTwos
+			chunk.ReadBE(&offset)
+			chunk.ReadBE(&blockSize)
+
+			// TODO: might want to use io.NewSectionDecoder
+			bufData := make([]byte, chunk.Size-8)
+			chunk.ReadBE(bufData)
+			buf := bytes.NewReader(bufData)
+
+			bytesPerSample := (r.SampleSize-1)/8 + 1
+			frameCount := int(r.NumSampleFrames)
+
+			if r.NumSampleFrames == 0 {
+				chunk.Done()
+				continue
+			}
+
+			for i := 0; i < frameCount; i++ {
+				sampleBufData := make([]byte, bytesPerSample)
+				frame := make([]int, r.NumChans)
+
+				for j := uint16(0); j < r.NumChans; j++ {
+					_, err := buf.Read(sampleBufData)
+					if err != nil {
+						if err == io.EOF {
+							break
+						}
+						log.Println("error reading the buffer")
+						log.Fatal(err)
+					}
+
+					sampleBuf := bytes.NewBuffer(sampleBufData)
+					switch r.SampleSize {
+					case 8:
+						var v uint8
+						binary.Read(sampleBuf, binary.BigEndian, &v)
+						frame[j] = int(v)
+					case 16:
+						var v int16
+						binary.Read(sampleBuf, binary.BigEndian, &v)
+						frame[j] = int(v)
+					case 24:
+						// TODO: check if the conversion might not be inversed depending on
+						// the encoding (BE vs LE)
+						var output int32
+						output |= int32(sampleBufData[2]) << 0
+						output |= int32(sampleBufData[1]) << 8
+						output |= int32(sampleBufData[0]) << 16
+						frame[j] = int(output)
+					case 32:
+						var v int32
+						binary.Read(sampleBuf, binary.BigEndian, &v)
+						frame[j] = int(v)
+					default:
+						// TODO: nicer error instead of crashing
+						log.Fatalf("%v bitrate not supported", r.SampleSize)
+					}
+				}
+				sndDataFrames[i] = frame
+
+			}
+		}
+
+		chunk.Done()
+	}
+
+	duration, err := r.Duration()
+	if err != nil {
+		return nil, sndDataFrames, err
+	}
+
+	info = &Info{
+		NumChannels:   int(r.NumChans),
+		SampleRate:    r.SampleRate,
+		BitsPerSample: int(r.SampleSize),
+		Duration:      duration,
+	}
+
+	return info, sndDataFrames, err
 }
 
 func (p *Decoder) parseCommChunk(size uint32) error {
