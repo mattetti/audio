@@ -2,6 +2,32 @@ package misc
 
 import "math"
 
+type AudioFrames [][]int
+
+// ToMonoFrames converts stereo into mono frames by averaging each samples.
+// Note that a stereo frame could have 2 samples in phase opposition which would lead
+// to a zero value. This edge case isn't taken in consideration.
+func ToMonoFrames(fs AudioFrames) AudioFrames {
+	if fs == nil {
+		return nil
+	}
+
+	mono := make(AudioFrames, len(fs))
+	for i, f := range fs {
+		mono[i] = []int{AvgInt(f...)}
+	}
+	return mono
+}
+
+// AvgInt averages the int values passed
+func AvgInt(xs ...int) int {
+	var output int
+	for i := 0; i < len(xs); i++ {
+		output += xs[i]
+	}
+	return output / len(xs)
+}
+
 // IeeeFloatToInt converts a 10 byte IEEE float into an int.
 func IeeeFloatToInt(b [10]byte) int {
 	var i uint32
