@@ -7,6 +7,7 @@ var (
 	aiffID = [4]byte{'A', 'I', 'F', 'F'}
 	aifcID = [4]byte{'A', 'I', 'F', 'C'}
 	commID = [4]byte{'C', 'O', 'M', 'M'}
+	ssndID = [4]byte{'S', 'S', 'N', 'D'}
 
 	// AIFC encodings
 	encNone = [4]byte{'N', 'O', 'N', 'E'}

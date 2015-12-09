@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/mattetti/audio"
 	"github.com/mattetti/audio/misc"
 )
 
@@ -59,9 +60,60 @@ func NewDecoder(r io.Reader, c chan *Chunk) *Decoder {
 	return &Decoder{r: r, Chan: c}
 }
 
-// Parse reads the aiff reader and populates the container structure with found information.
-// The sound data or unknown chunks are passed to the optional channel if available.
-func (p *Decoder) Parse() error {
+// Decode reads from a Read Seeker and converts the input to a PCM
+// clip output.
+func Decode(r io.ReadSeeker) (audio.Clip, error) {
+	d := &Decoder{r: r}
+	if err := d.readHeaders(); err != nil {
+		return nil, err
+	}
+
+	// read the file information to setup the audio clip
+	// find the beginning of the SSND chunk and set the clip reader to it.
+	clip := &Clip{}
+
+	var err error
+	var rewindBytes int64
+	for err != io.EOF {
+		id, size, err := d.IDnSize()
+		if err != nil {
+			break
+		}
+		switch id {
+		case commID:
+			d.parseCommChunk(size)
+			clip.channels = int(d.NumChans)
+			clip.bitDepth = int(d.SampleSize)
+			clip.sampleRate = int64(d.SampleRate)
+			// if we found the sound data before the COMM,
+			// we need to rewind the reader so we can properly
+			// set the clip reader.
+			if rewindBytes > 0 {
+				r.Seek(-rewindBytes, 1)
+				break
+			}
+		case ssndID:
+			clip.size = int64(size)
+			// if we didn't read the COMM, we are going to need to come back
+			if clip.sampleRate == 0 {
+				rewindBytes += int64(size)
+				d.dispatchToChan(id, size)
+			} else {
+				break
+			}
+		default:
+			// if we read SSN but didn't read the COMM, we need to track location
+			if clip.size != 0 {
+				rewindBytes += int64(size)
+			}
+			d.dispatchToChan(id, size)
+		}
+	}
+	clip.r = r
+	return clip, nil
+}
+
+func (p *Decoder) readHeaders() error {
 	if err := binary.Read(p.r, binary.BigEndian, &p.ID); err != nil {
 		return err
 	}
@@ -80,6 +132,16 @@ func (p *Decoder) Parse() error {
 	// Must be a AIFF or AIFC form type
 	if p.Format != aiffID && p.Format != aifcID {
 		return fmt.Errorf("%s - %s", ErrFmtNotSupported, p.Format)
+	}
+
+	return nil
+}
+
+// Parse reads the aiff reader and populates the container structure with found information.
+// The sound data or unknown chunks are passed to the optional channel if available.
+func (p *Decoder) Parse() error {
+	if err := p.readHeaders(); err != nil {
+		return err
 	}
 
 	var err error

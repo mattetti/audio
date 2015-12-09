@@ -38,8 +38,11 @@ func main() {
 		bitSize := 16
 		fmt.Printf("Target fs: %d\n", fs / *factorFlag)
 
+		// generate a wave sine
 		osc := generator.NewOsc(generator.WaveSine, float64(freq), fs)
 		data := osc.Signal(fs * 4)
+
+		// sinc function to run a low pass filter
 		s := &filters.Sinc{
 			Taps:         62,
 			SamplingFreq: fs,
@@ -124,13 +127,12 @@ func main() {
 		log.Fatalf("input sample rate of %dHz not supported", sampleRate)
 	}
 
-	//amplitudesInt := make([]int, len(monoFrames))
 	amplitudesF := make([]float64, len(monoFrames))
 	for i, f := range monoFrames {
-		//	amplitudesInt[i] = f[0]
 		amplitudesF[i] = float64(f[0])
 	}
 
+	// low pass filter before we drop some samples to avoid aliasing
 	s := &filters.Sinc{Taps: 62, SamplingFreq: sampleRate, CutOffFreq: float64(sampleRate / 2), Window: windows.Blackman}
 	fir := &filters.FIR{Sinc: s}
 	filtered, err := fir.LowPass(amplitudesF)
@@ -167,29 +169,6 @@ func intMaxSignedValue(b int) int {
 	default:
 		return 0
 	}
-}
-
-func scale(input []int, bitSize int) []float64 {
-	factor := float64(intMaxSignedValue(bitSize))
-	output := make([]float64, len(input))
-	for i := 0; i < len(input); i++ {
-		output[i] = float64(input[i]) / factor
-		if output[i] > 1 {
-			output[i] = 1
-		} else if output[i] < -1 {
-			output[i] = -1
-		}
-	}
-	return output
-}
-
-func descale(input []float64, bitSize int) []int {
-	factor := float64(intMaxSignedValue(bitSize))
-	output := make([]int, len(input))
-	for i := 0; i < len(input); i++ {
-		output[i] = int(input[i] * factor)
-	}
-	return output
 }
 
 //This function calculates the zeroth order Bessel function
