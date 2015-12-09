@@ -28,6 +28,23 @@ func AvgInt(xs ...int) int {
 	return output / len(xs)
 }
 
+// IntMaxSignedValue returns the max value of an integer
+// based on its memory size
+func IntMaxSignedValue(b int) int {
+	switch b {
+	case 8:
+		return 255 / 2
+	case 16:
+		return 65535 / 2
+	case 24:
+		return 16777215 / 2
+	case 32:
+		return 4294967295 / 2
+	default:
+		return 0
+	}
+}
+
 // IeeeFloatToInt converts a 10 byte IEEE float into an int.
 func IeeeFloatToInt(b [10]byte) int {
 	var i uint32

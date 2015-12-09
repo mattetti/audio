@@ -20,7 +20,7 @@ import (
 	"math"
 	"sync"
 
-	"github.com/mjibson/go-dsp/dsputils"
+	"go-dsp/dsputils"
 )
 
 var (

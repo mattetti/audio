@@ -19,7 +19,7 @@ package spectral
 import (
 	"testing"
 
-	"github.com/mjibson/go-dsp/dsputils"
+	"go-dsp/dsputils"
 )
 
 type pwelchTest struct {

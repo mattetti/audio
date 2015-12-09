@@ -18,7 +18,7 @@
 package fft
 
 import (
-	"github.com/mjibson/go-dsp/dsputils"
+	"go-dsp/dsputils"
 )
 
 // FFTReal returns the forward FFT of the real-valued slice.
