@@ -12,14 +12,14 @@ func TestSinc_Convolve(t *testing.T) {
 	signal := osc.Signal(10000)
 
 	s := &Sinc{
-		Order:        62,
+		Taps:         62,
 		SamplingFreq: 10000,
 		CutOffFreq:   5000,
 		Window:       windows.Blackman,
 	}
 	fir := &FIR{Sinc: s}
 
-	filtered, err := fir.Convolve(signal, fir.Sinc.LowPassKernels())
+	filtered, err := fir.Convolve(signal, fir.Sinc.LowPassCoefs())
 	if err != nil {
 		t.Fatal(err)
 	}

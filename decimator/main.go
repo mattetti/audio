@@ -41,7 +41,7 @@ func main() {
 		osc := generator.NewOsc(generator.WaveSine, float64(freq), fs)
 		data := osc.Signal(fs * 4)
 		s := &filters.Sinc{
-			Order:        62,
+			Taps:         62,
 			SamplingFreq: fs,
 			CutOffFreq:   20000,
 			Window:       windows.Blackman,
@@ -131,7 +131,7 @@ func main() {
 		amplitudesF[i] = float64(f[0])
 	}
 
-	s := &filters.Sinc{Order: 62, SamplingFreq: sampleRate, CutOffFreq: float64(sampleRate / 2), Window: windows.Blackman}
+	s := &filters.Sinc{Taps: 62, SamplingFreq: sampleRate, CutOffFreq: float64(sampleRate / 2), Window: windows.Blackman}
 	fir := &filters.FIR{Sinc: s}
 	filtered, err := fir.LowPass(amplitudesF)
 	if err != nil {

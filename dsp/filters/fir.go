@@ -2,12 +2,15 @@ package filters
 
 import "fmt"
 
+// FIR represents a Finite Impulse Response filter taking a sinc.
+// https://en.wikipedia.org/wiki/Finite_impulse_response
 type FIR struct {
 	Sinc *Sinc
 }
 
+// LowPass applies a low pass filter using the FIR
 func (f *FIR) LowPass(input []float64) ([]float64, error) {
-	return f.Convolve(input, f.Sinc.LowPassKernels()) // fir := &filters.FIR{Sinc: s}
+	return f.Convolve(input, f.Sinc.LowPassCoefs())
 }
 
 // Convolve "mixes" two signals together
