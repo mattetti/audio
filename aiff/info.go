@@ -13,11 +13,11 @@ type Info struct {
 	// SampleRate The sampling rate (in sample per second) at which each channel should be played.
 	// 8000, 44100, etc.
 	SampleRate int
-	// BitsPerSample 8, 16, 24...
+	// BitDepth 8, 16, 24...
 	// Only available for PCM
-	// The <nBitsPerSample> field specifies the number of bits of data used to represent each sample of
+	// The <nBitDepth> field specifies the number of bits of data used to represent each sample of
 	// each channel. If there are multiple channels, the sample size is the same for each channel.
-	BitsPerSample int
+	BitDepth int
 	// Duration of the audio content
 	Duration time.Duration
 }

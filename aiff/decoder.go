@@ -261,10 +261,10 @@ func (r *Decoder) Frames() (info *Info, frames [][]int, err error) {
 	}
 
 	info = &Info{
-		NumChannels:   int(r.NumChans),
-		SampleRate:    r.SampleRate,
-		BitsPerSample: int(r.SampleSize),
-		Duration:      duration,
+		NumChannels: int(r.NumChans),
+		SampleRate:  r.SampleRate,
+		BitDepth:    int(r.SampleSize),
+		Duration:    duration,
 	}
 
 	return info, sndDataFrames, err

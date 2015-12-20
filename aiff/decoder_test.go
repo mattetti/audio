@@ -108,8 +108,8 @@ func TestReadFrames(t *testing.T) {
 	if info.SampleRate != 22050 {
 		t.Fatalf("unexpected sample rate: %d", info.SampleRate)
 	}
-	if info.BitsPerSample != 16 {
-		t.Fatalf("unexpected sample size: %d", info.BitsPerSample)
+	if info.BitDepth != 16 {
+		t.Fatalf("unexpected sample size: %d", info.BitDepth)
 	}
 	if info.NumChannels != 1 {
 		t.Fatalf("unexpected channel number: %d", info.NumChannels)

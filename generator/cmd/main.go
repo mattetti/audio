@@ -7,6 +7,7 @@ import (
 
 	"github.com/mattetti/audio/aiff"
 	"github.com/mattetti/audio/generator"
+	"github.com/mattetti/audio/misc"
 )
 
 var (
@@ -25,7 +26,7 @@ func main() {
 
 	osc := generator.NewOsc(generator.WaveSine, float64(freq), fs)
 	// our osc generates values from -1 to 1, we need to go back to PCM scale
-	factor := float64(intMaxSignedValue(bitSize))
+	factor := float64(misc.IntMaxSignedValue(bitSize))
 	osc.Amplitude = factor
 	// xs of sound
 	data := osc.Signal(fs * *durationFlag)

@@ -112,7 +112,7 @@ func analyze(path string) {
 	}
 
 	fmt.Println("sample Rate", info.SampleRate)
-	fmt.Println("sample Size", info.BitsPerSample)
+	fmt.Println("sample Size", info.BitDepth)
 	fmt.Println("number of Channels", info.NumChannels)
 	fmt.Printf("frames: %d\n", len(frames))
 	fmt.Println(d)

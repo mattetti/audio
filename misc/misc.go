@@ -3,6 +3,40 @@ package misc
 import "math"
 
 type AudioFrames [][]int
+type AudioFloatFrames [][]float64
+
+// ToFloatFrames converts the frame int values to values in the -1, 1 range.
+func (f AudioFrames) ToFloatFrames(srcBitDepth int) AudioFloatFrames {
+	out := make(AudioFloatFrames, len(f))
+	if len(f) < 1 {
+		return out
+	}
+	max := IntMaxSignedValue(srcBitDepth)
+	zeroF := float64(max / 2)
+
+	nbrChannels := len(f[0])
+
+	var i, j int
+	var v float64
+	for i = 0; i < len(f); i++ {
+		out[i] = make([]float64, nbrChannels)
+		for j = 0; j < nbrChannels; j++ {
+			v = float64(f[i][j]) / zeroF
+			if v > 1 {
+				v = 1
+			} else if v < -1 {
+				v = -1
+			}
+			out[i][j] = v
+		}
+	}
+	return out
+}
+
+// ToMonoFrames returns a new mono audio frame set.
+func (f AudioFrames) ToMonoFrames() AudioFrames {
+	return ToMonoFrames(f)
+}
 
 // ToMonoFrames converts stereo into mono frames by averaging each samples.
 // Note that a stereo frame could have 2 samples in phase opposition which would lead
@@ -17,6 +51,30 @@ func ToMonoFrames(fs AudioFrames) AudioFrames {
 		mono[i] = []int{AvgInt(f...)}
 	}
 	return mono
+}
+
+// SlicedValues converts AudioFrames into a 1 dimensional slice of ints.
+func SlicedValues(fs AudioFrames) []int {
+	if fs == nil || len(fs) == 0 {
+		return nil
+	}
+	out := make([]int, len(fs))
+	for i := 0; i < len(fs); i++ {
+		out[i] = fs[i][0]
+	}
+	return out
+}
+
+// SlicedFValues converts AudioFloatFrames into a 1 dimensional slice of floats.
+func SlicedFValues(fs AudioFloatFrames) []float64 {
+	if fs == nil || len(fs) == 0 {
+		return nil
+	}
+	out := make([]float64, len(fs))
+	for i := 0; i < len(fs); i++ {
+		out[i] = fs[i][0]
+	}
+	return out
 }
 
 // AvgInt averages the int values passed

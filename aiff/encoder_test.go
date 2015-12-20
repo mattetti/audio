@@ -68,8 +68,8 @@ func TestEncoderRoundTrip(t *testing.T) {
 		if ninfo.SampleRate != info.SampleRate {
 			t.Fatalf("sample rate didn't support roundtripping exp: %d, got: %d", info.SampleRate, ninfo.SampleRate)
 		}
-		if ninfo.BitsPerSample != info.BitsPerSample {
-			t.Fatalf("sample size didn't support roundtripping exp: %d, got: %d", info.BitsPerSample, ninfo.BitsPerSample)
+		if ninfo.BitDepth != info.BitDepth {
+			t.Fatalf("sample size didn't support roundtripping exp: %d, got: %d", info.BitDepth, ninfo.BitDepth)
 		}
 		if ninfo.NumChannels != info.NumChannels {
 			t.Fatalf("the number of channels didn't support roundtripping exp: %d, got: %d", info.NumChannels, ninfo.NumChannels)
