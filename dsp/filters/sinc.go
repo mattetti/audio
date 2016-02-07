@@ -13,14 +13,15 @@ import (
 // its abbreviation, "sinc."
 // http://mathworld.wolfram.com/SincFunction.html
 type Sinc struct {
-	CutOffFreq    float64
-	SamplingFreq  int
-	Taps          int
-	Window        windows.Function
-	_lowPassCoefs []float64
+	CutOffFreq     float64
+	SamplingFreq   int
+	Taps           int
+	Window         windows.Function
+	_lowPassCoefs  []float64
+	_highPassCoefs []float64
 }
 
-// LowPassCoefs return the coeficients to create a low pass filter
+// LowPassCoefs returns the coeficients to create a low pass filter
 func (s *Sinc) LowPassCoefs() []float64 {
 	if s == nil {
 		return nil
@@ -42,6 +43,28 @@ func (s *Sinc) LowPassCoefs() []float64 {
 
 	s._lowPassCoefs[s.Taps/2] = 2 * s.TransitionFreq() * winData[s.Taps/2]
 	return s._lowPassCoefs
+}
+
+// HighPassCoefs returns the coeficients to create a high pass filter
+func (s *Sinc) HighPassCoefs() []float64 {
+	if s == nil {
+		return nil
+	}
+	if s._highPassCoefs != nil && len(s._highPassCoefs) > 0 {
+		return s._highPassCoefs
+	}
+
+	size := s.Taps + 1
+	s._highPassCoefs = make([]float64, size)
+	lowPassCoefs := s.LowPassCoefs()
+	winData := s.Window(size)
+
+	for i := 0; i < (s.Taps / 2); i++ {
+		s._highPassCoefs[i] = -lowPassCoefs[i]
+		s._highPassCoefs[size-1-i] = s._highPassCoefs[i]
+	}
+	s._highPassCoefs[s.Taps/2] = (1 - 2*s.TransitionFreq()) * winData[s.Taps/2]
+	return s._highPassCoefs
 }
 
 func (s *Sinc) TransitionFreq() float64 {
