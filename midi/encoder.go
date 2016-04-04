@@ -14,7 +14,7 @@ const (
 )
 
 type Encoder struct {
-	// we need a write seeker because we will update the size at the enc
+	// we need a write seeker because we will update the size at the end
 	// and need to back to the beginning of the file.
 	w io.WriteSeeker
 

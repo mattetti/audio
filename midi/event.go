@@ -66,6 +66,9 @@ func (e *Event) String() string {
 	if e.Velocity > 0 {
 		out += fmt.Sprintf(" Vel: %d", e.Velocity)
 	}
+	if e.MsgType == eventByteMap["NoteOn"] {
+		out += fmt.Sprintf(" Note: %s", MidiNoteToName(int(e.Note)))
+	}
 	if e.Cmd != 0 {
 		out = fmt.Sprintf("Ch %d @ %d \t%s", e.MsgChan, e.TimeDelta, metaCmdMap[e.Cmd])
 		switch e.Cmd {
@@ -659,4 +662,25 @@ var metaCmdMap = map[byte]string{
 	0xFA: "Start current sequence",
 	0xFB: "Continue stopped sequence where left off",
 	0xFC: "Stop sequence",
+}
+
+var metaByteMap = map[string]byte{
+	"Sequence number":                          0x0,
+	"Text event":                               0x01,
+	"Copyright":                                0x02,
+	"Sequence/Track name":                      0x03,
+	"Instrument name":                          0x04,
+	"Lyric":                                    0x05,
+	"Marker":                                   0x06,
+	"Cue Point":                                0x07,
+	"MIDI Channel Prefix":                      0x20,
+	"End of Track":                             0x2f,
+	"Tempo":                                    0x51,
+	"Time Signature":                           0x58,
+	"Key Signature":                            0x59,
+	"Sequencer specific":                       0x7F,
+	"Timing Clock":                             0x8F,
+	"Start current sequence":                   0xFA,
+	"Continue stopped sequence where left off": 0xFB,
+	"Stop sequence":                            0xFC,
 }
