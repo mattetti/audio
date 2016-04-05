@@ -22,3 +22,12 @@ func NewDecoder(r io.Reader) *Decoder {
 func NewParser(r io.Reader, ch chan *Track) *Decoder {
 	return &Decoder{r: r, Ch: ch}
 }
+
+// Uint24 converts a uint32 into a uint24 (big endian)
+func Uint24(n uint32) []byte {
+	out := make([]byte, 3)
+	out[2] = byte(n & 0xFF)
+	out[1] = byte(n >> 8)
+	out[0] = byte(n >> 16)
+	return out
+}

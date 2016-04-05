@@ -89,6 +89,30 @@ func CopyrightEvent(txt string) *Event {
 	}
 }
 
+// TempoEvent returns a new tempo event of the passed value.
+func TempoEvent(bpmF float64) *Event {
+	ms := uint32(60000000 / bpmF)
+
+	// bpm is expressed in in microseconds per MIDI quarter-note
+	// This event indicates a tempo change.  Another way of putting
+	// "microseconds per quarter-note" is "24ths of a microsecond per MIDI
+	// clock".  Representing tempos as time per beat instead of beat per time
+	// allows absolutely exact dword-term synchronization with a time-based sync
+	// protocol such as SMPTE time code or MIDI time code.  This amount of
+	// accuracy provided by this tempo resolution allows a four-minute piece at
+	// 120 beats per minute to be accurate within 500 usec at the end of the
+	// piece.  Ideally, these events should only occur where MIDI clocks would
+	// be located Q this convention is intended to guarantee, or at least
+	// increase the likelihood, of compatibility with other synchronization
+	// devices so that a time signature/tempo map stored in this format may
+	// easily be transferred to another device.
+	return &Event{
+		MsgType:        uint8(eventByteMap["Meta"]),
+		Cmd:            uint8(metaByteMap["Tempo"]),
+		MsPerQuartNote: ms,
+	}
+}
+
 // TODO
 func Meta(channel int) *Event {
 	return nil
@@ -164,6 +188,8 @@ func (e *Event) String() string {
 			out = fmt.Sprintf("%s -> %s", out, e.TimeSignature)
 		case metaByteMap["Copyright"]:
 			out = fmt.Sprintf("%s -> %s", out, e.Copyright)
+		case metaByteMap["Tempo"]:
+			out = fmt.Sprintf("%s -> %d", out, e.Bpm)
 		}
 	}
 
@@ -270,6 +296,10 @@ func (e *Event) Encode() []byte {
 			copyright := []byte(e.Copyright)
 			binary.Write(buff, binary.BigEndian, EncodeVarint(uint32(len(copyright))))
 			binary.Write(buff, binary.BigEndian, copyright)
+			// BPM / tempo event
+		case 0x51:
+			binary.Write(buff, binary.BigEndian, EncodeVarint(3))
+			binary.Write(buff, binary.BigEndian, Uint24(e.MsPerQuartNote))
 		}
 	default:
 		fmt.Printf("didn't encode %#v because didn't know how to\n", e)
@@ -294,6 +324,9 @@ func (e *Event) Size() uint32 {
 			copyright := []byte(e.Copyright)
 			varintBytes := EncodeVarint(uint32(len(copyright)))
 			return uint32(len(copyright) + len(varintBytes))
+			// BPM (size + encoded in uint24)
+		case 0x51:
+			return 4
 		default:
 			// NOT currently support, blowing up on purpose
 			log.Fatal(errors.New("Can't encode meta events, not supported yet"))
