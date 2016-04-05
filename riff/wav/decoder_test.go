@@ -23,7 +23,7 @@ func TestDecoder_Duration(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		dur, err := NewDecoder(f).Duration()
+		dur, err := NewDecoder(f, nil).Duration()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -41,7 +41,7 @@ func ExampleDecoder_Duration() {
 		log.Fatal(err)
 	}
 	defer f.Close()
-	dur, err := NewDecoder(f).Duration()
+	dur, err := NewDecoder(f, nil).Duration()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -70,7 +70,7 @@ func TestDecoder_Info(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		info, err := NewDecoder(f).Info()
+		info, err := NewDecoder(f, nil).Info()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -99,7 +99,7 @@ func ExampleDecoder_Info() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	info, err := NewDecoder(f).Info()
+	info, err := NewDecoder(f, nil).Info()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -113,7 +113,7 @@ func ExampleDecoder_Parse() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	d := NewDecoder(f)
+	d := NewDecoder(f, nil)
 	if err != nil {
 		log.Fatal(err)
 	}

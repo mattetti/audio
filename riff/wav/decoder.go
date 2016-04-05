@@ -5,6 +5,8 @@ import (
 	"io"
 	"time"
 
+	"github.com/mattetti/audio"
+	"github.com/mattetti/audio/misc"
 	"github.com/mattetti/audio/riff"
 )
 
@@ -17,7 +19,7 @@ type Decoder struct {
 
 // New creates a parser for the passed wav reader.
 // Note that the reader doesn't get rewinded as the container is processed.
-func NewDecoder(r io.Reader, c chan *Chunk) *Decoder {
+func NewDecoder(r io.Reader, c chan *audio.Chunk) *Decoder {
 	return &Decoder{
 		r:      r,
 		parser: riff.New(r),
@@ -26,12 +28,20 @@ func NewDecoder(r io.Reader, c chan *Chunk) *Decoder {
 
 // Decode reads from a Read Seeker and converts the input to a PCM
 // clip output.
-func Decode(r io.ReadSeeker) (audio.Clip, error) {
+func Decode(r io.ReadSeeker) (*audio.Clip, error) {
 	d := &Decoder{r: r, parser: riff.New(r)}
-    nfo := d.Info()
-    clip := &Clip{
-
-    }
+	nfo, err := d.Info()
+	if err != nil {
+		return nil, err
+	}
+	clip := &audio.Clip{
+		R:          r,
+		DataSize:   int64(nfo.Duration.Seconds()) * int64(time.Second) * int64(nfo.AvgBytesPerSec),
+		Channels:   int(nfo.NumChannels),
+		BitDepth:   int(nfo.NumChannels),
+		SampleRate: int64(nfo.SampleRate),
+	}
+	return clip, nil
 }
 
 // Parse reads the content of the file, populates the decoder fields
@@ -143,6 +153,12 @@ func (d *Decoder) ReadFrames() (info *Info, sndDataFrames [][]int, err error) {
 
 	info, err = d.Info()
 	return info, sndDataFrames, err
+}
+
+func (d *Decoder) Frames() (info *Info, frames misc.AudioFrames, err error) {
+	var fs [][]int
+	info, fs, err = d.ReadFrames()
+	return info, misc.AudioFrames(fs), err
 }
 
 // sampleDecodeFunc returns a function that can be used to convert

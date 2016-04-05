@@ -1,9 +1,16 @@
-package misc
+package misc_test
 
 import (
 	"bytes"
+	"fmt"
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
+
+	. "github.com/mattetti/audio/misc"
+
+	"github.com/mattetti/audio/riff/wav"
 )
 
 func TestToMonoFrames(t *testing.T) {
@@ -49,4 +56,23 @@ func TestIeeeFloat(t *testing.T) {
 			t.Fatalf("%d didn't convert to % X but to % X", tc.intValue, tc.ieeeFloat, bs)
 		}
 	}
+}
+
+func TestMonoRMS(t *testing.T) {
+	path, _ := filepath.Abs("../riff/fixtures/sample.wav")
+	f, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	r := wav.NewDecoder(f, nil)
+	nfo, frames, err := r.Frames()
+	if err != nil {
+		t.Fatal(err)
+	}
+	rmsSignal := frames.ToFloatFrames(int(nfo.BitsPerSample)).MonoRMS()
+	fmt.Println(rmsSignal)
+	// if len(rmsSignal) != math.Ceil(frames/RMSWindowSize) {
+	// 	t.Fatalf("expected %d frames, got %d", math.Ceil(frames/RMSWindowSize), len(rmsSignal))
+	// }
 }
