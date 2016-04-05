@@ -62,7 +62,7 @@ func NewDecoder(r io.Reader, c chan *Chunk) *Decoder {
 
 // Decode reads from a Read Seeker and converts the input to a PCM
 // clip output.
-func Decode(r io.ReadSeeker) (audio.Clip, error) {
+func Decode(r io.ReadSeeker) (audio.Clipper, error) {
 	d := &Decoder{r: r}
 	if err := d.readHeaders(); err != nil {
 		return nil, err
@@ -70,7 +70,7 @@ func Decode(r io.ReadSeeker) (audio.Clip, error) {
 
 	// read the file information to setup the audio clip
 	// find the beginning of the SSND chunk and set the clip reader to it.
-	clip := &Clip{}
+	clip := &audio.Clip{}
 
 	var err error
 	var rewindBytes int64
@@ -82,9 +82,9 @@ func Decode(r io.ReadSeeker) (audio.Clip, error) {
 		switch id {
 		case commID:
 			d.parseCommChunk(size)
-			clip.channels = int(d.NumChans)
-			clip.bitDepth = int(d.SampleSize)
-			clip.sampleRate = int64(d.SampleRate)
+			clip.Channels = int(d.NumChans)
+			clip.BitDepth = int(d.SampleSize)
+			clip.SampleRate = int64(d.SampleRate)
 			// if we found the sound data before the COMM,
 			// we need to rewind the reader so we can properly
 			// set the clip reader.
@@ -93,9 +93,9 @@ func Decode(r io.ReadSeeker) (audio.Clip, error) {
 				break
 			}
 		case ssndID:
-			clip.size = int64(size)
+			clip.DataSize = int64(size)
 			// if we didn't read the COMM, we are going to need to come back
-			if clip.sampleRate == 0 {
+			if clip.SampleRate == 0 {
 				rewindBytes += int64(size)
 				d.dispatchToChan(id, size)
 			} else {
@@ -103,13 +103,13 @@ func Decode(r io.ReadSeeker) (audio.Clip, error) {
 			}
 		default:
 			// if we read SSN but didn't read the COMM, we need to track location
-			if clip.size != 0 {
+			if clip.DataSize != 0 {
 				rewindBytes += int64(size)
 			}
 			d.dispatchToChan(id, size)
 		}
 	}
-	clip.r = r
+	clip.R = r
 	return clip, nil
 }
 

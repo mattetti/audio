@@ -104,7 +104,7 @@ func main() {
 			panic(err)
 		}
 		sampleRate = info.SampleRate
-		sampleSize = info.BitsPerSample
+		sampleSize = info.BitDepth
 		monoFrames = make(misc.AudioFrames, len(frames))
 		monoFrames = misc.ToMonoFrames(frames)
 
