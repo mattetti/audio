@@ -46,7 +46,7 @@ func TestEncoderRoundTrip(t *testing.T) {
 		}
 		defer out.Close()
 
-		e := NewEncoder(out, info.SampleRate, info.BitsPerSample, info.NumChannels)
+		e := NewEncoder(out, info.SampleRate, info.BitDepth, info.NumChannels)
 		e.Frames = frames
 		if err := e.Write(); err != nil {
 			t.Fatal(err)

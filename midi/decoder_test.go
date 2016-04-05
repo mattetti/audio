@@ -52,7 +52,7 @@ func TestParsingFile(t *testing.T) {
 			t.Fatal(err)
 		}
 		defer f.Close()
-		p := New(f)
+		p := NewDecoder(f)
 		if err := p.Parse(); err != nil {
 			t.Fatal(err)
 		}

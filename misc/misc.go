@@ -2,6 +2,10 @@ package misc
 
 import "math"
 
+var (
+	RMSWindowSize = 400.0
+)
+
 type AudioFrames [][]int
 type AudioFloatFrames [][]float64
 
@@ -36,6 +40,47 @@ func (f AudioFrames) ToFloatFrames(srcBitDepth int) AudioFloatFrames {
 // ToMonoFrames returns a new mono audio frame set.
 func (f AudioFrames) ToMonoFrames() AudioFrames {
 	return ToMonoFrames(f)
+}
+
+// RMS representation og the audio frames (in mono)
+// rms = sqrt ( (1/n) * (x12 + x22 + … + xn2) )
+// multiplying by 1/n effectively assigns equal weights to all the terms, making it a rectangular window.
+// Other window equations can be used instead which would favor terms in the middle of the window.
+// This results in even greater accuracy of the RMS value since brand new samples (or old ones at
+// the end of the window) have less influence over the signal’s power.)
+func (fs AudioFloatFrames) MonoRMS() []float64 {
+	out := []float64{}
+	if len(fs) == 0 {
+		return out
+	}
+	buf := make([]float64, int(RMSWindowSize))
+
+	processBuffer := func() {
+		total := 0.0
+		for i := 0; i < len(buf); i++ {
+			total += buf[i]
+		}
+		out = append(out, math.Sqrt((1.0/RMSWindowSize)*total))
+	}
+
+	nbrChans := len(fs[0])
+	i := 0
+	for j, f := range fs {
+		var v float64
+		if nbrChans > 1 {
+			v = (f[0] + f[1]) / 2
+		} else {
+			v = f[0]
+		}
+		buf[i] = v
+		i++
+		if i == 400 || j == (len(fs)-1) {
+			i = 0
+			processBuffer()
+		}
+
+	}
+	return out
 }
 
 // ToMonoFrames converts stereo into mono frames by averaging each samples.
