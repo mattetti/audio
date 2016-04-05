@@ -109,7 +109,7 @@ func main() {
 		monoFrames = misc.ToMonoFrames(frames)
 
 	case "wav":
-		info, frames, err := wav.NewDecoder(f).ReadFrames()
+		info, frames, err := wav.NewDecoder(f, nil).ReadFrames()
 		if err != nil {
 			panic(err)
 		}

@@ -38,7 +38,7 @@ func main() {
 	}
 	defer imgFile.Close()
 
-	d := wav.NewDecoder(f)
+	d := wav.NewDecoder(f, nil)
 	ch := make(chan *riff.Chunk)
 
 	go func() {
