@@ -26,7 +26,7 @@ func main() {
 	}
 	defer f.Close()
 
-	decoder := midi.New(f)
+	decoder := midi.NewDecoder(f)
 	if err := decoder.Parse(); err != nil {
 		log.Fatal(err)
 	}

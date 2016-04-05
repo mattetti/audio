@@ -8,69 +8,90 @@ import (
 	"log"
 )
 
-// http://www.midi.org/techspecs/midimessages.php
-var eventMap = map[byte]string{
-	0x8: "NoteOff",
-	0x9: "NoteOn",
-	0xA: "AfterTouch",
-	0xB: "ControlChange",
-	0xC: "ProgramChange",
-	0xD: "ChannelAfterTouch",
-	0xE: "PitchWheelChange",
-	0xF: "Meta",
+// NoteOn returns a pointer to a new event of type NoteOn (without the delta timing data)
+func NoteOn(channel, key, vel int) *Event {
+	return &Event{
+		MsgChan:  uint8(channel),
+		MsgType:  uint8(eventByteMap["NoteOn"]),
+		Note:     uint8(key),
+		Velocity: uint8(vel),
+	}
 }
 
-var eventByteMap = map[string]byte{
-	"NoteOff":           0x8,
-	"NoteOn":            0x9,
-	"AfterTouch":        0xA,
-	"ControlChange":     0xB,
-	"ProgramChange":     0xC,
-	"ChannelAfterTouch": 0xD,
-	"PitchWheelChange":  0xE,
-	"Meta":              0xF,
+// NoteOff returns a pointer to a new event of type NoteOff (without the delta timing data)
+func NoteOff(channel, key int) *Event {
+	return &Event{
+		MsgChan:  uint8(channel),
+		MsgType:  uint8(eventByteMap["NoteOff"]),
+		Note:     uint8(key),
+		Velocity: 64,
+	}
 }
 
-var metaCmdMap = map[byte]string{
-	0x0:  "Sequence number",
-	0x01: "Text event",
-	0x02: "Copyright",
-	0x03: "Sequence/Track name",
-	0x04: "Instrument name",
-	0x05: "Lyric",
-	0x06: "Marker",
-	0x07: "Cue Point",
-	0x20: "MIDI Channel Prefix",
-	0x2f: "End of Track",
-	0x51: "Tempo",
-	0x58: "Time Signature",
-	0x59: "Key Signature",
-	0x7F: "Sequencer specific",
-	0x8F: "Timing Clock",
-	0xFA: "Start current sequence",
-	0xFB: "Continue stopped sequence where left off",
-	0xFC: "Stop sequence",
+// AfterTouch returns a pointer to a new aftertouch event
+func Aftertouch(channel, key, vel int) *Event {
+	return &Event{
+		MsgChan:  uint8(channel),
+		MsgType:  uint8(eventByteMap["AfterTouch"]),
+		Note:     uint8(key),
+		Velocity: uint8(vel),
+	}
 }
 
-var metaByteMap = map[string]byte{
-	"Sequence number":                          0x0,
-	"Text event":                               0x01,
-	"Copyright":                                0x02,
-	"Sequence/Track name":                      0x03,
-	"Instrument name":                          0x04,
-	"Lyric":                                    0x05,
-	"Marker":                                   0x06,
-	"Cue Point":                                0x07,
-	"MIDI Channel Prefix":                      0x20,
-	"End of Track":                             0x2f,
-	"Tempo":                                    0x51,
-	"Time Signature":                           0x58,
-	"Key Signature":                            0x59,
-	"Sequencer specific":                       0x7F,
-	"Timing Clock":                             0x8F,
-	"Start current sequence":                   0xFA,
-	"Continue stopped sequence where left off": 0xFB,
-	"Stop sequence":                            0xFC,
+// ControlChange sets a new value for a given controller
+// The controller number is between 0-119.
+// The new controller value is between 0-127.
+func ControlChange(channel, controller, newVal int) *Event {
+	return &Event{
+		MsgChan:    uint8(channel),
+		MsgType:    uint8(eventByteMap["ControlChange"]),
+		Controller: uint8(controller),
+		NewValue:   uint8(newVal),
+	}
+}
+
+// ProgramChange sets a new value the same way as ControlChange
+// but implements Mode control and special message by using reserved controller numbers 120-127.
+func ProgramChange(channel, controller, newVal int) *Event {
+	return &Event{
+		MsgChan:    uint8(channel),
+		MsgType:    uint8(eventByteMap["ProgramChange"]),
+		Controller: uint8(controller),
+		NewValue:   uint8(newVal),
+	}
+}
+
+// ChannelAfterTouch is a global aftertouch with a value from 0 to 127
+func ChannelAfterTouch(channel, vel int) *Event {
+	return &Event{
+		MsgChan:  uint8(channel),
+		MsgType:  uint8(eventByteMap["ChannelAfterTouch"]),
+		Pressure: uint8(vel),
+	}
+}
+
+// PitchWheelChange is sent to indicate a change in the pitch bender.
+// The possible value goes between 0 and 16383 where 8192 is the center.
+func PitchWheelChange(channel, int, val int) *Event {
+	return &Event{
+		MsgChan:      uint8(channel),
+		MsgType:      uint8(eventByteMap["PitchWheelChange"]),
+		AbsPitchBend: uint16(val),
+	}
+}
+
+// CopyrightEvent returns a copyright event with the passed string in it.
+func CopyrightEvent(txt string) *Event {
+	return &Event{
+		MsgType:   uint8(eventByteMap["Meta"]),
+		Cmd:       uint8(metaByteMap["Copyright"]),
+		Copyright: txt,
+	}
+}
+
+// TODO
+func Meta(channel int) *Event {
+	return nil
 }
 
 // Event
@@ -137,10 +158,12 @@ func (e *Event) String() string {
 	if e.Cmd != 0 {
 		out = fmt.Sprintf("Ch %d @ %d \t%s", e.MsgChan, e.TimeDelta, metaCmdMap[e.Cmd])
 		switch e.Cmd {
-		case 0x3:
+		case metaByteMap["Sequence/Track name"]:
 			out = fmt.Sprintf("%s -> %s", out, e.SeqTrackName)
-		case 0x58:
+		case metaByteMap["Time Signature"]:
 			out = fmt.Sprintf("%s -> %s", out, e.TimeSignature)
+		case metaByteMap["Copyright"]:
+			out = fmt.Sprintf("%s -> %s", out, e.Copyright)
 		}
 	}
 
@@ -154,8 +177,9 @@ func (e *Event) Encode() []byte {
 
 	// msg type and chan are stored together
 	msgData := []byte{(e.MsgType << 4) | e.MsgChan}
-	//fmt.Println(e.MsgChan)
-	//fmt.Printf("%X\n", (msgData[0]&0xF0)>>4)
+	if e.MsgType == eventByteMap["Meta"] {
+		msgData = []byte{0xFF}
+	}
 	buff.Write(msgData)
 	switch e.MsgType {
 	// unknown but found in the wild (seems to come with 1 data bytes)
@@ -237,8 +261,16 @@ func (e *Event) Encode() []byte {
 		//  Meta
 		// All meta-events start with FF followed by the command (xx), the length,
 		// or number of bytes that will contain data (nn), and the actual data (dd).
+		// meta_event = 0xFF + <meta_type> + <v_length> + <event_data_bytes>
 	case 0xF:
-		// TODO
+		binary.Write(buff, binary.BigEndian, e.Cmd)
+		switch e.Cmd {
+		// Copyright Notice
+		case 0x02:
+			copyright := []byte(e.Copyright)
+			binary.Write(buff, binary.BigEndian, EncodeVarint(uint32(len(copyright))))
+			binary.Write(buff, binary.BigEndian, copyright)
+		}
 	default:
 		fmt.Printf("didn't encode %#v because didn't know how to\n", e)
 	}
@@ -256,8 +288,16 @@ func (e *Event) Size() uint32 {
 		return 2
 	case 0xF:
 		// meta event
-		// NOT currently support, blowing up on purpose
-		log.Fatal(errors.New("Can't encode meta events, not supported yet"))
+		switch e.Cmd {
+		// Copyright Notice
+		case 0x02:
+			copyright := []byte(e.Copyright)
+			varintBytes := EncodeVarint(uint32(len(copyright)))
+			return uint32(len(copyright) + len(varintBytes))
+		default:
+			// NOT currently support, blowing up on purpose
+			log.Fatal(errors.New("Can't encode meta events, not supported yet"))
+		}
 	}
 	return 0
 }

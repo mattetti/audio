@@ -15,7 +15,7 @@ var (
 	ErrUnexpectedData = errors.New("unexpected data content")
 )
 
-func New(r io.Reader) *Decoder {
+func NewDecoder(r io.Reader) *Decoder {
 	return &Decoder{r: r}
 }
 
