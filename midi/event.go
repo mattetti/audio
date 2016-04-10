@@ -176,7 +176,7 @@ func (e *Event) String() string {
 	if e.Velocity > 0 {
 		out += fmt.Sprintf(" Vel: %d", e.Velocity)
 	}
-	if e.MsgType == eventByteMap["NoteOn"] {
+	if e.MsgType == eventByteMap["NoteOn"] || e.MsgType == eventByteMap["NoteOff"] {
 		out += fmt.Sprintf(" Note: %s", MidiNoteToName(int(e.Note)))
 	}
 	if e.Cmd != 0 {
