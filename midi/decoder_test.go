@@ -14,20 +14,20 @@ func TestVarint(t *testing.T) {
 	}{
 		{0, []byte{0}},
 		{42, []byte{0x2a}},
-		{292, []byte{0xa4, 0x02}},
+		{4610, []byte{0xa4, 0x02}},
 	}
 
 	for _, exp := range expecations {
 		conv := EncodeVarint(exp.dec)
 		if bytes.Compare(conv, exp.bytes) != 0 {
-			t.Fatalf("%d was converted to %#x didn't match %#x\n", exp.dec, conv, exp.bytes)
+			t.Fatalf("%d was converted to %#v didn't match %#v\n", exp.dec, conv, exp.bytes)
 		}
 	}
 
 	for _, exp := range expecations {
 		conv, _ := DecodeVarint(exp.bytes)
 		if conv != exp.dec {
-			t.Fatalf("%q was converted to %d didn't match %d\n", exp.bytes, conv, exp.dec)
+			t.Fatalf("%#v was converted to %d didn't match %d\n", exp.bytes, conv, exp.dec)
 		}
 	}
 }

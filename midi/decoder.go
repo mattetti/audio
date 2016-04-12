@@ -204,8 +204,8 @@ func (d *Decoder) IDnSize() ([4]byte, uint32, error) {
 	return ID, blockSize, nil
 }
 
-// VarLengthValue returns the variable length value at the exact parser location.
-func (d *Decoder) VarLen() (uint32, uint32, error) {
+// VarLen returns the variable length value at the exact parser location.
+func (d *Decoder) VarLen() (val uint32, readBytes uint32, err error) {
 	buf := []byte{}
 	var lastByte bool
 	var n uint32
