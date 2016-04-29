@@ -6,18 +6,23 @@ func EncodeVarint(x uint32) []byte {
 		return []byte{
 			byte(x),
 		}
-	} else if x>>14 == 0 {
+	}
+
+	if x>>14 == 0 {
 		return []byte{
 			byte(0x80 | x>>7),
 			byte(127 & x),
 		}
-	} else if x>>21 == 0 {
+	}
+
+	if x>>21 == 0 {
 		return []byte{
 			byte(0x80 | x>>14),
 			byte(0x80 | x>>7),
 			byte(127 & x),
 		}
 	}
+
 	return []byte{
 		byte(0x80 | x>>21),
 		byte(0x80 | x>>14),
