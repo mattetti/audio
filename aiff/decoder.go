@@ -318,7 +318,13 @@ func (p *Decoder) dispatchToChan(id [4]byte, size uint32) error {
 	}
 	okC := make(chan bool)
 	p.Wg.Add(1)
-	p.Chan <- &Chunk{ID: id, Size: int(size), R: p.r, okChan: okC, Wg: &p.Wg}
+	p.Chan <- &Chunk{
+		ID:     id,
+		Size:   int(size),
+		R:      io.LimitReader(p.r, int64(size)),
+		okChan: okC,
+		Wg:     &p.Wg,
+	}
 	p.Wg.Wait()
 	// TODO: timeout
 	return nil
