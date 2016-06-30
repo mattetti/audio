@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+	"io/ioutil"
 	"sync"
 )
 
@@ -33,22 +34,13 @@ func (ch *Chunk) Done() {
 	ch.Wg.Done()
 }
 
-func (ch *Chunk) drain() {
-	var err error
+func (ch *Chunk) drain() error {
 	bytesAhead := ch.Size - ch.Pos
-	for bytesAhead > 0 {
-		readSize := bytesAhead
-		if readSize > 4000 {
-			readSize = 4000
-		}
-
-		buf := make([]byte, readSize)
-		err = binary.Read(ch.R, binary.LittleEndian, &buf)
-		if err != nil {
-			return
-		}
-		bytesAhead -= readSize
+	if bytesAhead > 0 {
+		_, err := io.CopyN(ioutil.Discard, ch.R, int64(bytesAhead))
+		return err
 	}
+	return nil
 }
 
 // ReadLE reads the Little Endian chunk data into the passed struct
