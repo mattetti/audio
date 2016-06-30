@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"sync"
 	"time"
@@ -95,7 +96,7 @@ func (d *Decoder) Clip() *audio.Clip {
 		rewindBytes int64
 	)
 	for d.err != io.EOF {
-		id, size, d.err = d.IDnSize()
+		id, size, d.err = d.iDnSize()
 		if d.err != nil {
 			d.err = fmt.Errorf("error reading chunk header - %v", d.err)
 			break
@@ -150,7 +151,7 @@ func (d *Decoder) Parse() error {
 	var id [4]byte
 	var size uint32
 	for d.err != io.EOF {
-		id, size, d.err = d.IDnSize()
+		id, size, d.err = d.iDnSize()
 		if d.err != nil {
 			break
 		}
@@ -397,8 +398,8 @@ func (d *Decoder) String() string {
 	return out
 }
 
-// IDnSize returns the next ID + block size
-func (d *Decoder) IDnSize() ([4]byte, uint32, error) {
+// iDnSize returns the next ID + block size
+func (d *Decoder) iDnSize() ([4]byte, uint32, error) {
 	var ID [4]byte
 	var blockSize uint32
 	if d.err = binary.Read(d.r, binary.BigEndian, &ID); d.err != nil {
@@ -412,18 +413,9 @@ func (d *Decoder) IDnSize() ([4]byte, uint32, error) {
 
 // jumpTo advances the reader to the amount of bytes provided
 func (d *Decoder) jumpTo(bytesAhead int) error {
-	for bytesAhead > 0 {
-		readSize := bytesAhead
-		if readSize > 4000 {
-			readSize = 4000
-		}
-
-		buf := make([]byte, readSize)
-		d.err = binary.Read(d.r, binary.LittleEndian, &buf)
-		if d.err != nil {
-			return d.err
-		}
-		bytesAhead -= readSize
+	var err error
+	if bytesAhead > 0 {
+		_, err = io.CopyN(ioutil.Discard, d.r, int64(bytesAhead))
 	}
-	return nil
+	return err
 }
