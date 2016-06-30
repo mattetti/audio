@@ -70,17 +70,17 @@ func TestClip(t *testing.T) {
 		if d.commSize != exp.commSize {
 			t.Fatalf("%s of %s didn't match %d, got %d", "comm size", exp.input, exp.commSize, d.commSize)
 		}
-		if d.NumChans != exp.numChans {
-			t.Fatalf("%s of %s didn't match %d, got %d", "NumChans", exp.input, exp.numChans, d.NumChans)
+		if d.numChans != exp.numChans {
+			t.Fatalf("%s of %s didn't match %d, got %d", "NumChans", exp.input, exp.numChans, d.numChans)
 		}
-		if d.NumSampleFrames != exp.numSampleFrames {
-			t.Fatalf("%s of %s didn't match %d, got %d", "NumSampleFrames", exp.input, exp.numSampleFrames, d.NumSampleFrames)
+		if d.numSampleFrames != exp.numSampleFrames {
+			t.Fatalf("%s of %s didn't match %d, got %d", "NumSampleFrames", exp.input, exp.numSampleFrames, d.numSampleFrames)
 		}
-		if d.SampleSize != exp.sampleSize {
-			t.Fatalf("%s of %s didn't match %d, got %d", "SampleSize", exp.input, exp.sampleSize, d.SampleSize)
+		if d.sampleSize != exp.sampleSize {
+			t.Fatalf("%s of %s didn't match %d, got %d", "SampleSize", exp.input, exp.sampleSize, d.sampleSize)
 		}
-		if d.SampleRate != exp.sampleRate {
-			t.Fatalf("%s of %s didn't match %d, got %d", "SampleRate", exp.input, exp.sampleRate, d.SampleRate)
+		if d.sampleRate != exp.sampleRate {
+			t.Fatalf("%s of %s didn't match %d, got %d", "SampleRate", exp.input, exp.sampleRate, d.sampleRate)
 		}
 	}
 }
