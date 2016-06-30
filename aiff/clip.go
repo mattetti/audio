@@ -15,11 +15,19 @@ type Clip struct {
 }
 
 func (c *Clip) Read(p []byte) (n int, err error) {
+	// TODO(mattetti): should this return raw bytes or PCM data
+	// TODO(mattetti): the underlying reader might pass the size limit, we probably
+	// need to use some sort of limitreader.
 	return
 }
 
+// Seek seeks into the clip
 func (c *Clip) Seek(offset int64, whence int) (int64, error) {
-	return 0, nil
+	if c == nil {
+		return 0, nil
+	}
+
+	return c.r.Seek(offset, whence)
 }
 
 func (c *Clip) FrameInfo() audio.FrameInfo {

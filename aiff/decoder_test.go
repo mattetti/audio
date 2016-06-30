@@ -39,20 +39,21 @@ func TestClip(t *testing.T) {
 			t.Fatal(d.Err())
 		}
 
-		if clip.BitDepth != int(exp.sampleSize) {
-			t.Fatalf("%s of %s didn't match %d, got %d", "Clip bit depth", exp.input, exp.sampleSize, clip.BitDepth)
+		fi := clip.FrameInfo()
+		if fi.BitDepth != int(exp.sampleSize) {
+			t.Fatalf("%s of %s didn't match %d, got %d", "Clip bit depth", exp.input, exp.sampleSize, fi.BitDepth)
 		}
 
-		if clip.SampleRate != int64(exp.sampleRate) {
-			t.Fatalf("%s of %s didn't match %d, got %d", "Clip sample rate", exp.input, exp.sampleRate, clip.SampleRate)
+		if fi.SampleRate != int64(exp.sampleRate) {
+			t.Fatalf("%s of %s didn't match %d, got %d", "Clip sample rate", exp.input, exp.sampleRate, fi.SampleRate)
 		}
 
-		if clip.Channels != int(exp.numChans) {
-			t.Fatalf("%s of %s didn't match %d, got %d", "Clip sample channels", exp.input, exp.numChans, clip.Channels)
+		if fi.Channels != int(exp.numChans) {
+			t.Fatalf("%s of %s didn't match %d, got %d", "Clip sample channels", exp.input, exp.numChans, fi.Channels)
 		}
 
-		if clip.DataSize != exp.ssnSize {
-			t.Fatalf("%s of %s didn't match %d, got %d", "Clip sample data size", exp.input, exp.ssnSize, clip.DataSize)
+		if clip.Size() != exp.ssnSize {
+			t.Fatalf("%s of %s didn't match %d, got %d", "Clip sample data size", exp.input, exp.ssnSize, clip.Size())
 		}
 
 		// decoder data, some will probably be deprecated

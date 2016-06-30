@@ -55,7 +55,7 @@ type Decoder struct {
 	EncodingName string
 
 	err      error
-	dataClip *audio.Clip
+	dataClip *Clip
 }
 
 // NewDecoder creates a new reader reading the given reader and pushing audio data to the given channel.
@@ -77,7 +77,7 @@ func (d *Decoder) Err() error {
 // if previously read.
 // This is the recommended, default way to consume an AIFF file.
 // Note that non audio chunks are skipped and the chunk channels doesn't get dispatched.
-func (d *Decoder) Clip() *audio.Clip {
+func (d *Decoder) Clip() audio.Clip {
 	if d.dataClip != nil {
 		return d.dataClip
 	}
@@ -86,7 +86,7 @@ func (d *Decoder) Clip() *audio.Clip {
 		return nil
 	}
 
-	d.dataClip = &audio.Clip{}
+	d.dataClip = &Clip{}
 
 	// read the file information to setup the audio clip
 	// find the beginning of the SSND chunk and set the clip reader to it.
@@ -104,9 +104,9 @@ func (d *Decoder) Clip() *audio.Clip {
 		switch id {
 		case COMMID:
 			d.parseCommChunk(size)
-			d.dataClip.Channels = int(d.numChans)
-			d.dataClip.BitDepth = int(d.sampleSize)
-			d.dataClip.SampleRate = int64(d.sampleRate)
+			d.dataClip.channels = int(d.numChans)
+			d.dataClip.bitDepth = int(d.sampleSize)
+			d.dataClip.sampleRate = int64(d.sampleRate)
 			// if we found the sound data before the COMM,
 			// we need to rewind the reader so we can properly
 			// set the clip reader.
@@ -115,20 +115,20 @@ func (d *Decoder) Clip() *audio.Clip {
 				break
 			}
 		case SSNDID:
-			d.dataClip.DataSize = int64(size)
+			d.dataClip.size = int64(size)
 			// if we didn't read the COMM, we are going to need to come back
-			if d.dataClip.SampleRate == 0 {
+			if d.dataClip.sampleRate == 0 {
 				rewindBytes += int64(size)
 				if d.err = d.jumpTo(int(size)); d.err != nil {
 					return nil
 				}
 			}
-			d.dataClip.R = d.r
+			d.dataClip.r = d.r
 			return d.dataClip
 
 		default:
 			// if we read SSN but didn't read the COMM, we need to track location
-			if d.dataClip.DataSize == 0 {
+			if d.dataClip.size == 0 {
 				rewindBytes += int64(size)
 			}
 			if d.err = d.jumpTo(int(size)); d.err != nil {
