@@ -97,7 +97,7 @@ func (e *Encoder) Write() error {
 	}
 
 	// comm chunk
-	if err := e.Add(commID); err != nil {
+	if err := e.Add(COMMID); err != nil {
 		return fmt.Errorf("%v when writing comm chunk ID header", err)
 	}
 	// blocksize uint32

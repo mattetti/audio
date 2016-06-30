@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func TestParse(t *testing.T) {
+func TestClip(t *testing.T) {
 	expectations := []struct {
 		input           string
 		id              [4]byte
@@ -20,9 +20,10 @@ func TestParse(t *testing.T) {
 		numSampleFrames uint32
 		sampleSize      uint16
 		sampleRate      int
+		ssnSize         int64
 	}{
 		{"fixtures/kick.aif", formID, 9642, aiffID,
-			18, 1, 4484, 16, 22050},
+			18, 1, 4484, 16, 22050, 8976},
 	}
 
 	for _, exp := range expectations {
@@ -32,35 +33,54 @@ func TestParse(t *testing.T) {
 			t.Fatal(err)
 		}
 		defer f.Close()
-		c := NewDecoder(f, nil)
-		err = c.Parse()
-		if err != nil {
-			t.Fatal(err)
+		d := NewDecoder(f, nil)
+		clip := d.Clip()
+		if d.Err() != nil {
+			t.Fatal(d.Err())
 		}
-		if c.ID != exp.id {
-			t.Fatalf("%s of %s didn't match %s, got %s", "ID", exp.input, exp.id, c.ID)
+
+		if clip.BitDepth != int(exp.sampleSize) {
+			t.Fatalf("%s of %s didn't match %d, got %d", "Clip bit depth", exp.input, exp.sampleSize, clip.BitDepth)
 		}
-		if c.Size != exp.size {
-			t.Fatalf("%s of %s didn't match %d, got %d", "BlockSize", exp.input, exp.size, c.Size)
+
+		if clip.SampleRate != int64(exp.sampleRate) {
+			t.Fatalf("%s of %s didn't match %d, got %d", "Clip sample rate", exp.input, exp.sampleRate, clip.SampleRate)
 		}
-		if c.Format != exp.format {
-			t.Fatalf("%s of %s didn't match %q, got %q", "Format", exp.input, exp.format, c.Format)
+
+		if clip.Channels != int(exp.numChans) {
+			t.Fatalf("%s of %s didn't match %d, got %d", "Clip sample channels", exp.input, exp.numChans, clip.Channels)
+		}
+
+		if clip.DataSize != exp.ssnSize {
+			t.Fatalf("%s of %s didn't match %d, got %d", "Clip sample data size", exp.input, exp.ssnSize, clip.DataSize)
+		}
+
+		// decoder data, some will probably be deprecated
+
+		if d.ID != exp.id {
+			t.Fatalf("%s of %s didn't match %s, got %s", "ID", exp.input, exp.id, d.ID)
+		}
+		if d.Size != exp.size {
+			t.Fatalf("%s of %s didn't match %d, got %d", "BlockSize", exp.input, exp.size, d.Size)
+		}
+		if d.Format != exp.format {
+			t.Fatalf("%s of %s didn't match %q, got %q", "Format", exp.input, exp.format, d.Format)
 		}
 		// comm chunk
-		if c.commSize != exp.commSize {
-			t.Fatalf("%s of %s didn't match %d, got %d", "comm size", exp.input, exp.commSize, c.commSize)
+		if d.commSize != exp.commSize {
+			t.Fatalf("%s of %s didn't match %d, got %d", "comm size", exp.input, exp.commSize, d.commSize)
 		}
-		if c.NumChans != exp.numChans {
-			t.Fatalf("%s of %s didn't match %d, got %d", "NumChans", exp.input, exp.numChans, c.NumChans)
+		if d.NumChans != exp.numChans {
+			t.Fatalf("%s of %s didn't match %d, got %d", "NumChans", exp.input, exp.numChans, d.NumChans)
 		}
-		if c.NumSampleFrames != exp.numSampleFrames {
-			t.Fatalf("%s of %s didn't match %d, got %d", "NumSampleFrames", exp.input, exp.numSampleFrames, c.NumSampleFrames)
+		if d.NumSampleFrames != exp.numSampleFrames {
+			t.Fatalf("%s of %s didn't match %d, got %d", "NumSampleFrames", exp.input, exp.numSampleFrames, d.NumSampleFrames)
 		}
-		if c.SampleSize != exp.sampleSize {
-			t.Fatalf("%s of %s didn't match %d, got %d", "SampleSize", exp.input, exp.sampleSize, c.SampleSize)
+		if d.SampleSize != exp.sampleSize {
+			t.Fatalf("%s of %s didn't match %d, got %d", "SampleSize", exp.input, exp.sampleSize, d.SampleSize)
 		}
-		if c.SampleRate != exp.sampleRate {
-			t.Fatalf("%s of %s didn't match %d, got %d", "SampleRate", exp.input, exp.sampleRate, c.SampleRate)
+		if d.SampleRate != exp.sampleRate {
+			t.Fatalf("%s of %s didn't match %d, got %d", "SampleRate", exp.input, exp.sampleRate, d.SampleRate)
 		}
 	}
 }
@@ -74,21 +94,20 @@ func TestNewDecoder(t *testing.T) {
 	defer f.Close()
 	ch := make(chan *Chunk)
 	c := NewDecoder(f, ch)
-	go func() {
-		if err := c.Parse(); err != nil {
-			panic(err)
-		}
-	}()
+	go func() { c.Parse() }()
 
 	for chunk := range ch {
 		id := string(chunk.ID[:])
 		t.Log(id, chunk.Size)
-		if id != "SSND" {
+		if id != string(COMMID[:]) {
 			buf := make([]byte, chunk.Size)
 			chunk.ReadBE(buf)
 			t.Log(hex.Dump(buf))
 		}
 		chunk.Done()
+	}
+	if c.Err() != nil {
+		t.Fatal(c.Err())
 	}
 
 }
