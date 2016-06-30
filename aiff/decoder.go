@@ -15,10 +15,6 @@ import (
 	"github.com/mattetti/audio/misc"
 )
 
-var (
-	defaultChunkDecoderTimeout = 2 * time.Second
-)
-
 // Decoder is the wrapper structure for the AIFF container
 type Decoder struct {
 	r io.ReadSeeker
@@ -55,7 +51,7 @@ type Decoder struct {
 	EncodingName string
 
 	err      error
-	dataClip *Clip
+	clipInfo *Clip
 }
 
 // NewDecoder creates a new reader reading the given reader and pushing audio data to the given channel.
@@ -78,15 +74,15 @@ func (d *Decoder) Err() error {
 // This is the recommended, default way to consume an AIFF file.
 // Note that non audio chunks are skipped and the chunk channels doesn't get dispatched.
 func (d *Decoder) Clip() audio.Clip {
-	if d.dataClip != nil {
-		return d.dataClip
+	if d.clipInfo != nil {
+		return d.clipInfo
 	}
 	if d.err = d.readHeaders(); d.err != nil {
 		d.err = fmt.Errorf("failed to read header - %v", d.err)
 		return nil
 	}
 
-	d.dataClip = &Clip{}
+	d.clipInfo = &Clip{}
 
 	// read the file information to setup the audio clip
 	// find the beginning of the SSND chunk and set the clip reader to it.
@@ -104,9 +100,9 @@ func (d *Decoder) Clip() audio.Clip {
 		switch id {
 		case COMMID:
 			d.parseCommChunk(size)
-			d.dataClip.channels = int(d.numChans)
-			d.dataClip.bitDepth = int(d.sampleSize)
-			d.dataClip.sampleRate = int64(d.sampleRate)
+			d.clipInfo.channels = int(d.numChans)
+			d.clipInfo.bitDepth = int(d.sampleSize)
+			d.clipInfo.sampleRate = int64(d.sampleRate)
 			// if we found the sound data before the COMM,
 			// we need to rewind the reader so we can properly
 			// set the clip reader.
@@ -115,20 +111,20 @@ func (d *Decoder) Clip() audio.Clip {
 				break
 			}
 		case SSNDID:
-			d.dataClip.size = int64(size)
+			d.clipInfo.size = int64(size)
 			// if we didn't read the COMM, we are going to need to come back
-			if d.dataClip.sampleRate == 0 {
+			if d.clipInfo.sampleRate == 0 {
 				rewindBytes += int64(size)
 				if d.err = d.jumpTo(int(size)); d.err != nil {
 					return nil
 				}
 			}
-			d.dataClip.r = d.r
-			return d.dataClip
+			d.clipInfo.r = d.r
+			return d.clipInfo
 
 		default:
 			// if we read SSN but didn't read the COMM, we need to track location
-			if d.dataClip.size == 0 {
+			if d.clipInfo.size == 0 {
 				rewindBytes += int64(size)
 			}
 			if d.err = d.jumpTo(int(size)); d.err != nil {
@@ -137,7 +133,7 @@ func (d *Decoder) Clip() audio.Clip {
 		}
 	}
 
-	return d.dataClip
+	return d.clipInfo
 }
 
 // Parse reads the aiff reader and populates the container structure with found information.
