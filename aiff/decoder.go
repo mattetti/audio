@@ -11,7 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mattetti/audio"
 	"github.com/mattetti/audio/misc"
 )
 
@@ -73,7 +72,7 @@ func (d *Decoder) Err() error {
 // if previously read.
 // This is the recommended, default way to consume an AIFF file.
 // Note that non audio chunks are skipped and the chunk channels doesn't get dispatched.
-func (d *Decoder) Clip() audio.Clip {
+func (d *Decoder) Clip() *Clip {
 	if d.clipInfo != nil {
 		return d.clipInfo
 	}
@@ -103,6 +102,7 @@ func (d *Decoder) Clip() audio.Clip {
 			d.clipInfo.channels = int(d.numChans)
 			d.clipInfo.bitDepth = int(d.sampleSize)
 			d.clipInfo.sampleRate = int64(d.sampleRate)
+			d.clipInfo.sampleFrames = int(d.numSampleFrames)
 			// if we found the sound data before the COMM,
 			// we need to rewind the reader so we can properly
 			// set the clip reader.
