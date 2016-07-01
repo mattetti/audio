@@ -93,6 +93,14 @@ outter:
 	return frames, n, err
 }
 
+// FrameCount returns the total number of frames available in this clip.
+func (c *Clip) FrameCount() int {
+	if c == nil {
+		return 0
+	}
+	return c.sampleFrames
+}
+
 func (c *Clip) Read(p []byte) (n int, err error) {
 	// TODO(mattetti): should this return raw bytes or PCM data
 	// TODO(mattetti): the underlying reader might pass the size limit, we probably
