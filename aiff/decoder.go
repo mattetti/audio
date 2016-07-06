@@ -42,8 +42,8 @@ type Decoder struct {
 	commSize        uint32
 	numChans        uint16
 	numSampleFrames uint32
-	sampleSize      uint16
-	sampleRate      int
+	BitDepth        uint16
+	SampleRate      int
 
 	// AIFC data
 	Encoding     [4]byte
@@ -100,8 +100,8 @@ func (d *Decoder) Clip() *Clip {
 		case COMMID:
 			d.parseCommChunk(size)
 			d.clipInfo.channels = int(d.numChans)
-			d.clipInfo.bitDepth = int(d.sampleSize)
-			d.clipInfo.sampleRate = int64(d.sampleRate)
+			d.clipInfo.bitDepth = int(d.BitDepth)
+			d.clipInfo.sampleRate = int64(d.SampleRate)
 			d.clipInfo.sampleFrames = int(d.numSampleFrames)
 			// if we found the sound data before the COMM,
 			// we need to rewind the reader so we can properly
@@ -197,7 +197,7 @@ func (d *Decoder) Frames() (info *Info, frames [][]int, err error) {
 			chunk.ReadBE(bufData)
 			buf := bytes.NewReader(bufData)
 
-			bytesPerSample := (d.sampleSize-1)/8 + 1
+			bytesPerSample := (d.BitDepth-1)/8 + 1
 			frameCount := int(d.numSampleFrames)
 
 			if d.numSampleFrames == 0 {
@@ -220,7 +220,7 @@ func (d *Decoder) Frames() (info *Info, frames [][]int, err error) {
 					}
 
 					sampleBuf := bytes.NewBuffer(sampleBufData)
-					switch d.sampleSize {
+					switch d.BitDepth {
 					case 8:
 						var v uint8
 						binary.Read(sampleBuf, binary.BigEndian, &v)
@@ -243,7 +243,7 @@ func (d *Decoder) Frames() (info *Info, frames [][]int, err error) {
 						frame[j] = int(v)
 					default:
 						// TODO: nicer error instead of crashing
-						log.Fatalf("%v bitrate not supported", d.sampleSize)
+						log.Fatalf("%v bitrate not supported", d.BitDepth)
 					}
 				}
 				sndDataFrames[i] = frame
@@ -261,8 +261,8 @@ func (d *Decoder) Frames() (info *Info, frames [][]int, err error) {
 
 	info = &Info{
 		NumChannels: int(d.numChans),
-		SampleRate:  d.sampleRate,
-		BitDepth:    int(d.sampleSize),
+		SampleRate:  d.SampleRate,
+		BitDepth:    int(d.BitDepth),
 		Duration:    duration,
 	}
 
@@ -314,7 +314,7 @@ func (d *Decoder) parseCommChunk(size uint32) error {
 		d.err = fmt.Errorf("num of sample frames failed to parse - %s", d.err)
 		return d.err
 	}
-	if d.err = binary.Read(d.r, binary.BigEndian, &d.sampleSize); d.err != nil {
+	if d.err = binary.Read(d.r, binary.BigEndian, &d.BitDepth); d.err != nil {
 		d.err = fmt.Errorf("sample size failed to parse - %s", d.err)
 		return d.err
 	}
@@ -323,7 +323,7 @@ func (d *Decoder) parseCommChunk(size uint32) error {
 		d.err = fmt.Errorf("sample rate failed to parse - %s", d.err)
 		return d.err
 	}
-	d.sampleRate = misc.IeeeFloatToInt(srBytes)
+	d.SampleRate = misc.IeeeFloatToInt(srBytes)
 
 	if d.Format == aifcID {
 		if d.err = binary.Read(d.r, binary.BigEndian, &d.Encoding); d.err != nil {
@@ -376,7 +376,7 @@ func (d *Decoder) Duration() (time.Duration, error) {
 	if d == nil {
 		return 0, errors.New("can't calculate the duration of a nil pointer")
 	}
-	duration := time.Duration(float64(d.numSampleFrames) / float64(d.sampleRate) * float64(time.Second))
+	duration := time.Duration(float64(d.numSampleFrames) / float64(d.SampleRate) * float64(time.Second))
 	return duration, nil
 }
 
@@ -386,8 +386,8 @@ func (d *Decoder) String() string {
 	if d.Format == aifcID {
 		out += fmt.Sprintf("%s - ", d.EncodingName)
 	}
-	if d.sampleRate != 0 {
-		out += fmt.Sprintf("%d channels @ %d / %d bits - ", d.numChans, d.sampleRate, d.sampleSize)
+	if d.SampleRate != 0 {
+		out += fmt.Sprintf("%d channels @ %d / %d bits - ", d.numChans, d.SampleRate, d.BitDepth)
 		dur, _ := d.Duration()
 		out += fmt.Sprintf("Duration: %f seconds\n", dur.Seconds())
 	}

@@ -77,11 +77,11 @@ func TestClip(t *testing.T) {
 		if d.numSampleFrames != exp.numSampleFrames {
 			t.Fatalf("%s of %s didn't match %d, got %d", "NumSampleFrames", exp.input, exp.numSampleFrames, d.numSampleFrames)
 		}
-		if d.sampleSize != exp.sampleSize {
-			t.Fatalf("%s of %s didn't match %d, got %d", "SampleSize", exp.input, exp.sampleSize, d.sampleSize)
+		if d.BitDepth != exp.sampleSize {
+			t.Fatalf("%s of %s didn't match %d, got %d", "SampleSize", exp.input, exp.sampleSize, d.BitDepth)
 		}
-		if d.sampleRate != exp.sampleRate {
-			t.Fatalf("%s of %s didn't match %d, got %d", "SampleRate", exp.input, exp.sampleRate, d.sampleRate)
+		if d.SampleRate != exp.sampleRate {
+			t.Fatalf("%s of %s didn't match %d, got %d", "SampleRate", exp.input, exp.sampleRate, d.SampleRate)
 		}
 	}
 }
@@ -110,7 +110,6 @@ func TestNewDecoder(t *testing.T) {
 	if c.Err() != nil {
 		t.Fatal(c.Err())
 	}
-
 }
 
 func TestReadFrames(t *testing.T) {
