@@ -20,10 +20,10 @@ func TestClip(t *testing.T) {
 		numSampleFrames uint32
 		sampleSize      uint16
 		sampleRate      int
-		ssnSize         int64
+		totalFrames     int64
 	}{
 		{"fixtures/kick.aif", formID, 9642, aiffID,
-			18, 1, 4484, 16, 22050, 8976},
+			18, 1, 4484, 16, 22050, 4484},
 	}
 
 	for _, exp := range expectations {
@@ -52,8 +52,8 @@ func TestClip(t *testing.T) {
 			t.Fatalf("%s of %s didn't match %d, got %d", "Clip sample channels", exp.input, exp.numChans, fi.Channels)
 		}
 
-		if clip.Size() != exp.ssnSize {
-			t.Fatalf("%s of %s didn't match %d, got %d", "Clip sample data size", exp.input, exp.ssnSize, clip.Size())
+		if clip.Size() != exp.totalFrames {
+			t.Fatalf("%s of %s didn't match %d, got %d", "Clip sample data size", exp.input, exp.totalFrames, clip.Size())
 		}
 
 		// decoder data, some will probably be deprecated

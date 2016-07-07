@@ -12,7 +12,7 @@ import (
 
 type Clip struct {
 	r            io.ReadSeeker
-	size         int64
+	byteSize     int
 	channels     int
 	bitDepth     int
 	sampleRate   int64
@@ -32,9 +32,10 @@ func (c *Clip) ReadPCM(nFrames int) (frames misc.AudioFrames, n int, err error) 
 	if c == nil || c.sampleFrames == 0 {
 		return nil, 0, nil
 	}
-	if err := c.readOffsetBlockSise(); err != nil {
+	if err := c.readOffsetBlockSize(); err != nil {
 		return nil, 0, err
 	}
+	// TODO(mattetti): respect offset and block size
 
 	bytesPerSample := (c.bitDepth-1)/8 + 1
 	sampleBufData := make([]byte, bytesPerSample)
@@ -93,12 +94,12 @@ outter:
 	return frames, n, err
 }
 
-// FrameCount returns the total number of frames available in this clip.
-func (c *Clip) FrameCount() int {
+// Size returns the total number of frames available in this clip.
+func (c *Clip) Size() int64 {
 	if c == nil {
 		return 0
 	}
-	return c.sampleFrames
+	return int64(c.sampleFrames)
 }
 
 func (c *Clip) Read(p []byte) (n int, err error) {
@@ -125,11 +126,7 @@ func (c *Clip) FrameInfo() audio.FrameInfo {
 	}
 }
 
-func (c *Clip) Size() int64 {
-	return c.size
-}
-
-func (c *Clip) readOffsetBlockSise() error {
+func (c *Clip) readOffsetBlockSize() error {
 	if c == nil || c.blockSize > 0 {
 		return nil
 	}

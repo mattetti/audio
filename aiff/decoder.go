@@ -103,6 +103,7 @@ func (d *Decoder) Clip() *Clip {
 			d.clipInfo.bitDepth = int(d.BitDepth)
 			d.clipInfo.sampleRate = int64(d.SampleRate)
 			d.clipInfo.sampleFrames = int(d.numSampleFrames)
+			d.clipInfo.byteSize = int(size)
 			// if we found the sound data before the COMM,
 			// we need to rewind the reader so we can properly
 			// set the clip reader.
@@ -111,7 +112,7 @@ func (d *Decoder) Clip() *Clip {
 				break
 			}
 		case SSNDID:
-			d.clipInfo.size = int64(size)
+			d.clipInfo.byteSize = int(size)
 			// if we didn't read the COMM, we are going to need to come back
 			if d.clipInfo.sampleRate == 0 {
 				rewindBytes += int64(size)
@@ -124,7 +125,7 @@ func (d *Decoder) Clip() *Clip {
 
 		default:
 			// if we read SSN but didn't read the COMM, we need to track location
-			if d.clipInfo.size == 0 {
+			if d.clipInfo.sampleRate == 0 {
 				rewindBytes += int64(size)
 			}
 			if d.err = d.jumpTo(int(size)); d.err != nil {
