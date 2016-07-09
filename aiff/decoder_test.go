@@ -145,6 +145,7 @@ func TestClip_Read(t *testing.T) {
 		totalFrames int
 	}{
 		{"fixtures/kick.aif", 4484},
+		{"fixtures/delivery.aiff", 17199},
 	}
 
 	for _, exp := range expectations {
@@ -173,7 +174,7 @@ func TestClip_Read(t *testing.T) {
 			readFrames += n
 		}
 		if readFrames != totalFrames {
-			t.Fatalf("file expected to have %d frames, only read %d, missing %d frames\n", totalFrames, readFrames, (totalFrames - readFrames))
+			t.Fatalf("file expected to have %d frames, only read %d, off by %d frames\n", totalFrames, readFrames, (totalFrames - readFrames))
 		}
 
 	}
