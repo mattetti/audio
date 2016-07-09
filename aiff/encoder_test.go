@@ -2,6 +2,7 @@ package aiff
 
 import (
 	"bytes"
+	"encoding/hex"
 	"os"
 	"testing"
 )
@@ -39,13 +40,12 @@ func TestEncoderRoundTrip(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		in.Close()
+		defer in.Close()
 
 		out, err := os.Create(tc.out)
 		if err != nil {
 			t.Fatalf("couldn't create %s %v", tc.out, err)
 		}
-		defer out.Close()
 
 		e := NewEncoder(out, int(d.SampleRate), int(d.BitDepth), int(d.NumChans))
 		e.Frames = frames
@@ -53,13 +53,17 @@ func TestEncoderRoundTrip(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		// TODO compare frames
 		nf, err := os.Open(tc.out)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		d2 := NewDecoder(nf)
+		d2.Clip()
+		// TODO(mattetti): using d2.Duration() messes the later Frames() call
+		if d.Size != d2.Size {
+			t.Fatalf("the encoded size didn't match the original, expected: %d, got %d", d.Size, d2.Size)
+		}
 		nframes, err := d2.Frames()
 		if err != nil {
 			t.Fatal(err)
@@ -86,20 +90,20 @@ func TestEncoderRoundTrip(t *testing.T) {
 		}
 
 		// binary comparison
-		out.Seek(0, 0)
+		in.Seek(0, 0)
 		nf.Seek(0, 0)
-		buf1 := make([]byte, 1024)
-		buf2 := make([]byte, 1024)
+		buf1 := make([]byte, 32)
+		buf2 := make([]byte, 32)
 
 		var err1, err2 error
 		var n int
 		readBytes := 0
 		for err1 == nil && err2 == nil {
-			n, err1 = out.Read(buf1)
+			n, err1 = in.Read(buf1)
 			_, err2 = nf.Read(buf2)
 			readBytes += n
 			if bytes.Compare(buf1, buf2) != 0 {
-				t.Fatalf("round trip failed, data differed after %d bytes", readBytes)
+				t.Fatalf("round trip failed, data differed after %d bytes\n%s\n%s", readBytes, hex.Dump(buf1), hex.Dump(buf2))
 			}
 		}
 
