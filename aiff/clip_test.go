@@ -38,7 +38,7 @@ func Test_ClipReadPCM(t *testing.T) {
 			t.Fatal(err)
 		}
 		defer f.Close()
-		d := aiff.NewDecoder(f, nil)
+		d := aiff.NewDecoder(f)
 		clip := d.Clip()
 		if d.Err() != nil {
 			t.Fatal(d.Err())
