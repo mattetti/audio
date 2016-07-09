@@ -20,8 +20,9 @@ type Clip struct {
 	readFrames   int
 
 	// decoder info
-	offset    uint32
-	blockSize uint32
+	offset     uint32
+	blockSize  uint32
+	offsetRead bool
 }
 
 // ReadPCM reads up to n frames from the clip.
@@ -168,7 +169,8 @@ func (c *Clip) FrameInfo() audio.FrameInfo {
 }
 
 func (c *Clip) readOffsetBlockSize() error {
-	if c == nil || c.blockSize > 0 {
+	// reading the offset and blocksize should only happen once per chunk
+	if c == nil || c.offsetRead == true {
 		return nil
 	}
 
@@ -182,5 +184,6 @@ func (c *Clip) readOffsetBlockSize() error {
 		return err
 	}
 
+	c.offsetRead = true
 	return nil
 }
