@@ -137,6 +137,71 @@ func (d *Decoder) Clip() *Clip {
 	return d.clipInfo
 }
 
+// DecodeFrames decodes PCM bytes into audio frames based on the decoder context
+func (d *Decoder) DecodeFrames(data []byte) (frames misc.AudioFrames, err error) {
+	numChannels := int(d.numChans)
+	r := bytes.NewBuffer(data)
+
+	bytesPerSample := int((d.BitDepth-1)/8 + 1)
+	sampleBufData := make([]byte, bytesPerSample)
+
+	frames = make(misc.AudioFrames, len(data)/bytesPerSample)
+	for j := 0; j < int(numChannels); j++ {
+		frames[j] = make([]int, numChannels)
+	}
+	n := 0
+
+outter:
+	for i := 0; (i + (bytesPerSample * numChannels)) <= len(data); {
+		frame := make([]int, numChannels)
+		for j := 0; j < numChannels; j++ {
+			switch d.BitDepth {
+			case 8:
+				var v uint8
+				err = binary.Read(r, binary.BigEndian, &v)
+				if err != nil {
+					if err == io.EOF {
+						err = nil
+					}
+					break outter
+				}
+				frame[j] = int(v)
+			case 16:
+				var v int16
+				binary.Read(r, binary.BigEndian, &v)
+				frame[j] = int(v)
+			case 24:
+				_, err = r.Read(sampleBufData)
+				if err != nil {
+					if err == io.EOF {
+						err = nil
+					}
+					break outter
+				}
+				// TODO: check if the conversion might not be inversed depending on
+				// the encoding (BE vs LE)
+				var output int32
+				output |= int32(sampleBufData[2]) << 0
+				output |= int32(sampleBufData[1]) << 8
+				output |= int32(sampleBufData[0]) << 16
+				frame[j] = int(output)
+			case 32:
+				var v int32
+				binary.Read(r, binary.BigEndian, &v)
+				frame[j] = int(v)
+			default:
+				err = fmt.Errorf("%v bit depth not supported", d.BitDepth)
+				break outter
+			}
+			i += bytesPerSample
+		}
+		frames[n] = frame
+		n++
+	}
+
+	return frames, err
+}
+
 // Parse reads the aiff reader and populates the container structure with found information.
 // The sound data or unknown chunks are passed to the optional channel if available.
 // Instead of checking the returned error, it's recommended to read d.Err()
