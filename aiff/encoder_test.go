@@ -1,6 +1,7 @@
 package aiff
 
 import (
+	"bytes"
 	"os"
 	"testing"
 )
@@ -51,7 +52,6 @@ func TestEncoderRoundTrip(t *testing.T) {
 		if err := e.Write(); err != nil {
 			t.Fatal(err)
 		}
-		out.Close()
 
 		// TODO compare frames
 		nf, err := os.Open(tc.out)
@@ -61,7 +61,6 @@ func TestEncoderRoundTrip(t *testing.T) {
 
 		d2 := NewDecoder(nf)
 		nframes, err := d2.Frames()
-		nf.Close()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -85,6 +84,26 @@ func TestEncoderRoundTrip(t *testing.T) {
 				}
 			}
 		}
+
+		// binary comparison
+		out.Seek(0, 0)
+		nf.Seek(0, 0)
+		buf1 := make([]byte, 1024)
+		buf2 := make([]byte, 1024)
+
+		var err1, err2 error
+		var n int
+		readBytes := 0
+		for err1 == nil && err2 == nil {
+			n, err1 = out.Read(buf1)
+			_, err2 = nf.Read(buf2)
+			readBytes += n
+			if bytes.Compare(buf1, buf2) != 0 {
+				t.Fatalf("round trip failed, data differed after %d bytes", readBytes)
+			}
+		}
+
+		nf.Close()
 		os.Remove(nf.Name())
 	}
 }
