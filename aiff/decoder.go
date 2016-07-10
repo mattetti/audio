@@ -12,6 +12,8 @@ import (
 	"github.com/mattetti/audio/misc"
 )
 
+// TODO(mattetti): API to access each chunk and decode manually.
+
 // Decoder is the wrapper structure for the AIFF container
 type Decoder struct {
 	r io.ReadSeeker

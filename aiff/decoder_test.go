@@ -1,7 +1,6 @@
 package aiff
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -54,8 +53,6 @@ func TestClip(t *testing.T) {
 		if clip.Size() != exp.totalFrames {
 			t.Fatalf("%s of %s didn't match %d, got %d", "Clip sample data size", exp.input, exp.totalFrames, clip.Size())
 		}
-
-		// decoder data, some will probably be deprecated
 
 		if d.ID != exp.id {
 			t.Fatalf("%s of %s didn't match %s, got %s", "ID", exp.input, exp.id, d.ID)
@@ -188,19 +185,4 @@ func TestDecoder_Duration(t *testing.T) {
 			t.Fatalf("duration of %s didn't match %d milliseconds, got %d", exp.input, exp.duration, d)
 		}
 	}
-}
-
-func ExampleDecoder_Duration() {
-	path, _ := filepath.Abs("fixtures/kick.aif")
-	f, err := os.Open(path)
-	if err != nil {
-		panic(err)
-	}
-	defer f.Close()
-
-	c := NewDecoder(f)
-	d, _ := c.Duration()
-	fmt.Printf("kick.aif has a duration of %f seconds\n", d.Seconds())
-	// Output:
-	// kick.aif has a duration of 0.203356 seconds
 }
