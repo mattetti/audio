@@ -62,7 +62,6 @@ func (d *Decoder) Err() error {
 // This method is safe to be called multiple times but the reader might need to be rewinded
 // if previously read.
 // This is the recommended, default way to consume an AIFF file.
-// Note that non audio chunks are skipped and the chunk channels doesn't get dispatched.
 func (d *Decoder) Clip() *Clip {
 	if d.clipInfo != nil {
 		return d.clipInfo

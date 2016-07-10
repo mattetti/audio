@@ -26,10 +26,8 @@ type Clip struct {
 }
 
 // ReadPCM reads up to n frames from the clip.
-// The frwames as well as the number of frames/items read are returned.
+// The frames as well as the number of frames/items read are returned.
 // TODO(mattetti): misc.AudioFrames is a temporary solution that needs to be improved.
-// TODO(mattetti): we might want to keep track of the postion in the reader so we can easily check if
-// the reader has been reset.
 func (c *Clip) ReadPCM(nFrames int) (frames misc.AudioFrames, n int, err error) {
 	if c == nil || c.sampleFrames == 0 {
 		return nil, 0, nil
