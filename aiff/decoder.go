@@ -12,8 +12,6 @@ import (
 	"github.com/mattetti/audio/misc"
 )
 
-// TODO(mattetti): API to access each chunk and decode manually.
-
 // Decoder is the wrapper structure for the AIFF container
 type Decoder struct {
 	r io.ReadSeeker
@@ -56,6 +54,14 @@ func (d *Decoder) Err() error {
 		return nil
 	}
 	return d.err
+}
+
+// EOF returns positively if the underlying reader reached the end of file.
+func (d *Decoder) EOF() bool {
+	if d == nil || d.err == io.EOF {
+		return true
+	}
+	return false
 }
 
 // Clip returns the audio Clip information including a reader to reads its content.
@@ -125,6 +131,32 @@ func (d *Decoder) Clip() *Clip {
 	}
 
 	return d.clipInfo
+}
+
+// NextChunk returns the next available chunk
+func (d *Decoder) NextChunk() (*Chunk, error) {
+	if d.err = d.readHeaders(); d.err != nil {
+		d.err = fmt.Errorf("failed to read header - %v", d.err)
+		return nil, d.err
+	}
+
+	var (
+		id   [4]byte
+		size uint32
+	)
+
+	id, size, d.err = d.iDnSize()
+	if d.err != nil {
+		d.err = fmt.Errorf("error reading chunk header - %v", d.err)
+		return nil, d.err
+	}
+
+	c := &Chunk{
+		ID:   id,
+		Size: int(size),
+		R:    io.LimitReader(d.r, int64(size)),
+	}
+	return c, d.err
 }
 
 // Frames returns the audio frames contained in reader.

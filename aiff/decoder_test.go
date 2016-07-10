@@ -7,6 +7,8 @@ import (
 	"time"
 )
 
+// TODO(mattetti): benchmark allocations
+
 func TestContainerAttributes(t *testing.T) {
 	expectations := []struct {
 		input           string

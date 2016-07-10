@@ -9,6 +9,8 @@ import (
 	"github.com/mattetti/audio/aiff"
 )
 
+// TODO(mattetti): switch to using github.com/mattetti/filebuffer
+
 func TestEncoderRoundTrip(t *testing.T) {
 	os.Mkdir("testOutput", 0777)
 	testCases := []struct {

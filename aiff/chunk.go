@@ -5,7 +5,6 @@ import (
 	"errors"
 	"io"
 	"io/ioutil"
-	"sync"
 )
 
 // Chunk is a struct representing a data chunk
@@ -17,21 +16,17 @@ import (
 // http://www.onicos.com/staff/iz/formats/aiff.html
 // AFAn seems to be an OS X specific chunk, meaning & format TBD
 type Chunk struct {
-	ID     [4]byte
-	Size   int
-	R      io.Reader
-	okChan chan bool
-	Pos    int
-	Wg     *sync.WaitGroup
+	ID   [4]byte
+	Size int
+	R    io.Reader
+	Pos  int
 }
 
-// Done signals the parent parser that we are done reading the chunk
-// if the chunk isn't fully read, this code will do so before signaling.
+// Done makes sure the entire chunk was read.
 func (ch *Chunk) Done() {
 	if !ch.IsFullyRead() {
 		ch.drain()
 	}
-	ch.Wg.Done()
 }
 
 func (ch *Chunk) drain() error {
