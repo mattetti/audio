@@ -9,7 +9,48 @@ import (
 	"github.com/mattetti/audio/misc"
 )
 
-func Test_ClipReadPCM(t *testing.T) {
+func TestClip_Read(t *testing.T) {
+	expectations := []struct {
+		input       string
+		totalFrames int
+	}{
+		{"fixtures/kick.aif", 4484},
+		{"fixtures/delivery.aiff", 17199},
+	}
+
+	for _, exp := range expectations {
+		path, _ := filepath.Abs(exp.input)
+		f, err := os.Open(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer f.Close()
+		d := aiff.NewDecoder(f)
+		clip := d.Clip()
+		totalFrames := int(clip.Size())
+		if totalFrames != exp.totalFrames {
+			t.Fatalf("Expected %d frames, got %d\n", exp.totalFrames, totalFrames)
+		}
+		readFrames := 0
+
+		bufSize := 4096
+		buf := make([]byte, bufSize)
+		var n int
+		for readFrames < totalFrames {
+			n, err = clip.Read(buf)
+			if err != nil || n == 0 {
+				break
+			}
+			readFrames += n
+		}
+		if readFrames != totalFrames {
+			t.Fatalf("file expected to have %d frames, only read %d, off by %d frames\n", totalFrames, readFrames, (totalFrames - readFrames))
+		}
+
+	}
+}
+
+func TestClip_ReadPCM(t *testing.T) {
 	testCases := []struct {
 		desc         string
 		input        string

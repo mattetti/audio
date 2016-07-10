@@ -10,6 +10,7 @@ import (
 	"github.com/mattetti/audio/misc"
 )
 
+// Clip represents the PCM data contained in the aiff stream.
 type Clip struct {
 	r            io.ReadSeeker
 	byteSize     int

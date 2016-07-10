@@ -146,7 +146,7 @@ func (e *Encoder) Write() error {
 	// go back and write total size
 	e.w.Seek(4, 0)
 	if err := e.Add(uint32(e.WrittenBytes) - 8); err != nil {
-		return fmt.Errorf("%v when writing the total written bytes")
+		return fmt.Errorf("%v when writing the total written bytes", err)
 	}
 	// jump to the end of the file.
 	e.w.Seek(0, 2)

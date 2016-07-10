@@ -260,6 +260,7 @@ func (d *Decoder) iDnSize() ([4]byte, uint32, error) {
 }
 
 // readHeaders is safe to call multiple times
+// byte size of the header: 12
 func (d *Decoder) readHeaders() error {
 	// prevent the headers to be re-read
 	if d.Size > 0 {
