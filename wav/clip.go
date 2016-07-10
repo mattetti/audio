@@ -4,7 +4,6 @@ import (
 	"io"
 
 	"github.com/mattetti/audio"
-	"github.com/mattetti/audio/misc"
 )
 
 type Clip struct {
@@ -12,28 +11,52 @@ type Clip struct {
 	channels   int
 	bitDepth   int
 	sampleRate int64
+	byteSize   int
 
-	sampleFrames int
+	sampleFrames int64
 	readFrames   int
-}
-
-// ReadPCM reads up to n frames from the clip.
-// The frames as well as the number of frames/items read are returned.
-// TODO(mattetti): misc.AudioFrames is a temporary solution that needs to be improved.
-func (c *Clip) ReadPCM(nFrames int) (frames misc.AudioFrames, n int, err error) {
-	if c == nil || c.sampleFrames == 0 {
-		return nil, 0, nil
-	}
-	panic("not implemented")
+	blockSize    int
 }
 
 // Read reads frames into the passed buffer and returns the number of full frames
 // read.
 func (c *Clip) Read(buf []byte) (n int, err error) {
-	if c == nil || c.sampleFrames == 0 {
+	if c == nil || c.Size() == 0 {
 		return n, nil
 	}
-	panic("not implemented")
+
+	bytesPerSample := (c.bitDepth-1)/8 + 1
+	sampleBufData := make([]byte, bytesPerSample)
+	frameSize := (bytesPerSample * c.channels)
+
+	startingAtFrame := c.readFrames
+	if startingAtFrame >= int(c.sampleFrames) {
+		return 0, nil
+	}
+
+outter:
+	for i := 0; i+frameSize < len(buf); {
+		for j := 0; j < c.channels; j++ {
+			_, err := c.r.Read(sampleBufData)
+			if err != nil {
+				if err == io.EOF {
+					err = nil
+				}
+				break outter
+			}
+			for _, b := range sampleBufData {
+				buf[i] = b
+				i++
+			}
+		}
+		c.readFrames++
+		if c.readFrames >= int(c.sampleFrames) {
+			break
+		}
+	}
+
+	n = c.readFrames - startingAtFrame
+	return n, err
 }
 
 // Size returns the total number of frames available in this clip.
@@ -41,7 +64,13 @@ func (c *Clip) Size() int64 {
 	if c == nil {
 		return 0
 	}
-	panic("not implemented")
+	if c.sampleFrames != 0 {
+		return c.sampleFrames
+	}
+	bytesPerSample := (c.bitDepth-1)/8 + 1
+	frameSize := (bytesPerSample * c.channels)
+	c.sampleFrames = int64(c.blockSize / frameSize)
+	return c.sampleFrames
 }
 
 // Seek seeks into the clip

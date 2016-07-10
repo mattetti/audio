@@ -99,7 +99,7 @@ func (d *Decoder) Clip() *Clip {
 			d.clipInfo.bitDepth = int(d.BitDepth)
 			d.clipInfo.sampleRate = int64(d.SampleRate)
 			d.clipInfo.sampleFrames = int(d.numSampleFrames)
-			d.clipInfo.byteSize = int(size)
+			d.clipInfo.blockSize = size
 			// if we found the sound data before the COMM,
 			// we need to rewind the reader so we can properly
 			// set the clip reader.
@@ -108,7 +108,7 @@ func (d *Decoder) Clip() *Clip {
 				break
 			}
 		case SSNDID:
-			d.clipInfo.byteSize = int(size)
+			d.clipInfo.blockSize = size
 			// if we didn't read the COMM, we are going to need to come back
 			if d.clipInfo.sampleRate == 0 {
 				rewindBytes += int64(size)

@@ -1,4 +1,4 @@
-package aiff
+package wav
 
 import (
 	"bytes"
@@ -13,30 +13,21 @@ import (
 // Clip represents the PCM data contained in the aiff stream.
 type Clip struct {
 	r            io.ReadSeeker
+	byteSize     int
 	channels     int
 	bitDepth     int
 	sampleRate   int64
 	sampleFrames int
 	readFrames   int
-
-	// decoder info
-	offset     uint32
-	blockSize  uint32
-	offsetRead bool
 }
 
 // ReadPCM reads up to n frames from the clip.
 // The frames as well as the number of frames/items read are returned.
 // TODO(mattetti): misc.AudioFrames is a temporary solution that needs to be improved.
-// TODO(mattetti): remove this probably won't stay in the final API
 func (c *Clip) ReadPCM(nFrames int) (frames misc.AudioFrames, n int, err error) {
 	if c == nil || c.sampleFrames == 0 {
 		return nil, 0, nil
 	}
-	if err := c.readOffsetBlockSize(); err != nil {
-		return nil, 0, err
-	}
-	// TODO(mattetti): respect offset and block size
 
 	bytesPerSample := (c.bitDepth-1)/8 + 1
 	sampleBufData := make([]byte, bytesPerSample)
@@ -101,16 +92,12 @@ func (c *Clip) Read(buf []byte) (n int, err error) {
 	if c == nil || c.sampleFrames == 0 {
 		return n, nil
 	}
-	if err := c.readOffsetBlockSize(); err != nil {
-		return n, err
-	}
-	// TODO(mattetti): respect offset and block size
 
 	bytesPerSample := (c.bitDepth-1)/8 + 1
 	sampleBufData := make([]byte, bytesPerSample)
 
 	frameSize := (bytesPerSample * c.channels)
-	// track how many frames we previously read so we don't
+	// TODO(mattetti): track how many frames we previously read so we don't
 	// read past the chunk
 	startingAtFrame := c.readFrames
 	if startingAtFrame >= c.sampleFrames {
@@ -165,24 +152,4 @@ func (c *Clip) FrameInfo() audio.FrameInfo {
 		BitDepth:   c.bitDepth,
 		SampleRate: c.sampleRate,
 	}
-}
-
-func (c *Clip) readOffsetBlockSize() error {
-	// reading the offset and blocksize should only happen once per chunk
-	if c == nil || c.offsetRead == true {
-		return nil
-	}
-
-	// TODO: endianness might depend on the encoding used to generate the aiff data.
-	// check encSowt or encTwos
-
-	if err := binary.Read(c.r, binary.BigEndian, &c.offset); err != nil {
-		return err
-	}
-	if err := binary.Read(c.r, binary.BigEndian, &c.blockSize); err != nil {
-		return err
-	}
-
-	c.offsetRead = true
-	return nil
 }

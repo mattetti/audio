@@ -17,7 +17,7 @@ type Decoder struct {
 	info   *Info
 }
 
-// New creates a parser for the passed wav reader.
+// New creates a decoder for the passed wav reader.
 // Note that the reader doesn't get rewinded as the container is processed.
 func NewDecoder(r io.Reader, c chan *audio.Chunk) *Decoder {
 	return &Decoder{
@@ -28,19 +28,20 @@ func NewDecoder(r io.Reader, c chan *audio.Chunk) *Decoder {
 
 // Decode reads from a Read Seeker and converts the input to a PCM
 // clip output.
-func Decode(r io.ReadSeeker) (*audio.Clip, error) {
+func Decode(r io.ReadSeeker) (audio.Clip, error) {
 	d := &Decoder{r: r, parser: riff.New(r)}
 	nfo, err := d.Info()
 	if err != nil {
 		return nil, err
 	}
-	clip := &audio.Clip{
-		R:          r,
-		DataSize:   int64(nfo.Duration.Seconds()) * int64(time.Second) * int64(nfo.AvgBytesPerSec),
-		Channels:   int(nfo.NumChannels),
-		BitDepth:   int(nfo.NumChannels),
-		SampleRate: int64(nfo.SampleRate),
+	clip := &Clip{
+		r:          r,
+		byteSize:   int(nfo.Duration.Seconds()) * int(time.Second) * int(nfo.AvgBytesPerSec),
+		channels:   int(nfo.NumChannels),
+		bitDepth:   int(nfo.NumChannels),
+		sampleRate: int64(nfo.SampleRate),
 	}
+
 	return clip, nil
 }
 

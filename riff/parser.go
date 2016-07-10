@@ -140,12 +140,10 @@ func (c *Parser) NextChunk() (*Chunk, error) {
 		size++
 	}
 
-	// the decoder's wait group isn't automatically set on the chunk.
 	ch := &Chunk{
 		ID:   id,
 		Size: int(size),
 		R:    c.r,
-		//Wg:   &c.Wg,
 	}
 	return ch, nil
 }
