@@ -57,6 +57,9 @@ func TestEncoderRoundTrip(t *testing.T) {
 
 		nd := wav.NewDecoder(nf)
 		nClip := nd.Clip()
+		if nClip == nil {
+			t.Fatalf("couldn't extract a clip from %s - %v", nf.Name(), d.Err())
+		}
 		ninfo := nClip.FrameInfo()
 		nframes, err := nd.Frames()
 		nf.Close()

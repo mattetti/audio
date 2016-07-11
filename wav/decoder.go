@@ -102,7 +102,27 @@ func (d *Decoder) Clip() *Clip {
 // Notes that this method allocates a lot of memory (depending on the duration of the underlying file).
 // Consider using the decoder clip and reading/decoding using a buffer.
 func (d *Decoder) Frames() (frames misc.AudioFrames, err error) {
-	panic("not implemented")
+	clip := d.Clip()
+	totalFrames := int(clip.Size())
+	readFrames := 0
+
+	bufSize := 4096
+	buf := make([]byte, bufSize)
+	var tFrames misc.AudioFrames
+	var n int
+	for readFrames < totalFrames {
+		n, err = clip.Read(buf)
+		if err != nil || n == 0 {
+			break
+		}
+		readFrames += n
+		tFrames, err = d.DecodeFrames(buf)
+		if err != nil {
+			break
+		}
+		frames = append(frames, tFrames[:n]...)
+	}
+	return frames, err
 }
 
 // DecodeFrames decodes PCM bytes into audio frames based on the decoder context
@@ -112,7 +132,7 @@ func (d *Decoder) DecodeFrames(data []byte) (frames misc.AudioFrames, err error)
 
 	bytesPerSample := int((d.BitDepth-1)/8 + 1)
 	sampleBufData := make([]byte, bytesPerSample)
-	decodeF, err := sampleDecodeFunc(bytesPerSample)
+	decodeF, err := sampleDecodeFunc(int(d.BitDepth))
 	if err != nil {
 		return nil, fmt.Errorf("could not get sample decode func %v", err)
 	}
@@ -232,6 +252,6 @@ func sampleDecodeFunc(bitsPerSample int) (func([]byte) int, error) {
 			return int(s[0]) + int(s[1])<<8 + int(s[2])<<16 + int(s[3])<<24
 		}, nil
 	default:
-		return nil, fmt.Errorf("unhandled bytesPerSample! b:%d", bytesPerSample)
+		return nil, fmt.Errorf("unhandled byte depth:%d", bitsPerSample)
 	}
 }

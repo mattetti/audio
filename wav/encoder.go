@@ -34,16 +34,15 @@ func NewEncoder(w io.WriteSeeker, sampleRate, bitDepth, numChans, audioFormat in
 	}
 }
 
-// Add serializes and adds the passed value using big endian
+// Add serializes and adds the passed value using little endian
 func (e *Encoder) Add(src interface{}) error {
 	e.WrittenBytes += binary.Size(src)
-	return binary.Write(e.w, binary.BigEndian, src)
+	return binary.Write(e.w, binary.LittleEndian, src)
 }
 
 // AddLE serializes and adds the passed value using little endian
 func (e *Encoder) AddLE(src interface{}) error {
-	e.WrittenBytes += binary.Size(src)
-	return binary.Write(e.w, binary.LittleEndian, src)
+	return e.Add(src)
 }
 
 // AddBE serializes and adds the passed value using big endian
@@ -99,8 +98,8 @@ func (e *Encoder) Write() error {
 	if err := e.Add(riff.RiffID); err != nil {
 		return err
 	}
-	// file size uint32 in BE, to update later on.
-	if err := e.AddBE(uint32(42)); err != nil {
+	// file size uint32, to update later on.
+	if err := e.Add(uint32(42)); err != nil {
 		return err
 	}
 
@@ -113,7 +112,7 @@ func (e *Encoder) Write() error {
 		return err
 	}
 	// chunk size
-	if err := e.Add(uint32(16)); err != nil {
+	if err := e.AddLE(uint32(16)); err != nil {
 		return err
 	}
 	// wave format
@@ -159,8 +158,8 @@ func (e *Encoder) Write() error {
 
 	// go back and write total size
 	e.w.Seek(4, 0)
-	if err := e.Add(uint32(e.WrittenBytes) - 8); err != nil {
-		return fmt.Errorf("%v when writing the total written bytes")
+	if err := e.AddLE(uint32(e.WrittenBytes) - 8); err != nil {
+		return fmt.Errorf("%v when writing the total written bytes", err)
 	}
 	// jump to the end of the file.
 	e.w.Seek(0, 2)
