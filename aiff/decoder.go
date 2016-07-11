@@ -256,7 +256,7 @@ func (d *Decoder) Duration() (time.Duration, error) {
 	if d == nil {
 		return 0, errors.New("can't calculate the duration of a nil pointer")
 	}
-	d.readInfo()
+	d.ReadInfo()
 	if err := d.Err(); err != nil {
 		return 0, err
 	}
@@ -323,9 +323,9 @@ func (d *Decoder) readHeaders() error {
 	return nil
 }
 
-// readInfo reads the underlying reader until the comm header is parsed.
+// ReadInfo reads the underlying reader until the comm header is parsed.
 // This method is safe to call multiple times.
-func (d *Decoder) readInfo() {
+func (d *Decoder) ReadInfo() {
 	if d == nil || d.SampleRate > 0 {
 		return
 	}
