@@ -1,13 +1,13 @@
 package wav
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
 	"time"
 
-	"github.com/mattetti/audio"
 	"github.com/mattetti/audio/misc"
 	"github.com/mattetti/audio/riff"
 )
@@ -30,7 +30,7 @@ type Decoder struct {
 
 // New creates a decoder for the passed wav reader.
 // Note that the reader doesn't get rewinded as the container is processed.
-func NewDecoder(r io.ReadSeeker, c chan *audio.Chunk) *Decoder {
+func NewDecoder(r io.ReadSeeker) *Decoder {
 	return &Decoder{
 		r:      r,
 		parser: riff.New(r),
@@ -51,6 +51,12 @@ func (d *Decoder) EOF() bool {
 		return true
 	}
 	return false
+}
+
+// ReadInfo reads the underlying reader until the comm header is parsed.
+// This method is safe to call multiple times.
+func (d *Decoder) ReadInfo() {
+	d.err = d.readHeaders()
 }
 
 // Clip returns the audio Clip information including a reader to reads its content.
@@ -102,10 +108,14 @@ func (d *Decoder) Frames() (frames misc.AudioFrames, err error) {
 // DecodeFrames decodes PCM bytes into audio frames based on the decoder context
 func (d *Decoder) DecodeFrames(data []byte) (frames misc.AudioFrames, err error) {
 	numChannels := int(d.NumChans)
-	// r := bytes.NewBuffer(data)
+	r := bytes.NewBuffer(data)
 
 	bytesPerSample := int((d.BitDepth-1)/8 + 1)
-	// sampleBufData := make([]byte, bytesPerSample)
+	sampleBufData := make([]byte, bytesPerSample)
+	decodeF, err := sampleDecodeFunc(bytesPerSample)
+	if err != nil {
+		return nil, fmt.Errorf("could not get sample decode func %v", err)
+	}
 
 	frames = make(misc.AudioFrames, len(data)/bytesPerSample)
 	for j := 0; j < int(numChannels); j++ {
@@ -113,12 +123,16 @@ func (d *Decoder) DecodeFrames(data []byte) (frames misc.AudioFrames, err error)
 	}
 	n := 0
 
-	// outter:
+outter:
 	for i := 0; (i + (bytesPerSample * numChannels)) <= len(data); {
 		frame := make([]int, numChannels)
 		for j := 0; j < numChannels; j++ {
-			// TODO
-			panic("not implemented")
+			_, err = r.Read(sampleBufData)
+			if err != nil {
+				break outter
+			}
+			frame[j] = decodeF(sampleBufData)
+			i += bytesPerSample
 		}
 		frames[n] = frame
 		n++
@@ -193,7 +207,7 @@ func (d *Decoder) readHeaders() error {
 // sampleDecodeFunc returns a function that can be used to convert
 // a byte range into an int value based on the amount of bits used per sample.
 // Note that 8bit samples are unsigned, all other values are signed.
-func sampleDecodeFunc(bitsPerSample uint16) (func([]byte) int, error) {
+func sampleDecodeFunc(bitsPerSample int) (func([]byte) int, error) {
 	bytesPerSample := bitsPerSample / 8
 	switch bytesPerSample {
 	case 1:
