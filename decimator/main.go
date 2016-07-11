@@ -99,13 +99,13 @@ func main() {
 	var sampleSize int
 	switch codec {
 	case "aiff":
-		info, frames, err := aiff.NewDecoder(f, nil).Frames()
+		d := aiff.NewDecoder(f)
+		frames, err := d.Frames()
 		if err != nil {
 			panic(err)
 		}
-		sampleRate = info.SampleRate
-		sampleSize = info.BitDepth
-		monoFrames = make(misc.AudioFrames, len(frames))
+		sampleRate = d.SampleRate
+		sampleSize = int(d.BitDepth)
 		monoFrames = misc.ToMonoFrames(frames)
 
 	case "wav":
