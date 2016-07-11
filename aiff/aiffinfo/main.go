@@ -80,40 +80,36 @@ func analyze(path string) {
 	}
 	defer f.Close()
 	if *logChunks {
-		ch := make(chan *aiff.Chunk)
-		c := aiff.NewDecoder(f, ch)
-		go func() {
-			if err := c.Parse(); err != nil {
-				panic(err)
-			}
-		}()
+		d := aiff.NewDecoder(f)
 
-		for chunk := range ch {
+		for d.Err() == nil || d.EOF() {
+			chunk, err := d.NextChunk()
+			if err != nil {
+				break
+			}
 			id := string(chunk.ID[:])
 			fmt.Println(id, chunk.Size)
-			if id != "SSND" {
+			if chunk.ID != aiff.SSNDID && chunk.ID != aiff.COMMID {
 				buf := make([]byte, chunk.Size)
 				chunk.ReadBE(buf)
 				fmt.Print(hex.Dump(buf))
 			}
 			chunk.Done()
 		}
+		fmt.Println()
+
 		return
 	}
-	d := aiff.NewDecoder(f, nil)
-	if err := d.Parse(); err != nil {
-		log.Fatalf("Can't parse the headers of %s - %s\n", path, err)
-	}
-	f.Seek(0, 0)
-	d = aiff.NewDecoder(f, nil)
-	info, frames, err := d.Frames()
+
+	d := aiff.NewDecoder(f)
+	frames, err := d.Frames()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	fmt.Println("sample Rate", info.SampleRate)
-	fmt.Println("sample Size", info.BitDepth)
-	fmt.Println("number of Channels", info.NumChannels)
+	fmt.Println("sample Rate", d.SampleRate)
+	fmt.Println("sample Size", d.BitDepth)
+	fmt.Println("number of Channels", d.NumChans)
 	fmt.Printf("frames: %d\n", len(frames))
 	fmt.Println(d)
 
@@ -128,7 +124,7 @@ func analyze(path string) {
 		}
 	}
 
-	imgHeight := chanHeight * int(info.NumChannels)
+	imgHeight := chanHeight * int(d.NumChans)
 	img := image.NewRGBA(image.Rect(0, 0, ImgWidth, imgHeight))
 	if err != nil {
 		log.Fatal(err)
@@ -142,7 +138,7 @@ func analyze(path string) {
 	gc.SetStrokeColor(color.RGBA{255, 255, 255, 100})
 	gc.Stroke()
 
-	for i := 0; i < info.NumChannels; i++ {
+	for i := 0; i < int(d.NumChans); i++ {
 		// max for chan
 		gc.MoveTo(0, float64(i*chanHeight+1))
 		gc.LineTo(ImgWidth, float64(i*chanHeight+1))
@@ -162,17 +158,17 @@ func analyze(path string) {
 	// the width of the image
 	// TODO: smarter sampling based on duration
 	sampling := len(frames) / ImgWidth
-	samplingCounter := make([]int, info.NumChannels)
-	smplBuf := make([][]int, info.NumChannels)
-	for i := 0; i < info.NumChannels; i++ {
+	samplingCounter := make([]int, d.NumChans)
+	smplBuf := make([][]int, d.NumChans)
+	for i := 0; i < int(d.NumChans); i++ {
 		smplBuf[i] = make([]int, sampling)
 	}
 	smpl := 0
 	// last channel position so we can better render multi channel files
-	lastChanPos := make([]*point, info.NumChannels)
+	lastChanPos := make([]*point, d.NumChans)
 
 	for i := 0; i < len(frames); i++ {
-		for channel := 0; channel < int(info.NumChannels); channel++ {
+		for channel := 0; channel < int(d.NumChans); channel++ {
 			if i == 0 {
 				lastChanPos[channel] = &point{
 					X: 0,

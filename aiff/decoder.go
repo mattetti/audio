@@ -6,30 +6,15 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
-	"sync"
+	"io/ioutil"
 	"time"
 
-	"github.com/mattetti/audio"
 	"github.com/mattetti/audio/misc"
-)
-
-var (
-	defaultChunkDecoderTimeout = 2 * time.Second
 )
 
 // Decoder is the wrapper structure for the AIFF container
 type Decoder struct {
-	r io.Reader
-	// Chan is an Optional channel of chunks that is used to parse chunks
-	Chan chan *Chunk
-	// ChunkDecoderTimeout is the duration after which the main parser keeps going
-	// if the dev hasn't reported the chunk parsing to be done.
-	// By default: 2s
-	ChunkDecoderTimeout time.Duration
-	// The waitgroup is used to let the parser that it's ok to continue
-	// after a chunk was passed to the optional parser channel.
-	Wg sync.WaitGroup
+	r io.ReadSeeker
 
 	// ID is always 'FORM'. This indicates that this is a FORM chunk
 	ID [4]byte
@@ -45,342 +30,398 @@ type Decoder struct {
 	// Data coming from the COMM chunk
 	commSize        uint32
 	NumChans        uint16
-	NumSampleFrames uint32
-	SampleSize      uint16
+	numSampleFrames uint32
+	BitDepth        uint16
 	SampleRate      int
 
 	// AIFC data
 	Encoding     [4]byte
 	EncodingName string
+
+	err      error
+	clipInfo *Clip
 }
 
 // NewDecoder creates a new reader reading the given reader and pushing audio data to the given channel.
 // It is the caller's responsibility to call Close on the Decoder when done.
-func NewDecoder(r io.Reader, c chan *Chunk) *Decoder {
-	return &Decoder{r: r, Chan: c}
+func NewDecoder(r io.ReadSeeker) *Decoder {
+	return &Decoder{r: r}
 }
 
-// Decode reads from a Read Seeker and converts the input to a PCM
-// clip output.
-func Decode(r io.ReadSeeker) (audio.Clipper, error) {
-	d := &Decoder{r: r}
-	if err := d.readHeaders(); err != nil {
-		return nil, err
+// Err returns the first non-EOF error that was encountered by the Decoder.
+func (d *Decoder) Err() error {
+	if d.err == io.EOF {
+		return nil
 	}
+	return d.err
+}
+
+// EOF returns positively if the underlying reader reached the end of file.
+func (d *Decoder) EOF() bool {
+	if d == nil || d.err == io.EOF {
+		return true
+	}
+	return false
+}
+
+// Clip returns the audio Clip information including a reader to reads its content.
+// This method is safe to be called multiple times but the reader might need to be rewinded
+// if previously read.
+// This is the recommended, default way to consume an AIFF file.
+func (d *Decoder) Clip() *Clip {
+	if d.clipInfo != nil {
+		return d.clipInfo
+	}
+	if d.err = d.readHeaders(); d.err != nil {
+		d.err = fmt.Errorf("failed to read header - %v", d.err)
+		return nil
+	}
+
+	d.clipInfo = &Clip{}
 
 	// read the file information to setup the audio clip
 	// find the beginning of the SSND chunk and set the clip reader to it.
-	clip := &audio.Clip{}
-
-	var err error
-	var rewindBytes int64
-	for err != io.EOF {
-		id, size, err := d.IDnSize()
-		if err != nil {
+	var (
+		id          [4]byte
+		size        uint32
+		rewindBytes int64
+	)
+	for d.err != io.EOF {
+		id, size, d.err = d.iDnSize()
+		if d.err != nil {
+			d.err = fmt.Errorf("error reading chunk header - %v", d.err)
 			break
 		}
 		switch id {
-		case commID:
+		case COMMID:
 			d.parseCommChunk(size)
-			clip.Channels = int(d.NumChans)
-			clip.BitDepth = int(d.SampleSize)
-			clip.SampleRate = int64(d.SampleRate)
+			d.clipInfo.channels = int(d.NumChans)
+			d.clipInfo.bitDepth = int(d.BitDepth)
+			d.clipInfo.sampleRate = int64(d.SampleRate)
+			d.clipInfo.sampleFrames = int(d.numSampleFrames)
+			d.clipInfo.blockSize = size
 			// if we found the sound data before the COMM,
 			// we need to rewind the reader so we can properly
 			// set the clip reader.
 			if rewindBytes > 0 {
-				r.Seek(-rewindBytes, 1)
+				d.r.Seek(-rewindBytes, 1)
 				break
 			}
-		case ssndID:
-			clip.DataSize = int64(size)
+		case SSNDID:
+			d.clipInfo.blockSize = size
 			// if we didn't read the COMM, we are going to need to come back
-			if clip.SampleRate == 0 {
+			if d.clipInfo.sampleRate == 0 {
 				rewindBytes += int64(size)
-				d.dispatchToChan(id, size)
-			} else {
-				break
+				if d.err = d.jumpTo(int(size)); d.err != nil {
+					return nil
+				}
 			}
+			d.clipInfo.r = d.r
+			return d.clipInfo
+
 		default:
 			// if we read SSN but didn't read the COMM, we need to track location
-			if clip.DataSize != 0 {
+			if d.clipInfo.sampleRate == 0 {
 				rewindBytes += int64(size)
 			}
-			d.dispatchToChan(id, size)
+			if d.err = d.jumpTo(int(size)); d.err != nil {
+				return nil
+			}
 		}
 	}
-	clip.R = r
-	return clip, nil
+
+	return d.clipInfo
 }
 
-func (p *Decoder) readHeaders() error {
-	if err := binary.Read(p.r, binary.BigEndian, &p.ID); err != nil {
-		return err
-	}
-	// Must start by a FORM header/ID
-	if p.ID != formID {
-		return fmt.Errorf("%s - %s", ErrFmtNotSupported, p.ID)
+// NextChunk returns the next available chunk
+func (d *Decoder) NextChunk() (*Chunk, error) {
+	if d.err = d.readHeaders(); d.err != nil {
+		d.err = fmt.Errorf("failed to read header - %v", d.err)
+		return nil, d.err
 	}
 
-	if err := binary.Read(p.r, binary.BigEndian, &p.Size); err != nil {
-		return err
-	}
-	if err := binary.Read(p.r, binary.BigEndian, &p.Format); err != nil {
-		return err
+	var (
+		id   [4]byte
+		size uint32
+	)
+
+	id, size, d.err = d.iDnSize()
+	if d.err != nil {
+		d.err = fmt.Errorf("error reading chunk header - %v", d.err)
+		return nil, d.err
 	}
 
-	// Must be a AIFF or AIFC form type
-	if p.Format != aiffID && p.Format != aifcID {
-		return fmt.Errorf("%s - %s", ErrFmtNotSupported, p.Format)
+	c := &Chunk{
+		ID:   id,
+		Size: int(size),
+		R:    io.LimitReader(d.r, int64(size)),
 	}
-
-	return nil
+	return c, d.err
 }
 
-// Parse reads the aiff reader and populates the container structure with found information.
-// The sound data or unknown chunks are passed to the optional channel if available.
-func (p *Decoder) Parse() error {
-	if err := p.readHeaders(); err != nil {
-		return err
-	}
+// Frames returns the audio frames contained in reader.
+// Notes that this method allocates a lot of memory (depending on the duration of the underlying file).
+// Consider using the decoder clip and reading/decoding using a buffer.
+func (d *Decoder) Frames() (frames misc.AudioFrames, err error) {
+	clip := d.Clip()
+	totalFrames := int(clip.Size())
+	readFrames := 0
 
-	var err error
-	for err != io.EOF {
-		id, size, err := p.IDnSize()
+	bufSize := 4096
+	buf := make([]byte, bufSize)
+	var tFrames misc.AudioFrames
+	var n int
+	for readFrames < totalFrames {
+		n, err = clip.Read(buf)
+		if err != nil || n == 0 {
+			break
+		}
+		readFrames += n
+		tFrames, err = d.DecodeFrames(buf)
 		if err != nil {
 			break
 		}
-		switch id {
-		case commID:
-			p.parseCommChunk(size)
-		default:
-			p.dispatchToChan(id, size)
-		}
+		frames = append(frames, tFrames[:n]...)
 	}
-
-	if p.Chan != nil {
-		close(p.Chan)
-	}
-
-	if err == io.EOF {
-		return nil
-	}
-	return err
+	return frames, err
 }
 
-// Frames processes the reader and returns the basic data and LPCM audio frames.
-// Very naive and inneficient approach loading the entire data set in memory.
-func (r *Decoder) Frames() (info *Info, frames [][]int, err error) {
-	ch := make(chan *Chunk)
-	r.Chan = ch
-	var sndDataFrames [][]int
-	go func() {
-		if err := r.Parse(); err != nil {
-			panic(err)
-		}
-	}()
+// DecodeFrames decodes PCM bytes into audio frames based on the decoder context
+func (d *Decoder) DecodeFrames(data []byte) (frames misc.AudioFrames, err error) {
+	numChannels := int(d.NumChans)
+	r := bytes.NewBuffer(data)
 
-	for chunk := range ch {
-		if sndDataFrames == nil {
-			sndDataFrames = make([][]int, r.NumSampleFrames, r.NumSampleFrames)
-		}
-		id := string(chunk.ID[:])
-		if id == "SSND" {
-			var offset uint32
-			var blockSize uint32
-			// TODO: BE might depend on the encoding used to generate the aiff data.
-			// check encSowt or encTwos
-			chunk.ReadBE(&offset)
-			chunk.ReadBE(&blockSize)
+	bytesPerSample := int((d.BitDepth-1)/8 + 1)
+	sampleBufData := make([]byte, bytesPerSample)
 
-			// TODO: might want to use io.NewSectionDecoder
-			bufData := make([]byte, chunk.Size-8)
-			chunk.ReadBE(bufData)
-			buf := bytes.NewReader(bufData)
+	frames = make(misc.AudioFrames, len(data)/bytesPerSample)
+	for j := 0; j < int(numChannels); j++ {
+		frames[j] = make([]int, numChannels)
+	}
+	n := 0
 
-			bytesPerSample := (r.SampleSize-1)/8 + 1
-			frameCount := int(r.NumSampleFrames)
-
-			if r.NumSampleFrames == 0 {
-				chunk.Done()
-				continue
-			}
-
-			for i := 0; i < frameCount; i++ {
-				sampleBufData := make([]byte, bytesPerSample)
-				frame := make([]int, r.NumChans)
-
-				for j := uint16(0); j < r.NumChans; j++ {
-					_, err := buf.Read(sampleBufData)
-					if err != nil {
-						if err == io.EOF {
-							break
-						}
-						log.Println("error reading the buffer")
-						log.Fatal(err)
+outter:
+	for i := 0; (i + (bytesPerSample * numChannels)) <= len(data); {
+		frame := make([]int, numChannels)
+		for j := 0; j < numChannels; j++ {
+			switch d.BitDepth {
+			case 8:
+				var v uint8
+				err = binary.Read(r, binary.BigEndian, &v)
+				if err != nil {
+					if err == io.EOF {
+						err = nil
 					}
-
-					sampleBuf := bytes.NewBuffer(sampleBufData)
-					switch r.SampleSize {
-					case 8:
-						var v uint8
-						binary.Read(sampleBuf, binary.BigEndian, &v)
-						frame[j] = int(v)
-					case 16:
-						var v int16
-						binary.Read(sampleBuf, binary.BigEndian, &v)
-						frame[j] = int(v)
-					case 24:
-						// TODO: check if the conversion might not be inversed depending on
-						// the encoding (BE vs LE)
-						var output int32
-						output |= int32(sampleBufData[2]) << 0
-						output |= int32(sampleBufData[1]) << 8
-						output |= int32(sampleBufData[0]) << 16
-						frame[j] = int(output)
-					case 32:
-						var v int32
-						binary.Read(sampleBuf, binary.BigEndian, &v)
-						frame[j] = int(v)
-					default:
-						// TODO: nicer error instead of crashing
-						log.Fatalf("%v bitrate not supported", r.SampleSize)
-					}
+					break outter
 				}
-				sndDataFrames[i] = frame
-
+				frame[j] = int(v)
+			case 16:
+				var v int16
+				binary.Read(r, binary.BigEndian, &v)
+				frame[j] = int(v)
+			case 24:
+				_, err = r.Read(sampleBufData)
+				if err != nil {
+					if err == io.EOF {
+						err = nil
+					}
+					break outter
+				}
+				// TODO: check if the conversion might not be inversed depending on
+				// the encoding (BE vs LE)
+				var output int32
+				output |= int32(sampleBufData[2]) << 0
+				output |= int32(sampleBufData[1]) << 8
+				output |= int32(sampleBufData[0]) << 16
+				frame[j] = int(output)
+			case 32:
+				var v int32
+				binary.Read(r, binary.BigEndian, &v)
+				frame[j] = int(v)
+			default:
+				err = fmt.Errorf("%v bit depth not supported", d.BitDepth)
+				break outter
 			}
+			i += bytesPerSample
 		}
-
-		chunk.Done()
+		frames[n] = frame
+		n++
 	}
 
-	duration, err := r.Duration()
-	if err != nil {
-		return nil, sndDataFrames, err
-	}
-
-	info = &Info{
-		NumChannels: int(r.NumChans),
-		SampleRate:  r.SampleRate,
-		BitDepth:    int(r.SampleSize),
-		Duration:    duration,
-	}
-
-	return info, sndDataFrames, err
-}
-
-func (p *Decoder) parseCommChunk(size uint32) error {
-	p.commSize = size
-
-	if err := binary.Read(p.r, binary.BigEndian, &p.NumChans); err != nil {
-		return fmt.Errorf("num of channels failed to parse - %s", err.Error())
-	}
-	if err := binary.Read(p.r, binary.BigEndian, &p.NumSampleFrames); err != nil {
-		return fmt.Errorf("num of sample frames failed to parse - %s", err.Error())
-	}
-	if err := binary.Read(p.r, binary.BigEndian, &p.SampleSize); err != nil {
-		return fmt.Errorf("sample size failed to parse - %s", err.Error())
-	}
-	var srBytes [10]byte
-	if err := binary.Read(p.r, binary.BigEndian, &srBytes); err != nil {
-		return fmt.Errorf("sample rate failed to parse - %s", err.Error())
-	}
-	p.SampleRate = misc.IeeeFloatToInt(srBytes)
-
-	if p.Format == aifcID {
-		if err := binary.Read(p.r, binary.BigEndian, &p.Encoding); err != nil {
-			return fmt.Errorf("AIFC encoding failed to parse - %s", err)
-		}
-		// pascal style string with the description of the encoding
-		var size uint8
-		if err := binary.Read(p.r, binary.BigEndian, &size); err != nil {
-			return fmt.Errorf("AIFC encoding failed to parse - %s", err)
-		}
-
-		desc := make([]byte, size)
-		if err := binary.Read(p.r, binary.BigEndian, &desc); err != nil {
-			return fmt.Errorf("AIFC encoding failed to parse - %s", err)
-		}
-		p.EncodingName = string(desc)
-	}
-
-	return nil
-
-}
-
-func (p *Decoder) dispatchToChan(id [4]byte, size uint32) error {
-	if p.Chan == nil {
-		if err := p.jumpTo(int(size)); err != nil {
-			return err
-		}
-		return nil
-	}
-	okC := make(chan bool)
-	p.Wg.Add(1)
-	p.Chan <- &Chunk{
-		ID:     id,
-		Size:   int(size),
-		R:      io.LimitReader(p.r, int64(size)),
-		okChan: okC,
-		Wg:     &p.Wg,
-	}
-	p.Wg.Wait()
-	// TODO: timeout
-	return nil
+	return frames, err
 }
 
 // Duration returns the time duration for the current AIFF container
-func (p *Decoder) Duration() (time.Duration, error) {
-	if p == nil {
+func (d *Decoder) Duration() (time.Duration, error) {
+	if d == nil {
 		return 0, errors.New("can't calculate the duration of a nil pointer")
 	}
-	duration := time.Duration(float64(p.NumSampleFrames) / float64(p.SampleRate) * float64(time.Second))
+	d.ReadInfo()
+	if err := d.Err(); err != nil {
+		return 0, err
+	}
+	duration := time.Duration(float64(d.numSampleFrames) / float64(d.SampleRate) * float64(time.Second))
 	return duration, nil
 }
 
 // String implements the Stringer interface.
-func (c *Decoder) String() string {
-	out := fmt.Sprintf("Format: %s - ", c.Format)
-	if c.Format == aifcID {
-		out += fmt.Sprintf("%s - ", c.EncodingName)
+func (d *Decoder) String() string {
+	out := fmt.Sprintf("Format: %s - ", d.Format)
+	if d.Format == aifcID {
+		out += fmt.Sprintf("%s - ", d.EncodingName)
 	}
-	if c.SampleRate != 0 {
-		out += fmt.Sprintf("%d channels @ %d / %d bits - ", c.NumChans, c.SampleRate, c.SampleSize)
-		d, _ := c.Duration()
-		out += fmt.Sprintf("Duration: %f seconds\n", d.Seconds())
+	if d.SampleRate != 0 {
+		out += fmt.Sprintf("%d channels @ %d / %d bits - ", d.NumChans, d.SampleRate, d.BitDepth)
+		dur, _ := d.Duration()
+		out += fmt.Sprintf("Duration: %f seconds\n", dur.Seconds())
 	}
 	return out
 }
 
-// IDnSize returns the next ID + block size
-func (c *Decoder) IDnSize() ([4]byte, uint32, error) {
+// iDnSize returns the next ID + block size
+func (d *Decoder) iDnSize() ([4]byte, uint32, error) {
 	var ID [4]byte
 	var blockSize uint32
-	if err := binary.Read(c.r, binary.BigEndian, &ID); err != nil {
-		return ID, blockSize, err
+	if d.err = binary.Read(d.r, binary.BigEndian, &ID); d.err != nil {
+		return ID, blockSize, d.err
 	}
-	if err := binary.Read(c.r, binary.BigEndian, &blockSize); err != err {
-		return ID, blockSize, err
+	if d.err = binary.Read(d.r, binary.BigEndian, &blockSize); d.err != nil {
+		return ID, blockSize, d.err
 	}
 	return ID, blockSize, nil
 }
 
-// jumpTo advances the reader to the amount of bytes provided
-func (c *Decoder) jumpTo(bytesAhead int) error {
-	var err error
-	for bytesAhead > 0 {
-		readSize := bytesAhead
-		if readSize > 4000 {
-			readSize = 4000
+// readHeaders is safe to call multiple times
+// byte size of the header: 12
+func (d *Decoder) readHeaders() error {
+	// prevent the headers to be re-read
+	if d.Size > 0 {
+		return nil
+	}
+	if d.err = binary.Read(d.r, binary.BigEndian, &d.ID); d.err != nil {
+		return d.err
+	}
+	// Must start by a FORM header/ID
+	if d.ID != formID {
+		d.err = fmt.Errorf("%s - %s", ErrFmtNotSupported, d.ID)
+		return d.err
+	}
+
+	if d.err = binary.Read(d.r, binary.BigEndian, &d.Size); d.err != nil {
+		return d.err
+	}
+	if d.err = binary.Read(d.r, binary.BigEndian, &d.Format); d.err != nil {
+		return d.err
+	}
+
+	// Must be a AIFF or AIFC form type
+	if d.Format != aiffID && d.Format != aifcID {
+		d.err = fmt.Errorf("%s - %s", ErrFmtNotSupported, d.Format)
+		return d.err
+	}
+
+	return nil
+}
+
+// ReadInfo reads the underlying reader until the comm header is parsed.
+// This method is safe to call multiple times.
+func (d *Decoder) ReadInfo() {
+	if d == nil || d.SampleRate > 0 {
+		return
+	}
+	if d.err = d.readHeaders(); d.err != nil {
+		d.err = fmt.Errorf("failed to read header - %v", d.err)
+		return
+	}
+
+	var (
+		id          [4]byte
+		size        uint32
+		rewindBytes int64
+	)
+	for d.err != io.EOF {
+		id, size, d.err = d.iDnSize()
+		if d.err != nil {
+			d.err = fmt.Errorf("error reading chunk header - %v", d.err)
+			break
+		}
+		switch id {
+		case COMMID:
+			d.parseCommChunk(size)
+			// if we found other chunks before the COMM,
+			// we need to rewind the reader so we can properly
+			// read the rest later.
+			if rewindBytes > 0 {
+				d.r.Seek(-(rewindBytes + int64(size)), 1)
+				break
+			}
+			return
+		default:
+			// we haven't read the COMM chunk yet, we need to track location to rewind
+			if d.SampleRate == 0 {
+				rewindBytes += int64(size)
+			}
+			if d.err = d.jumpTo(int(size)); d.err != nil {
+				return
+			}
+		}
+	}
+}
+
+func (d *Decoder) parseCommChunk(size uint32) error {
+	d.commSize = size
+	// don't re-parse the comm chunk
+	if d.NumChans > 0 {
+		return nil
+	}
+
+	if d.err = binary.Read(d.r, binary.BigEndian, &d.NumChans); d.err != nil {
+		d.err = fmt.Errorf("num of channels failed to parse - %s", d.err)
+		return d.err
+	}
+	if d.err = binary.Read(d.r, binary.BigEndian, &d.numSampleFrames); d.err != nil {
+		d.err = fmt.Errorf("num of sample frames failed to parse - %s", d.err)
+		return d.err
+	}
+	if d.err = binary.Read(d.r, binary.BigEndian, &d.BitDepth); d.err != nil {
+		d.err = fmt.Errorf("sample size failed to parse - %s", d.err)
+		return d.err
+	}
+	var srBytes [10]byte
+	if d.err = binary.Read(d.r, binary.BigEndian, &srBytes); d.err != nil {
+		d.err = fmt.Errorf("sample rate failed to parse - %s", d.err)
+		return d.err
+	}
+	d.SampleRate = misc.IeeeFloatToInt(srBytes)
+
+	if d.Format == aifcID {
+		if d.err = binary.Read(d.r, binary.BigEndian, &d.Encoding); d.err != nil {
+			d.err = fmt.Errorf("AIFC encoding failed to parse - %s", d.err)
+			return d.err
+		}
+		// pascal style string with the description of the encoding
+		var size uint8
+		if d.err = binary.Read(d.r, binary.BigEndian, &size); d.err != nil {
+			d.err = fmt.Errorf("AIFC encoding failed to parse - %s", d.err)
+			return d.err
 		}
 
-		buf := make([]byte, readSize)
-		err = binary.Read(c.r, binary.LittleEndian, &buf)
-		if err != nil {
-			return nil
+		desc := make([]byte, size)
+		if d.err = binary.Read(d.r, binary.BigEndian, &desc); d.err != nil {
+			d.err = fmt.Errorf("AIFC encoding failed to parse - %s", d.err)
+			return d.err
 		}
-		bytesAhead -= readSize
+		d.EncodingName = string(desc)
 	}
+
 	return nil
+}
+
+// jumpTo advances the reader to the amount of bytes provided
+func (d *Decoder) jumpTo(bytesAhead int) error {
+	var err error
+	if bytesAhead > 0 {
+		_, err = io.CopyN(ioutil.Discard, d.r, int64(bytesAhead))
+	}
+	return err
 }

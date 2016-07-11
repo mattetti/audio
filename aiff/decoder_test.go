@@ -1,15 +1,15 @@
 package aiff
 
 import (
-	"encoding/hex"
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 )
 
-func TestParse(t *testing.T) {
+// TODO(mattetti): benchmark allocations
+
+func TestContainerAttributes(t *testing.T) {
 	expectations := []struct {
 		input           string
 		id              [4]byte
@@ -20,9 +20,10 @@ func TestParse(t *testing.T) {
 		numSampleFrames uint32
 		sampleSize      uint16
 		sampleRate      int
+		totalFrames     int64
 	}{
 		{"fixtures/kick.aif", formID, 9642, aiffID,
-			18, 1, 4484, 16, 22050},
+			18, 1, 4484, 16, 22050, 4484},
 	}
 
 	for _, exp := range expectations {
@@ -32,95 +33,96 @@ func TestParse(t *testing.T) {
 			t.Fatal(err)
 		}
 		defer f.Close()
-		c := NewDecoder(f, nil)
-		err = c.Parse()
+		d := NewDecoder(f)
+		clip := d.Clip()
+		if d.Err() != nil {
+			t.Fatal(d.Err())
+		}
+
+		fi := clip.FrameInfo()
+		if fi.BitDepth != int(exp.sampleSize) {
+			t.Fatalf("%s of %s didn't match %d, got %d", "Clip bit depth", exp.input, exp.sampleSize, fi.BitDepth)
+		}
+
+		if fi.SampleRate != int64(exp.sampleRate) {
+			t.Fatalf("%s of %s didn't match %d, got %d", "Clip sample rate", exp.input, exp.sampleRate, fi.SampleRate)
+		}
+
+		if fi.Channels != int(exp.numChans) {
+			t.Fatalf("%s of %s didn't match %d, got %d", "Clip sample channels", exp.input, exp.numChans, fi.Channels)
+		}
+
+		if clip.Size() != exp.totalFrames {
+			t.Fatalf("%s of %s didn't match %d, got %d", "Clip sample data size", exp.input, exp.totalFrames, clip.Size())
+		}
+
+		if d.ID != exp.id {
+			t.Fatalf("%s of %s didn't match %s, got %s", "ID", exp.input, exp.id, d.ID)
+		}
+		if d.Size != exp.size {
+			t.Fatalf("%s of %s didn't match %d, got %d", "BlockSize", exp.input, exp.size, d.Size)
+		}
+		if d.Format != exp.format {
+			t.Fatalf("%s of %s didn't match %q, got %q", "Format", exp.input, exp.format, d.Format)
+		}
+		// comm chunk
+		if d.commSize != exp.commSize {
+			t.Fatalf("%s of %s didn't match %d, got %d", "comm size", exp.input, exp.commSize, d.commSize)
+		}
+		if d.NumChans != exp.numChans {
+			t.Fatalf("%s of %s didn't match %d, got %d", "NumChans", exp.input, exp.numChans, d.NumChans)
+		}
+		if d.numSampleFrames != exp.numSampleFrames {
+			t.Fatalf("%s of %s didn't match %d, got %d", "NumSampleFrames", exp.input, exp.numSampleFrames, d.numSampleFrames)
+		}
+		if d.BitDepth != exp.sampleSize {
+			t.Fatalf("%s of %s didn't match %d, got %d", "SampleSize", exp.input, exp.sampleSize, d.BitDepth)
+		}
+		if d.SampleRate != exp.sampleRate {
+			t.Fatalf("%s of %s didn't match %d, got %d", "SampleRate", exp.input, exp.sampleRate, d.SampleRate)
+		}
+	}
+}
+
+func Test_Frames(t *testing.T) {
+	testCases := []struct {
+		input string
+	}{
+		// 22050, 8bit, mono
+		{"fixtures/kick8b.aiff"},
+		// 22050, 16bit, mono
+		{"fixtures/kick.aif"},
+		// 22050, 16bit, mono
+		{"fixtures/kick32b.aiff"},
+		// 44100, 16bit, mono
+		{"fixtures/subsynth.aif"},
+		// 44100, 16bit, stereo
+		{"fixtures/bloop.aif"},
+		// 48000, 16bit, stereo
+		{"fixtures/zipper.aiff"},
+		// 48000, 24bit, stereo
+		{"fixtures/zipper24b.aiff"},
+	}
+
+	for i, tc := range testCases {
+		t.Logf("test case %d\n", i)
+		in, err := os.Open(tc.input)
+		if err != nil {
+			t.Fatalf("couldn't open %s %v", tc.input, err)
+		}
+		d := NewDecoder(in)
+		clip := d.Clip()
+		frames, err := d.Frames()
 		if err != nil {
 			t.Fatal(err)
 		}
-		if c.ID != exp.id {
-			t.Fatalf("%s of %s didn't match %s, got %s", "ID", exp.input, exp.id, c.ID)
-		}
-		if c.Size != exp.size {
-			t.Fatalf("%s of %s didn't match %d, got %d", "BlockSize", exp.input, exp.size, c.Size)
-		}
-		if c.Format != exp.format {
-			t.Fatalf("%s of %s didn't match %q, got %q", "Format", exp.input, exp.format, c.Format)
-		}
-		// comm chunk
-		if c.commSize != exp.commSize {
-			t.Fatalf("%s of %s didn't match %d, got %d", "comm size", exp.input, exp.commSize, c.commSize)
-		}
-		if c.NumChans != exp.numChans {
-			t.Fatalf("%s of %s didn't match %d, got %d", "NumChans", exp.input, exp.numChans, c.NumChans)
-		}
-		if c.NumSampleFrames != exp.numSampleFrames {
-			t.Fatalf("%s of %s didn't match %d, got %d", "NumSampleFrames", exp.input, exp.numSampleFrames, c.NumSampleFrames)
-		}
-		if c.SampleSize != exp.sampleSize {
-			t.Fatalf("%s of %s didn't match %d, got %d", "SampleSize", exp.input, exp.sampleSize, c.SampleSize)
-		}
-		if c.SampleRate != exp.sampleRate {
-			t.Fatalf("%s of %s didn't match %d, got %d", "SampleRate", exp.input, exp.sampleRate, c.SampleRate)
+		if int(clip.Size()) != len(frames) {
+			t.Fatalf("expected %d frames, got %d", clip.Size(), len(frames))
 		}
 	}
 }
 
-func TestNewDecoder(t *testing.T) {
-	path, _ := filepath.Abs("fixtures/kick.aif")
-	f, err := os.Open(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.Close()
-	ch := make(chan *Chunk)
-	c := NewDecoder(f, ch)
-	go func() {
-		if err := c.Parse(); err != nil {
-			panic(err)
-		}
-	}()
-
-	for chunk := range ch {
-		id := string(chunk.ID[:])
-		t.Log(id, chunk.Size)
-		if id != "SSND" {
-			buf := make([]byte, chunk.Size)
-			chunk.ReadBE(buf)
-			t.Log(hex.Dump(buf))
-		}
-		chunk.Done()
-	}
-
-}
-
-func TestReadFrames(t *testing.T) {
-	path, _ := filepath.Abs("fixtures/kick.aif")
-	f, err := os.Open(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.Close()
-	r := NewDecoder(f, nil)
-	info, frames, err := r.Frames()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if info.SampleRate != 22050 {
-		t.Fatalf("unexpected sample rate: %d", info.SampleRate)
-	}
-	if info.BitDepth != 16 {
-		t.Fatalf("unexpected sample size: %d", info.BitDepth)
-	}
-	if info.NumChannels != 1 {
-		t.Fatalf("unexpected channel number: %d", info.NumChannels)
-	}
-
-	if totalFrames := len(frames); totalFrames != 4484 {
-		t.Fatalf("unexpected total frames: %d", totalFrames)
-	}
-}
-
-func TestDuration(t *testing.T) {
+func TestDecoder_Duration(t *testing.T) {
 	expectations := []struct {
 		input    string
 		duration time.Duration
@@ -135,11 +137,7 @@ func TestDuration(t *testing.T) {
 			t.Fatal(err)
 		}
 		defer f.Close()
-		c := NewDecoder(f, nil)
-		err = c.Parse()
-		if err != nil {
-			t.Fatal(err)
-		}
+		c := NewDecoder(f)
 		d, err := c.Duration()
 		if err != nil {
 			t.Fatal(err)
@@ -148,22 +146,4 @@ func TestDuration(t *testing.T) {
 			t.Fatalf("duration of %s didn't match %d milliseconds, got %d", exp.input, exp.duration, d)
 		}
 	}
-}
-
-func ExampleDecoder_Duration() {
-	path, _ := filepath.Abs("fixtures/kick.aif")
-	f, err := os.Open(path)
-	if err != nil {
-		panic(err)
-	}
-	defer f.Close()
-
-	c := NewDecoder(f, nil)
-	if err = c.Parse(); err != nil {
-		panic(err)
-	}
-	d, _ := c.Duration()
-	fmt.Printf("kick.aif has a duration of %f seconds\n", d.Seconds())
-	// Output:
-	// kick.aif has a duration of 0.203356 seconds
 }
