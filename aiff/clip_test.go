@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/mattetti/audio"
 	"github.com/mattetti/audio/aiff"
-	"github.com/mattetti/audio/misc"
 )
 
 func TestClip_Read(t *testing.T) {
@@ -55,18 +55,18 @@ func TestClip_Next(t *testing.T) {
 		desc         string
 		input        string
 		framesToRead int
-		output       misc.AudioFrames
+		output       audio.Frames
 	}{
 		{"mono 16 bit, 22.5khz",
 			"fixtures/kick.aif",
 			8,
-			misc.AudioFrames{
+			audio.Frames{
 				[]int{76}, []int{76}, []int{75}, []int{75}, []int{72}, []int{71}, []int{72}, []int{69},
 			}},
 		{"stereo 16 bit, 44khz",
 			"fixtures/bloop.aif",
 			8,
-			misc.AudioFrames{
+			audio.Frames{
 				[]int{-22, -22}, []int{-110, -110}, []int{-268, -268}, []int{-441, -441}, []int{-550, -550}, []int{-553, -553}, []int{-456, -456}, []int{-269, -269},
 			}},
 	}

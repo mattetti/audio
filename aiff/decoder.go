@@ -9,7 +9,7 @@ import (
 	"io/ioutil"
 	"time"
 
-	"github.com/mattetti/audio/misc"
+	"github.com/mattetti/audio"
 )
 
 // Decoder is the wrapper structure for the AIFF container
@@ -162,14 +162,14 @@ func (d *Decoder) NextChunk() (*Chunk, error) {
 // Frames returns the audio frames contained in reader.
 // Notes that this method allocates a lot of memory (depending on the duration of the underlying file).
 // Consider using the decoder clip and reading/decoding using a buffer.
-func (d *Decoder) Frames() (frames misc.AudioFrames, err error) {
+func (d *Decoder) Frames() (frames audio.Frames, err error) {
 	clip := d.Clip()
 	totalFrames := int(clip.Size())
 	readFrames := 0
 
 	bufSize := 4096
 	buf := make([]byte, bufSize)
-	var tFrames misc.AudioFrames
+	var tFrames audio.Frames
 	var n int
 	for readFrames < totalFrames {
 		n, err = clip.Read(buf)
@@ -187,14 +187,14 @@ func (d *Decoder) Frames() (frames misc.AudioFrames, err error) {
 }
 
 // DecodeFrames decodes PCM bytes into audio frames based on the decoder context
-func (d *Decoder) DecodeFrames(data []byte) (frames misc.AudioFrames, err error) {
+func (d *Decoder) DecodeFrames(data []byte) (frames audio.Frames, err error) {
 	numChannels := int(d.NumChans)
 	r := bytes.NewBuffer(data)
 
 	bytesPerSample := int((d.BitDepth-1)/8 + 1)
 	sampleBufData := make([]byte, bytesPerSample)
 
-	frames = make(misc.AudioFrames, len(data)/bytesPerSample)
+	frames = make(audio.Frames, len(data)/bytesPerSample)
 	for j := 0; j < int(numChannels); j++ {
 		frames[j] = make([]int, numChannels)
 	}
@@ -392,7 +392,7 @@ func (d *Decoder) parseCommChunk(size uint32) error {
 		d.err = fmt.Errorf("sample rate failed to parse - %s", d.err)
 		return d.err
 	}
-	d.SampleRate = misc.IeeeFloatToInt(srBytes)
+	d.SampleRate = audio.IeeeFloatToInt(srBytes)
 
 	if d.Format == aifcID {
 		if d.err = binary.Read(d.r, binary.BigEndian, &d.Encoding); d.err != nil {

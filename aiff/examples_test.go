@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/mattetti/audio"
 	"github.com/mattetti/audio/aiff"
-	"github.com/mattetti/audio/misc"
 )
 
 func ExampleDecoder_Duration() {
@@ -37,7 +37,7 @@ func ExampleClip() {
 	totalFrames := int(clip.Size())
 	buf := make([]byte, 4096)
 	var (
-		extractedFrames misc.AudioFrames
+		extractedFrames audio.Frames
 		readFrames      int
 		n               int
 	)
