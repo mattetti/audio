@@ -44,8 +44,10 @@ func TestEncoderRoundTrip(t *testing.T) {
 			int(info.SampleRate),
 			info.BitDepth, info.Channels,
 			int(d.WavAudioFormat))
-		e.Frames = frames
-		if err := e.Write(); err != nil {
+		if err := e.Write(frames); err != nil {
+			t.Fatal(err)
+		}
+		if err := e.Close(); err != nil {
 			t.Fatal(err)
 		}
 		out.Close()
