@@ -6,7 +6,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/mattetti/audio/misc"
+	"github.com/mattetti/audio"
 	"github.com/mattetti/audio/riff"
 )
 
@@ -66,7 +66,7 @@ func (e *Encoder) addFrame(frame []int) error {
 				return err
 			}
 		case 24:
-			if err := e.Add(misc.Uint32toUint24Bytes(uint32(frame[i]))); err != nil {
+			if err := e.Add(audio.Uint32toUint24Bytes(uint32(frame[i]))); err != nil {
 				return err
 			}
 		case 32:

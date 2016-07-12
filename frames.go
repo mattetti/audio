@@ -1,0 +1,104 @@
+package audio
+
+import "math"
+
+var (
+	rmsWindowSize = 400.0
+)
+
+// AudioFrames are a representation of audio frames across multiple channels
+// [] <- channels []int <- frame int values.
+type AudioFrames [][]int
+
+// AudioFloatFrames are a representation similar to AudioFrames but containing float values
+// [] <- channels []float64 <- frame float values.
+type AudioFloatFrames [][]float64
+
+// ToFloatFrames converts the frame int values to values in the -1, 1 range.
+func (f AudioFrames) ToFloatFrames(srcBitDepth int) AudioFloatFrames {
+	out := make(AudioFloatFrames, len(f))
+	if len(f) < 1 {
+		return out
+	}
+	max := IntMaxSignedValue(srcBitDepth)
+	zeroF := float64(max / 2)
+
+	nbrChannels := len(f[0])
+
+	var i, j int
+	var v float64
+	for i = 0; i < len(f); i++ {
+		out[i] = make([]float64, nbrChannels)
+		for j = 0; j < nbrChannels; j++ {
+			v = float64(f[i][j]) / zeroF
+			if v > 1 {
+				v = 1
+			} else if v < -1 {
+				v = -1
+			}
+			out[i][j] = v
+		}
+	}
+	return out
+}
+
+// ToMonoFrames returns a new mono audio frame set.
+func (f AudioFrames) ToMonoFrames() AudioFrames {
+	return ToMonoFrames(f)
+}
+
+// MonoRMS is a representation of the audio frames (in mono)
+// rms = sqrt ( (1/n) * (x12 + x22 + … + xn2) )
+// multiplying by 1/n effectively assigns equal weights to all the terms, making it a rectangular window.
+// Other window equations can be used instead which would favor terms in the middle of the window.
+// This results in even greater accuracy of the RMS value since brand new samples (or old ones at
+// the end of the window) have less influence over the signal’s power.)
+func (fs AudioFloatFrames) MonoRMS() []float64 {
+	out := []float64{}
+	if len(fs) == 0 {
+		return out
+	}
+	buf := make([]float64, int(rmsWindowSize))
+
+	processBuffer := func() {
+		total := 0.0
+		for i := 0; i < len(buf); i++ {
+			total += buf[i]
+		}
+		out = append(out, math.Sqrt((1.0/rmsWindowSize)*total))
+	}
+
+	nbrChans := len(fs[0])
+	i := 0
+	for j, f := range fs {
+		var v float64
+		if nbrChans > 1 {
+			v = (f[0] + f[1]) / 2
+		} else {
+			v = f[0]
+		}
+		buf[i] = v
+		i++
+		if i == 400 || j == (len(fs)-1) {
+			i = 0
+			processBuffer()
+		}
+
+	}
+	return out
+}
+
+// ToMonoFrames converts stereo into mono frames by averaging each samples.
+// Note that a stereo frame could have 2 samples in phase opposition which would lead
+// to a zero value. This edge case isn't taken in consideration.
+func ToMonoFrames(fs AudioFrames) AudioFrames {
+	if fs == nil {
+		return nil
+	}
+
+	mono := make(AudioFrames, len(fs))
+	for i, f := range fs {
+		mono[i] = []int{AvgInt(f...)}
+	}
+	return mono
+}
