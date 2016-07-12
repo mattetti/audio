@@ -102,3 +102,27 @@ func ToMonoFrames(fs Frames) Frames {
 	}
 	return mono
 }
+
+// SlicedValues converts AudioFrames into a 1 dimensional slice of ints.
+func SlicedValues(fs Frames) []int {
+	if fs == nil || len(fs) == 0 {
+		return nil
+	}
+	out := make([]int, len(fs))
+	for i := 0; i < len(fs); i++ {
+		out[i] = fs[i][0]
+	}
+	return out
+}
+
+// SlicedFValues converts AudioFloatFrames into a 1 dimensional slice of floats.
+func SlicedFValues(fs FloatFrames) []float64 {
+	if fs == nil || len(fs) == 0 {
+		return nil
+	}
+	out := make([]float64, len(fs))
+	for i := 0; i < len(fs); i++ {
+		out[i] = fs[i][0]
+	}
+	return out
+}
