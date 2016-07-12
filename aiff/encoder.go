@@ -31,8 +31,8 @@ func NewEncoder(w io.WriteSeeker, sampleRate, sampleSize, numChans int) *Encoder
 	}
 }
 
-// Add serializes and adds the passed value using big endian
-func (e *Encoder) Add(src interface{}) error {
+// AddBE serializes and adds the passed value using big endian
+func (e *Encoder) AddBE(src interface{}) error {
 	e.WrittenBytes += binary.Size(src)
 	return binary.Write(e.w, binary.BigEndian, src)
 }
@@ -47,19 +47,19 @@ func (e *Encoder) addFrame(frame []int) error {
 	for i := 0; i < e.NumChans; i++ {
 		switch e.SampleSize {
 		case 8:
-			if err := e.Add(uint8(frame[i])); err != nil {
+			if err := e.AddBE(uint8(frame[i])); err != nil {
 				return err
 			}
 		case 16:
-			if err := e.Add(uint16(frame[i])); err != nil {
+			if err := e.AddBE(uint16(frame[i])); err != nil {
 				return err
 			}
 		case 24:
-			if err := e.Add(audio.Uint32toUint24Bytes(uint32(frame[i]))); err != nil {
+			if err := e.AddBE(audio.Uint32toUint24Bytes(uint32(frame[i]))); err != nil {
 				return err
 			}
 		case 32:
-			if err := e.Add(uint32(frame[i])); err != nil {
+			if err := e.AddBE(uint32(frame[i])); err != nil {
 				return err
 			}
 		default:
@@ -84,56 +84,56 @@ func (e *Encoder) Write() error {
 	}
 
 	// ID
-	if err := e.Add(formID); err != nil {
+	if err := e.AddBE(formID); err != nil {
 		return fmt.Errorf("%v when writing FORM header", err)
 	}
 	// size, will need to be updated later on (total size - 8)
-	if err := e.Add(uint32(0)); err != nil {
+	if err := e.AddBE(uint32(0)); err != nil {
 		return fmt.Errorf("%v when writing size header", err)
 	}
 	// Format
-	if err := e.Add(aiffID); err != nil {
+	if err := e.AddBE(aiffID); err != nil {
 		return fmt.Errorf("%v when writing format header", err)
 	}
 
 	// comm chunk
-	if err := e.Add(COMMID); err != nil {
+	if err := e.AddBE(COMMID); err != nil {
 		return fmt.Errorf("%v when writing comm chunk ID header", err)
 	}
 	// blocksize uint32
-	if err := e.Add(uint32(18)); err != nil {
+	if err := e.AddBE(uint32(18)); err != nil {
 		return fmt.Errorf("%v when writing comm chunk size header", err)
 	}
-	if err := e.Add(uint16(e.NumChans)); err != nil {
+	if err := e.AddBE(uint16(e.NumChans)); err != nil {
 		return fmt.Errorf("%v when writing comm chan numbers", err)
 	}
-	if err := e.Add(uint32(e.numSampleFrames())); err != nil {
+	if err := e.AddBE(uint32(e.numSampleFrames())); err != nil {
 		return fmt.Errorf("%v when writing comm num sample frames", err)
 	}
-	if err := e.Add(uint16(e.SampleSize)); err != nil {
+	if err := e.AddBE(uint16(e.SampleSize)); err != nil {
 		return fmt.Errorf("%v when writing comm chan numbers", err)
 	}
 	// sample rate in IeeeFloat (10 bytes)
-	if err := e.Add(audio.IntToIeeeFloat(int(e.SampleRate))); err != nil {
+	if err := e.AddBE(audio.IntToIeeeFloat(int(e.SampleRate))); err != nil {
 		return fmt.Errorf("%v when writing comm sample rate", err)
 	}
 
 	// other chunks
 	// audio frames
-	if err := e.Add([]byte("SSND")); err != nil {
+	if err := e.AddBE([]byte("SSND")); err != nil {
 		return fmt.Errorf("%v when writing SSND chunk ID header", err)
 	}
 
 	// blocksize uint32
 	chunksize := uint32((int(e.SampleSize)/8)*int(e.NumChans)*len(e.Frames) + 8)
-	if err := e.Add(uint32(chunksize)); err != nil {
+	if err := e.AddBE(uint32(chunksize)); err != nil {
 		return fmt.Errorf("%v when writing SSND chunk size header", err)
 	}
 
-	if err := e.Add(uint32(0)); err != nil {
+	if err := e.AddBE(uint32(0)); err != nil {
 		return fmt.Errorf("%v when writing SSND offset", err)
 	}
-	if err := e.Add(uint32(0)); err != nil {
+	if err := e.AddBE(uint32(0)); err != nil {
 		return fmt.Errorf("%v when writing SSND block size", err)
 	}
 
@@ -145,7 +145,7 @@ func (e *Encoder) Write() error {
 
 	// go back and write total size
 	e.w.Seek(4, 0)
-	if err := e.Add(uint32(e.WrittenBytes) - 8); err != nil {
+	if err := e.AddBE(uint32(e.WrittenBytes) - 8); err != nil {
 		return fmt.Errorf("%v when writing the total written bytes", err)
 	}
 	// jump to the end of the file.
