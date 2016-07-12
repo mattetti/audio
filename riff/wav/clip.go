@@ -7,7 +7,6 @@ import (
 	"io"
 
 	"github.com/mattetti/audio"
-	"github.com/mattetti/audio/misc"
 )
 
 // Clip represents the PCM data contained in the aiff stream.
@@ -23,15 +22,14 @@ type Clip struct {
 
 // ReadPCM reads up to n frames from the clip.
 // The frames as well as the number of frames/items read are returned.
-// TODO(mattetti): misc.AudioFrames is a temporary solution that needs to be improved.
-func (c *Clip) ReadPCM(nFrames int) (frames misc.AudioFrames, n int, err error) {
+func (c *Clip) ReadPCM(nFrames int) (frames audio.Frames, n int, err error) {
 	if c == nil || c.sampleFrames == 0 {
 		return nil, 0, nil
 	}
 
 	bytesPerSample := (c.bitDepth-1)/8 + 1
 	sampleBufData := make([]byte, bytesPerSample)
-	frames = make(misc.AudioFrames, nFrames)
+	frames = make(audio.Frames, nFrames)
 	for i := 0; i < c.channels; i++ {
 		frames[i] = make([]int, c.channels)
 	}

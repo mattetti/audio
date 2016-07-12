@@ -15,11 +15,11 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/mattetti/audio"
 	"github.com/mattetti/audio/aiff"
 	"github.com/mattetti/audio/dsp/filters"
 	"github.com/mattetti/audio/dsp/windows"
 	"github.com/mattetti/audio/generator"
-	"github.com/mattetti/audio/misc"
 	"github.com/mattetti/audio/riff/wav"
 )
 
@@ -94,7 +94,7 @@ func main() {
 	}
 	defer f.Close()
 
-	var monoFrames misc.AudioFrames
+	var monoFrames audio.Frames
 	var sampleRate int
 	var sampleSize int
 	switch codec {
@@ -106,7 +106,7 @@ func main() {
 		}
 		sampleRate = d.SampleRate
 		sampleSize = int(d.BitDepth)
-		monoFrames = misc.ToMonoFrames(frames)
+		monoFrames = audio.ToMonoFrames(frames)
 
 	case "wav":
 		info, frames, err := wav.NewDecoder(f, nil).ReadFrames()
@@ -115,7 +115,7 @@ func main() {
 		}
 		sampleRate = int(info.SampleRate)
 		sampleSize = int(info.BitsPerSample)
-		monoFrames = misc.ToMonoFrames(frames)
+		monoFrames = audio.ToMonoFrames(frames)
 	}
 
 	fmt.Printf("undersampling -> %s file at %dHz to %d samples (%d)\n", codec, sampleRate, sampleRate / *factorFlag, sampleSize)

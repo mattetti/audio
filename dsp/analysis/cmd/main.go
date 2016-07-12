@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/mattetti/audio"
 	"github.com/mattetti/audio/aiff"
 	"github.com/mattetti/audio/dsp/analysis"
-	"github.com/mattetti/audio/misc"
 	"github.com/mattetti/audio/riff/wav"
 )
 
@@ -31,7 +31,7 @@ func main() {
 	}
 	defer f.Close()
 
-	var monoFrames misc.AudioFrames
+	var monoFrames audio.Frames
 	var sampleRate int
 	var sampleSize int
 	switch codec {
@@ -43,7 +43,7 @@ func main() {
 		}
 		sampleRate = d.SampleRate
 		sampleSize = int(d.BitDepth)
-		monoFrames = misc.ToMonoFrames(frames)
+		monoFrames = audio.ToMonoFrames(frames)
 
 	case "wav":
 		info, frames, err := wav.NewDecoder(f, nil).ReadFrames()
@@ -52,7 +52,7 @@ func main() {
 		}
 		sampleRate = int(info.SampleRate)
 		sampleSize = int(info.BitsPerSample)
-		monoFrames = misc.ToMonoFrames(frames)
+		monoFrames = audio.ToMonoFrames(frames)
 	}
 
 	data := make([]float64, len(monoFrames))

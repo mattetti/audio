@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/mattetti/audio"
-	"github.com/mattetti/audio/misc"
 	"github.com/mattetti/audio/riff"
 )
 
@@ -156,10 +155,10 @@ func (d *Decoder) ReadFrames() (info *Info, sndDataFrames [][]int, err error) {
 	return info, sndDataFrames, err
 }
 
-func (d *Decoder) Frames() (info *Info, frames misc.AudioFrames, err error) {
+func (d *Decoder) Frames() (info *Info, frames audio.Frames, err error) {
 	var fs [][]int
 	info, fs, err = d.ReadFrames()
-	return info, misc.AudioFrames(fs), err
+	return info, audio.Frames(fs), err
 }
 
 // sampleDecodeFunc returns a function that can be used to convert

@@ -1,6 +1,5 @@
+// DEPRECATED WILL BE DELETED
 package misc
-
-// TODO(mattetti): rename this package
 
 import "math"
 
