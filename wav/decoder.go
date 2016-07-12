@@ -101,14 +101,14 @@ func (d *Decoder) Clip() *Clip {
 // Frames returns the audio frames contained in reader.
 // Notes that this method allocates a lot of memory (depending on the duration of the underlying file).
 // Consider using the decoder clip and reading/decoding using a buffer.
-func (d *Decoder) Frames() (frames audio.AudioFrames, err error) {
+func (d *Decoder) Frames() (frames audio.Frames, err error) {
 	clip := d.Clip()
 	totalFrames := int(clip.Size())
 	readFrames := 0
 
 	bufSize := 4096
 	buf := make([]byte, bufSize)
-	var tFrames audio.AudioFrames
+	var tFrames audio.Frames
 	var n int
 	for readFrames < totalFrames {
 		n, err = clip.Read(buf)
@@ -126,7 +126,7 @@ func (d *Decoder) Frames() (frames audio.AudioFrames, err error) {
 }
 
 // DecodeFrames decodes PCM bytes into audio frames based on the decoder context
-func (d *Decoder) DecodeFrames(data []byte) (frames audio.AudioFrames, err error) {
+func (d *Decoder) DecodeFrames(data []byte) (frames audio.Frames, err error) {
 	numChannels := int(d.NumChans)
 	r := bytes.NewBuffer(data)
 
@@ -137,7 +137,7 @@ func (d *Decoder) DecodeFrames(data []byte) (frames audio.AudioFrames, err error
 		return nil, fmt.Errorf("could not get sample decode func %v", err)
 	}
 
-	frames = make(audio.AudioFrames, len(data)/bytesPerSample)
+	frames = make(audio.Frames, len(data)/bytesPerSample)
 	for j := 0; j < int(numChannels); j++ {
 		frames[j] = make([]int, numChannels)
 	}

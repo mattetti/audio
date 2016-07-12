@@ -6,17 +6,17 @@ var (
 	rmsWindowSize = 400.0
 )
 
-// AudioFrames are a representation of audio frames across multiple channels
+// Frames are a representation of audio frames across multiple channels
 // [] <- channels []int <- frame int values.
-type AudioFrames [][]int
+type Frames [][]int
 
-// AudioFloatFrames are a representation similar to AudioFrames but containing float values
+// FloatFrames are a representation similar to Frames but containing float values
 // [] <- channels []float64 <- frame float values.
-type AudioFloatFrames [][]float64
+type FloatFrames [][]float64
 
 // ToFloatFrames converts the frame int values to values in the -1, 1 range.
-func (f AudioFrames) ToFloatFrames(srcBitDepth int) AudioFloatFrames {
-	out := make(AudioFloatFrames, len(f))
+func (f Frames) ToFloatFrames(srcBitDepth int) FloatFrames {
+	out := make(FloatFrames, len(f))
 	if len(f) < 1 {
 		return out
 	}
@@ -43,7 +43,7 @@ func (f AudioFrames) ToFloatFrames(srcBitDepth int) AudioFloatFrames {
 }
 
 // ToMonoFrames returns a new mono audio frame set.
-func (f AudioFrames) ToMonoFrames() AudioFrames {
+func (f Frames) ToMonoFrames() Frames {
 	return ToMonoFrames(f)
 }
 
@@ -53,7 +53,7 @@ func (f AudioFrames) ToMonoFrames() AudioFrames {
 // Other window equations can be used instead which would favor terms in the middle of the window.
 // This results in even greater accuracy of the RMS value since brand new samples (or old ones at
 // the end of the window) have less influence over the signal’s power.)
-func (fs AudioFloatFrames) MonoRMS() []float64 {
+func (fs FloatFrames) MonoRMS() []float64 {
 	out := []float64{}
 	if len(fs) == 0 {
 		return out
@@ -91,12 +91,12 @@ func (fs AudioFloatFrames) MonoRMS() []float64 {
 // ToMonoFrames converts stereo into mono frames by averaging each samples.
 // Note that a stereo frame could have 2 samples in phase opposition which would lead
 // to a zero value. This edge case isn't taken in consideration.
-func ToMonoFrames(fs AudioFrames) AudioFrames {
+func ToMonoFrames(fs Frames) Frames {
 	if fs == nil {
 		return nil
 	}
 
-	mono := make(AudioFrames, len(fs))
+	mono := make(Frames, len(fs))
 	for i, f := range fs {
 		mono[i] = []int{AvgInt(f...)}
 	}
