@@ -50,7 +50,7 @@ func TestClip_Read(t *testing.T) {
 	}
 }
 
-func TestClip_ReadPCM(t *testing.T) {
+func TestClip_Next(t *testing.T) {
 	testCases := []struct {
 		desc         string
 		input        string
@@ -84,7 +84,7 @@ func TestClip_ReadPCM(t *testing.T) {
 		if d.Err() != nil {
 			t.Fatal(d.Err())
 		}
-		frames, n, err := clip.ReadPCM(tc.framesToRead)
+		frames, n, err := clip.Next(tc.framesToRead)
 		if err != nil {
 			t.Fatal(err)
 		}
