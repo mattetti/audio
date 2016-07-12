@@ -98,6 +98,32 @@ func (d *Decoder) Clip() *Clip {
 	return d.clipInfo
 }
 
+// NextChunk returns the next available chunk
+func (d *Decoder) NextChunk() (*riff.Chunk, error) {
+	if d.err = d.readHeaders(); d.err != nil {
+		d.err = fmt.Errorf("failed to read header - %v", d.err)
+		return nil, d.err
+	}
+
+	var (
+		id   [4]byte
+		size uint32
+	)
+
+	id, size, d.err = d.parser.IDnSize()
+	if d.err != nil {
+		d.err = fmt.Errorf("error reading chunk header - %v", d.err)
+		return nil, d.err
+	}
+
+	c := &riff.Chunk{
+		ID:   id,
+		Size: int(size),
+		R:    io.LimitReader(d.r, int64(size)),
+	}
+	return c, d.err
+}
+
 // Frames returns the audio frames contained in reader.
 // Notes that this method allocates a lot of memory (depending on the duration of the underlying file).
 // Consider using the decoder clip and reading/decoding using a buffer.
