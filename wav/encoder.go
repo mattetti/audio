@@ -34,15 +34,10 @@ func NewEncoder(w io.WriteSeeker, sampleRate, bitDepth, numChans, audioFormat in
 	}
 }
 
-// Add serializes and adds the passed value using little endian
-func (e *Encoder) Add(src interface{}) error {
-	e.WrittenBytes += binary.Size(src)
-	return binary.Write(e.w, binary.LittleEndian, src)
-}
-
 // AddLE serializes and adds the passed value using little endian
 func (e *Encoder) AddLE(src interface{}) error {
-	return e.Add(src)
+	e.WrittenBytes += binary.Size(src)
+	return binary.Write(e.w, binary.LittleEndian, src)
 }
 
 // AddBE serializes and adds the passed value using big endian
@@ -58,19 +53,19 @@ func (e *Encoder) addFrame(frame []int) error {
 	for i := 0; i < e.NumChans; i++ {
 		switch e.BitDepth {
 		case 8:
-			if err := e.Add(uint8(frame[i])); err != nil {
+			if err := e.AddLE(uint8(frame[i])); err != nil {
 				return err
 			}
 		case 16:
-			if err := e.Add(uint16(frame[i])); err != nil {
+			if err := e.AddLE(uint16(frame[i])); err != nil {
 				return err
 			}
 		case 24:
-			if err := e.Add(audio.Uint32toUint24Bytes(uint32(frame[i]))); err != nil {
+			if err := e.AddLE(audio.Uint32toUint24Bytes(uint32(frame[i]))); err != nil {
 				return err
 			}
 		case 32:
-			if err := e.Add(uint32(frame[i])); err != nil {
+			if err := e.AddLE(uint32(frame[i])); err != nil {
 				return err
 			}
 		default:
@@ -95,20 +90,20 @@ func (e *Encoder) Write() error {
 
 	// HEADERS
 	// riff ID
-	if err := e.Add(riff.RiffID); err != nil {
+	if err := e.AddLE(riff.RiffID); err != nil {
 		return err
 	}
 	// file size uint32, to update later on.
-	if err := e.Add(uint32(42)); err != nil {
+	if err := e.AddLE(uint32(42)); err != nil {
 		return err
 	}
 
 	// wave headers
-	if err := e.Add(riff.WavFormatID); err != nil {
+	if err := e.AddLE(riff.WavFormatID); err != nil {
 		return err
 	}
 	// form
-	if err := e.Add(riff.FmtID); err != nil {
+	if err := e.AddLE(riff.FmtID); err != nil {
 		return err
 	}
 	// chunk size
@@ -116,37 +111,37 @@ func (e *Encoder) Write() error {
 		return err
 	}
 	// wave format
-	if err := e.Add(uint16(e.WavAudioFormat)); err != nil {
+	if err := e.AddLE(uint16(e.WavAudioFormat)); err != nil {
 		return err
 	}
 	// num channels
-	if err := e.Add(uint16(e.NumChans)); err != nil {
+	if err := e.AddLE(uint16(e.NumChans)); err != nil {
 		return fmt.Errorf("error encoding the number of channels - %v", err)
 	}
 	// samplerate
-	if err := e.Add(uint32(e.SampleRate)); err != nil {
+	if err := e.AddLE(uint32(e.SampleRate)); err != nil {
 		return fmt.Errorf("error encoding the sample rate - %v", err)
 	}
 	// avg bytes per sec
-	if err := e.Add(uint32(e.SampleRate * e.NumChans * e.BitDepth / 8)); err != nil {
+	if err := e.AddLE(uint32(e.SampleRate * e.NumChans * e.BitDepth / 8)); err != nil {
 		return fmt.Errorf("error encoding the avg bytes per sec - %v", err)
 	}
 	// block align
-	if err := e.Add(uint16(2)); err != nil {
+	if err := e.AddLE(uint16(2)); err != nil {
 		return err
 	}
 	// bits per sample
-	if err := e.Add(uint16(e.BitDepth)); err != nil {
+	if err := e.AddLE(uint16(e.BitDepth)); err != nil {
 		return fmt.Errorf("error encoding bits per sample - %v", err)
 	}
 
 	// sound header
-	if err := e.Add(riff.DataFormatID); err != nil {
+	if err := e.AddLE(riff.DataFormatID); err != nil {
 		return fmt.Errorf("error encoding sound header %v", err)
 	}
 
 	chunksize := uint32((int(e.BitDepth) / 8) * int(e.NumChans) * len(e.Frames))
-	if err := e.Add(uint32(chunksize)); err != nil {
+	if err := e.AddLE(uint32(chunksize)); err != nil {
 		return fmt.Errorf("%v when writing wav data chunk size header", err)
 	}
 
