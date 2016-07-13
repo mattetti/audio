@@ -92,6 +92,14 @@ func (e *Encoder) writeHeader() error {
 		return nil
 	}
 
+	// riff ID
+	if err := e.AddLE(riff.RiffID); err != nil {
+		return err
+	}
+	// file size uint32, to update later on.
+	if err := e.AddLE(uint32(42)); err != nil {
+		return err
+	}
 	// wave headers
 	if err := e.AddLE(riff.WavFormatID); err != nil {
 		return err
@@ -128,14 +136,6 @@ func (e *Encoder) writeHeader() error {
 	if err := e.AddLE(uint16(e.BitDepth)); err != nil {
 		return fmt.Errorf("error encoding bits per sample - %v", err)
 	}
-	// riff ID
-	if err := e.AddLE(riff.RiffID); err != nil {
-		return err
-	}
-	// file size uint32, to update later on.
-	if err := e.AddLE(uint32(42)); err != nil {
-		return err
-	}
 
 	return nil
 }
@@ -168,7 +168,7 @@ func (e *Encoder) Write(frames audio.Frames) error {
 }
 
 // Close flushes the content to disk, make sure the headers are up to date
-// Note that the underlying writter is NOT closed.
+// Note that the underlying writter is NOT being closed.
 func (e *Encoder) Close() error {
 	if e == nil || e.w == nil {
 		return nil
@@ -179,7 +179,7 @@ func (e *Encoder) Close() error {
 	if err := e.AddLE(uint32(e.WrittenBytes) - 8); err != nil {
 		return fmt.Errorf("%v when writing the total written bytes", err)
 	}
-	// TODO: rewrite the audio chunk length header
+	// rewrite the audio chunk length header
 	if e.pcmChunkSizePos > 0 {
 		e.w.Seek(int64(e.pcmChunkSizePos), 0)
 		chunksize := uint32((int(e.BitDepth) / 8) * int(e.NumChans) * e.frames)
