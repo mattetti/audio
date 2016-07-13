@@ -151,7 +151,12 @@ func (d *Decoder) Frames() (frames audio.Frames, err error) {
 	return frames, err
 }
 
-// DecodeFrames decodes PCM bytes into audio frames based on the decoder context
+// DecodeFrames decodes PCM bytes into audio frames based on the decoder context.
+// This function is usually used in conjunction with Clip.Read which returns the amount
+// of frames read into the buffer. It's highly recommended to slice the returned frames
+// of this function by the amount of total frames reads into the buffer.
+// The reason being that if the buffer didn't match the exact size of the frames,
+// some of the data might be garbage but will still be converted into frames.
 func (d *Decoder) DecodeFrames(data []byte) (frames audio.Frames, err error) {
 	numChannels := int(d.NumChans)
 	r := bytes.NewBuffer(data)
@@ -187,7 +192,7 @@ outter:
 	return frames, err
 }
 
-// Duration returns the time duration for the current AIFF container
+// Duration returns the time duration for the current audio container
 func (d *Decoder) Duration() (time.Duration, error) {
 	if d == nil || d.parser == nil {
 		return 0, errors.New("can't calculate the duration of a nil pointer")

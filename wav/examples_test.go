@@ -21,3 +21,57 @@ func ExampleDecoder_Duration() {
 	fmt.Printf("%s duration: %s\n", f.Name(), dur)
 	// Output: fixtures/kick.wav duration: 204.172335ms
 }
+
+func ExampleRoundTrip() {
+	f, err := os.Open("fixtures/kick.wav")
+	if err != nil {
+		panic(fmt.Sprintf("couldn't open audio file - %v", err))
+	}
+
+	// Decode the original audio file
+	// and collect audio content and information.
+	d := wav.NewDecoder(f)
+	clip := d.Clip()
+	info := clip.FrameInfo()
+	frames, err := d.Frames()
+	if err != nil {
+		panic(err)
+	}
+	f.Close()
+	fmt.Println("Old file ->", d)
+
+	// Destination file
+	out, err := os.Create("testOutput/kick.wav")
+	if err != nil {
+		panic(fmt.Sprintf("couldn't create output file - %v", err))
+	}
+	defer out.Close()
+
+	// setup the encoder and write all the frames
+	e := wav.NewEncoder(out,
+		int(info.SampleRate),
+		info.BitDepth, info.Channels,
+		int(d.WavAudioFormat))
+	if err := e.Write(frames); err != nil {
+		panic(err)
+	}
+	// close the encoder to make sure the headers are properly
+	// set and the data is flushed.
+	if err := e.Close(); err != nil {
+		panic(err)
+	}
+	out.Close()
+
+	// reopen to confirm things worked well
+	out, err = os.Open("testOutput/kick.wav")
+	if err != nil {
+		panic(err)
+	}
+	d2 := wav.NewDecoder(out)
+	d2.ReadInfo()
+	fmt.Println("New file ->", d2)
+	out.Close()
+	// Output:
+	// Old file -> Format: WAVE - 1 channels @ 22050 / 16 bits - Duration: 0.204172 seconds
+	// New file -> Format: WAVE - 1 channels @ 22050 / 16 bits - Duration: 0.204172 seconds
+}
