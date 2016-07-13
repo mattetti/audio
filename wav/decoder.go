@@ -61,8 +61,7 @@ func (d *Decoder) ReadInfo() {
 
 // Clip returns the audio Clip information including a reader to reads its content.
 // This method is safe to be called multiple times but the reader might need to be rewinded
-// if previously read.
-// This is the recommended, default way to consume an AIFF file.
+// if previously read passed the audio data.
 func (d *Decoder) Clip() *Clip {
 	if d.clipInfo != nil {
 		return d.clipInfo
