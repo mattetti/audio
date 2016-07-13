@@ -117,7 +117,7 @@ func (c *Parser) String() string {
 	if c.Format == WavFormatID {
 		out += fmt.Sprintf("%d channels @ %d / %d bits - ", c.NumChannels, c.SampleRate, c.BitsPerSample)
 		d, _ := c.Duration()
-		out += fmt.Sprintf("Duration: %f seconds\n", d.Seconds())
+		out += fmt.Sprintf("Duration: %f seconds", d.Seconds())
 	}
 	return out
 }
