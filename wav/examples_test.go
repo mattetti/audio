@@ -22,7 +22,7 @@ func ExampleDecoder_Duration() {
 	// Output: fixtures/kick.wav duration: 204.172335ms
 }
 
-func ExampleRoundTrip() {
+func ExampleEncoder_Write() {
 	f, err := os.Open("fixtures/kick.wav")
 	if err != nil {
 		panic(fmt.Sprintf("couldn't open audio file - %v", err))
