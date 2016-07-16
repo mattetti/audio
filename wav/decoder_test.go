@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mattetti/audio"
 	"github.com/mattetti/audio/wav"
 )
 
@@ -75,17 +74,17 @@ func TestDecoder_Attributes(t *testing.T) {
 
 func TestDecoder_Clip(t *testing.T) {
 	testCases := []struct {
-		in   string
-		size int64
-		info audio.FrameInfo
+		in          string
+		size        int64
+		numChannels int
+		sampleRate  int64
+		bitDepth    int
 	}{
 		{in: "fixtures/kick.wav",
-			size: 4484,
-			info: audio.FrameInfo{
-				Channels:   2,
-				SampleRate: 22050,
-				BitDepth:   16,
-			},
+			size:        4484,
+			numChannels: 1,
+			sampleRate:  22050,
+			bitDepth:    16,
 		},
 	}
 
@@ -95,17 +94,20 @@ func TestDecoder_Clip(t *testing.T) {
 			t.Fatal(err)
 		}
 		d := wav.NewDecoder(f)
-		clip := d.Clip()
+		pcm := d.PCM()
 		f.Close()
-		if clip.Size() != tc.size {
-			t.Fatalf("expected the clip to report containing %d frames but it has %d", tc.size, clip.Size())
+		if pcm.Size() != tc.size {
+			t.Fatalf("expected the pcm to report containing %d frames but it has %d", tc.size, pcm.Size())
 		}
-		info := clip.FrameInfo()
-		if info.SampleRate != tc.info.SampleRate {
-			t.Fatalf("expected info to have a sample rate of %d but it has %d", tc.info.SampleRate, info.SampleRate)
+		numChannels, bitDepth, sampleRate, err := pcm.Info()
+		if numChannels != tc.numChannels {
+			t.Fatalf("expected info to have %d channels but it has %d", tc.numChannels, numChannels)
 		}
-		if info.BitDepth != tc.info.BitDepth {
-			t.Fatalf("expected info to have %d bits per sample but it has %d", tc.info.BitDepth, info.BitDepth)
+		if sampleRate != tc.sampleRate {
+			t.Fatalf("expected info to have a sample rate of %d but it has %d", tc.sampleRate, sampleRate)
+		}
+		if bitDepth != tc.bitDepth {
+			t.Fatalf("expected info to have %d bits per sample but it has %d", tc.bitDepth, bitDepth)
 		}
 	}
 }

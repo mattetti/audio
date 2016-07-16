@@ -6,15 +6,18 @@ import (
 	"os"
 
 	"github.com/mattetti/audio"
-	"github.com/mattetti/audio/aiff"
 	"github.com/mattetti/audio/generator"
+	"strings"
+	"io"
+	"github.com/mattetti/audio/wav"
+	"fmt"
 )
 
 var (
 	freqFlag     = flag.Int("freq", 440, "frequency to generate")
-	bitSizeFlag  = flag.Int("bitsize", 16, "bit size to use when generating the auid file")
+	biteDepthFlag  = flag.Int("biteDepth", 16, "bit size to use when generating the auid file")
 	durationFlag = flag.Int("duration", 4, "duration of the generated file")
-	// TODO: support waveform types
+    formatFlag = flag.String("format", "wav", "the audio format of the output file")
 )
 
 func main() {
@@ -22,31 +25,53 @@ func main() {
 
 	freq := *freqFlag
 	fs := 44100
-	bitSize := *bitSizeFlag
+	biteDepth := *biteDepthFlag
 
-	osc := generator.NewOsc(generator.WaveSine, float64(freq), fs)
+	osc := generator.NewOsc(generator.WaveSine, float32(freq), fs)
 	// our osc generates values from -1 to 1, we need to go back to PCM scale
-	factor := float64(audio.IntMaxSignedValue(bitSize))
+	factor := float32(audio.IntMaxSignedValue(biteDepth))
 	osc.Amplitude = factor
 	// xs of sound
 	data := osc.Signal(fs * *durationFlag)
 	// build the audio frames
-	frames := make([][]int, len(data))
+	frames := make(audio.FramesInt, len(data))
 	for i := 0; i < len(frames); i++ {
-		frames[i] = []int{int(data[i])}
+		frames[i] = int(data[i])
 	}
 
 	// generate the sound file
-	o, err := os.Create("generated.aiff")
+    var outName string
+    var format string
+    switch strings.ToLower(*formatFlag) {
+    case "aif", "aiff":
+    format = "aif"
+        outName = "generated.aiff"
+        default:
+        format = "wav"
+        outName = "generated.wav"
+    }
+
+	o, err := os.Create(outName)
 	if err != nil {
 		panic(err)
 	}
 	defer o.Close()
-	e := aiff.NewEncoder(o, fs, 16, 1)
-	e.Frames = frames
-	if err := e.Write(); err != nil {
-		panic(err)
-	}
+    if err := encode(format, frames, fs, biteDepth, o); err != nil {
+        panic(err)
+    }
+    fmt.Println(outName, "generated")
+}
+
+func encode(format string, frames []int, fs int, bitDepth int, w io.WriteSeeker) error {
+    // switch format {
+    // case "wav":
+        e := wav.NewEncoder(w, fs, bitDepth, 1, 1)
+    // }
+    // e := aiff.NewEncoder(w, fs, bitDepth, 1)
+	if err := e.Write(frames); err != nil {
+        return err
+    }
+    return e.Close()
 }
 
 func intMaxSignedValue(b int) int {

@@ -24,8 +24,8 @@ type Decoder struct {
 	AvgBytesPerSec uint32
 	WavAudioFormat uint16
 
-	err      error
-	clipInfo *Clip
+	err     error
+	pcmClip *PCM
 }
 
 // New creates a decoder for the passed wav reader.
@@ -59,12 +59,11 @@ func (d *Decoder) ReadInfo() {
 	d.err = d.readHeaders()
 }
 
-// Clip returns the audio Clip information including a reader to reads its content.
-// This method is safe to be called multiple times but the reader might need to be rewinded
-// if previously read passed the audio data.
-func (d *Decoder) Clip() *Clip {
-	if d.clipInfo != nil {
-		return d.clipInfo
+// PCM returns an audio.PCM compatible value to consume the PCM data
+// contained in the underlying wav data.
+func (d *Decoder) PCM() *PCM {
+	if d.pcmClip != nil {
+		return d.pcmClip
 	}
 	d.err = d.readHeaders()
 	if d.err != nil {
@@ -85,7 +84,7 @@ func (d *Decoder) Clip() *Clip {
 		return nil
 	}
 
-	d.clipInfo = &Clip{
+	d.pcmClip = &PCM{
 		r:          d.r,
 		byteSize:   chunk.Size,
 		channels:   int(d.NumChans),
@@ -94,7 +93,7 @@ func (d *Decoder) Clip() *Clip {
 		blockSize:  chunk.Size,
 	}
 
-	return d.clipInfo
+	return d.pcmClip
 }
 
 // NextChunk returns the next available chunk
@@ -123,31 +122,18 @@ func (d *Decoder) NextChunk() (*riff.Chunk, error) {
 	return c, d.err
 }
 
-// Frames returns the audio frames contained in reader.
+// FramesInt returns the audio frames contained in reader.
 // Notes that this method allocates a lot of memory (depending on the duration of the underlying file).
 // Consider using the decoder clip and reading/decoding using a buffer.
-func (d *Decoder) Frames() (frames audio.Frames, err error) {
-	clip := d.Clip()
-	totalFrames := int(clip.Size())
-	readFrames := 0
-
-	bufSize := 4096
-	buf := make([]byte, bufSize)
-	var tFrames audio.Frames
-	var n int
-	for readFrames < totalFrames {
-		n, err = clip.Read(buf)
-		if err != nil || n == 0 {
-			break
-		}
-		readFrames += n
-		tFrames, err = d.DecodeFrames(buf)
-		if err != nil {
-			break
-		}
-		frames = append(frames, tFrames[:n]...)
+func (d *Decoder) FramesInt() (frames audio.FramesInt, err error) {
+	pcm := d.PCM()
+	if pcm == nil {
+		return nil, fmt.Errorf("no PCM data available")
 	}
-	return frames, err
+	totalFrames := int(pcm.Size()) * int(d.NumChans)
+	frames = make(audio.FramesInt, totalFrames)
+	n, err := pcm.Ints(frames)
+	return frames[:n], err
 }
 
 // DecodeFrames decodes PCM bytes into audio frames based on the decoder context.
@@ -280,6 +266,38 @@ func sampleDecodeFunc(bitsPerSample int) (func([]byte) int, error) {
 	case 4:
 		return func(s []byte) int {
 			return int(s[0]) + int(s[1])<<8 + int(s[2])<<16 + int(s[3])<<24
+		}, nil
+	default:
+		return nil, fmt.Errorf("unhandled byte depth:%d", bitsPerSample)
+	}
+}
+
+// sampleDecodeFloat32Func returns a function that can be used to convert
+// a byte range into a float32 value based on the amount of bits used per sample.
+func sampleFloat32DecodeFunc(bitsPerSample int) (func([]byte) float32, error) {
+	bytesPerSample := bitsPerSample / 8
+	switch bytesPerSample {
+	case 1:
+		// 8bit values are unsigned
+		return func(s []byte) float32 {
+			return float32(uint8(s[0]))
+		}, nil
+	case 2:
+		return func(s []byte) float32 {
+			return float32(int(s[0]) + int(s[1])<<8)
+		}, nil
+	case 3:
+		return func(s []byte) float32 {
+			var output int32
+			output |= int32(s[2]) << 0
+			output |= int32(s[1]) << 8
+			output |= int32(s[0]) << 16
+			return float32(output)
+		}, nil
+	case 4:
+		// TODO: fix the float32 conversion (current int implementation)
+		return func(s []byte) float32 {
+			return float32(int(s[0]) + int(s[1])<<8 + int(s[2])<<16 + int(s[3])<<24)
 		}, nil
 	default:
 		return nil, fmt.Errorf("unhandled byte depth:%d", bitsPerSample)

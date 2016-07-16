@@ -31,9 +31,12 @@ func ExampleEncoder_Write() {
 	// Decode the original audio file
 	// and collect audio content and information.
 	d := wav.NewDecoder(f)
-	clip := d.Clip()
-	info := clip.FrameInfo()
-	frames, err := d.Frames()
+	pcm := d.PCM()
+	numChannels, bitDepth, sampleRate, err := pcm.Info()
+	if err != nil {
+		panic(err)
+	}
+	frames, err := d.FramesInt()
 	if err != nil {
 		panic(err)
 	}
@@ -49,8 +52,9 @@ func ExampleEncoder_Write() {
 
 	// setup the encoder and write all the frames
 	e := wav.NewEncoder(out,
-		int(info.SampleRate),
-		info.BitDepth, info.Channels,
+		int(sampleRate),
+		bitDepth,
+		numChannels,
 		int(d.WavAudioFormat))
 	if err := e.Write(frames); err != nil {
 		panic(err)

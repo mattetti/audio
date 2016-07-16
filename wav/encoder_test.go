@@ -26,9 +26,13 @@ func TestEncoderRoundTrip(t *testing.T) {
 			t.Fatalf("couldn't open %s %v", tc.in, err)
 		}
 		d := wav.NewDecoder(in)
-		clip := d.Clip()
-		info := clip.FrameInfo()
-		frames, err := d.Frames()
+		pcm := d.PCM()
+		numChannels, bitDepth, sampleRate, err := pcm.Info()
+		if err != nil {
+			t.Fatal(err)
+		}
+		totalFrames := pcm.Size()
+		frames, err := d.FramesInt()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -41,8 +45,8 @@ func TestEncoderRoundTrip(t *testing.T) {
 		defer out.Close()
 
 		e := wav.NewEncoder(out,
-			int(info.SampleRate),
-			info.BitDepth, info.Channels,
+			int(sampleRate),
+			bitDepth, numChannels,
 			int(d.WavAudioFormat))
 		if err := e.Write(frames); err != nil {
 			t.Fatal(err)
@@ -58,34 +62,39 @@ func TestEncoderRoundTrip(t *testing.T) {
 		}
 
 		nd := wav.NewDecoder(nf)
-		nClip := nd.Clip()
-		if nClip == nil {
-			t.Fatalf("couldn't extract a clip from %s - %v", nf.Name(), d.Err())
+		nPCM := nd.PCM()
+		if nPCM == nil {
+			t.Fatalf("couldn't extract the PCM from %s - %v", nf.Name(), d.Err())
 		}
-		ninfo := nClip.FrameInfo()
-		nframes, err := nd.Frames()
+		nNumChannels, nBitDepth, nSampleRate, err := nPCM.Info()
+		nTotalFrames := nPCM.Size()
+		nframes, err := nd.FramesInt()
+		if err != nil {
+			t.Fatal(err)
+		}
+
 		nf.Close()
 		if err != nil {
 			t.Fatal(err)
 		}
-		if ninfo.SampleRate != info.SampleRate {
-			t.Fatalf("sample rate didn't support roundtripping exp: %d, got: %d", info.SampleRate, ninfo.SampleRate)
+		if nSampleRate != sampleRate {
+			t.Fatalf("sample rate didn't support roundtripping exp: %d, got: %d", sampleRate, nSampleRate)
 		}
-		if ninfo.BitDepth != info.BitDepth {
-			t.Fatalf("sample size didn't support roundtripping exp: %d, got: %d", info.BitDepth, ninfo.BitDepth)
+		if nBitDepth != bitDepth {
+			t.Fatalf("sample size didn't support roundtripping exp: %d, got: %d", bitDepth, nBitDepth)
 		}
-		if ninfo.Channels != info.Channels {
-			t.Fatalf("the number of channels didn't support roundtripping exp: %d, got: %d", info.Channels, ninfo.Channels)
+		if nNumChannels != numChannels {
+			t.Fatalf("the number of channels didn't support roundtripping exp: %d, got: %d", numChannels, nNumChannels)
 		}
-
+		if totalFrames != nTotalFrames {
+			t.Fatalf("the reported number of frames didn't support roundtripping, exp: %d, got: %d", totalFrames, nTotalFrames)
+		}
 		if len(frames) != len(nframes) {
 			t.Fatalf("the number of frames didn't support roundtripping, exp: %d, got: %d", len(frames), len(nframes))
 		}
-		for i := range frames {
-			for j := 0; j < e.NumChans; j++ {
-				if frames[i][j] != nframes[i][j] {
-					t.Fatalf("frames[%d][%d]: %d didn't match nframes[%d][%d]: %d", i, j, frames[i][j], i, j, nframes[i][j])
-				}
+		for i := 0; i < len(frames); i++ {
+			if frames[i] != nframes[i] {
+				t.Fatalf("frame value at position %d: %d didn't match nframes position %d: %d", i, frames[i], i, nframes[i])
 			}
 		}
 		os.Remove(nf.Name())

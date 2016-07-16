@@ -5,18 +5,27 @@ import (
 	"math"
 )
 
-// Clip represents a linear PCM formatted audio io.ReadSeeker.
-// Clip can seek and read from a section and allow users to
-// consume a small section of the underlying audio data.
-//
-// FrameInfo returns the basic frame-level information about the clip audio.
-//
-// Size returns the total number of bytes of the underlying audio data.
-// TODO(jbd): Support cases where size is unknown?
-type Clip interface {
-	io.ReadSeeker
-	FrameInfo() FrameInfo
-	Size() int64
+type FramesInt []int
+
+func(f FramesInt) Get(channel, n int) int {
+  return f[n*channel]
+}
+
+type FramesFloat32 []float32
+
+func(f FramesFloat32) Get(channel, n int) float32 {
+  return f[n*channel]
+}
+
+type PCM interface {
+  Ints(frames FramesInt) (n int, err error)
+  Float32s(frames FramesFloat32) (n int, err error)
+  NextInts(n int) (FramesInt, error)
+  NextFloat32s(n int) (FramesFloat32, error)
+  Offset() int64
+  Seek(frameOffset int64, whence int) (offset int64, err error)
+  Info() (numChannels, bitDepth int, sampleRate int64, err error)
+  Size() int64
 }
 
 // FrameInfo represents the frame-level information.

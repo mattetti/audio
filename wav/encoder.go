@@ -17,6 +17,10 @@ type Encoder struct {
 	BitDepth   int
 	NumChans   int
 
+	// A number indicating the WAVE format category of the file. The content of the
+	// <format-specific-fields> portion of the ‘fmt’ chunk, and the interpretation of
+	// the waveform data, depend on this value.
+	// PCM = 1 (i.e. Linear quantization) Values other than 1 indicate some form of compression.
 	WavAudioFormat int
 
 	WrittenBytes    int
@@ -49,33 +53,38 @@ func (e *Encoder) AddBE(src interface{}) error {
 	return binary.Write(e.w, binary.BigEndian, src)
 }
 
-func (e *Encoder) addFrame(frame []int) error {
-	if frame == nil {
-		return fmt.Errorf("can't add a nil frame")
+func (e *Encoder) addFrames(frames []int) error {
+	if frames == nil {
+		return fmt.Errorf("can't add a nil frames")
 	}
-	for i := 0; i < e.NumChans; i++ {
-		switch e.BitDepth {
-		case 8:
-			if err := e.AddLE(uint8(frame[i])); err != nil {
-				return err
+	frameSize := e.NumChans
+
+	for i := 0; i+frameSize <= len(frames); {
+		for j := 0; j < frameSize; j++ {
+			switch e.BitDepth {
+			case 8:
+				if err := e.AddLE(uint8(frames[i])); err != nil {
+					return err
+				}
+			case 16:
+				if err := e.AddLE(uint16(frames[i])); err != nil {
+					return err
+				}
+			case 24:
+				if err := e.AddLE(audio.Uint32toUint24Bytes(uint32(frames[i]))); err != nil {
+					return err
+				}
+			case 32:
+				if err := e.AddLE(uint32(frames[i])); err != nil {
+					return err
+				}
+			default:
+				return fmt.Errorf("can't add frames of bit size %d", e.BitDepth)
 			}
-		case 16:
-			if err := e.AddLE(uint16(frame[i])); err != nil {
-				return err
-			}
-		case 24:
-			if err := e.AddLE(audio.Uint32toUint24Bytes(uint32(frame[i]))); err != nil {
-				return err
-			}
-		case 32:
-			if err := e.AddLE(uint32(frame[i])); err != nil {
-				return err
-			}
-		default:
-			return fmt.Errorf("can't add frames of bit size %d", e.BitDepth)
+			i++
 		}
+		e.frames++
 	}
-	e.frames++
 
 	return nil
 }
@@ -140,7 +149,7 @@ func (e *Encoder) writeHeader() error {
 	return nil
 }
 
-func (e *Encoder) Write(frames audio.Frames) error {
+func (e *Encoder) Write(frames audio.FramesInt) error {
 	if err := e.writeHeader(); err != nil {
 		return err
 	}
@@ -158,13 +167,7 @@ func (e *Encoder) Write(frames audio.Frames) error {
 		}
 	}
 
-	for i, frame := range frames {
-		if err := e.addFrame(frame); err != nil {
-			return fmt.Errorf("%v when writing frame %d", err, i)
-		}
-	}
-
-	return nil
+	return e.addFrames(frames)
 }
 
 // Close flushes the content to disk, make sure the headers are up to date

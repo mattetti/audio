@@ -5,10 +5,11 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/mattetti/audio"
 	"github.com/mattetti/audio/wav"
 )
 
-func TestClip_Read(t *testing.T) {
+func TestPCM_Ints(t *testing.T) {
 	expectations := []struct {
 		input       string
 		totalFrames int
@@ -24,18 +25,18 @@ func TestClip_Read(t *testing.T) {
 		}
 		defer f.Close()
 		d := wav.NewDecoder(f)
-		clip := d.Clip()
-		totalFrames := int(clip.Size())
+		pcm := d.PCM()
+		totalFrames := int(pcm.Size())
 		if totalFrames != exp.totalFrames {
 			t.Fatalf("Expected %d frames, got %d\n", exp.totalFrames, totalFrames)
 		}
 		readFrames := 0
 
 		bufSize := 4096
-		buf := make([]byte, bufSize)
+		buf := make(audio.FramesInt, bufSize/int(d.NumChans))
 		var n int
 		for readFrames < totalFrames {
-			n, err = clip.Read(buf)
+			n, err = pcm.Ints(buf)
 			if err != nil || n == 0 {
 				break
 			}

@@ -13,7 +13,7 @@ const (
 )
 
 const (
-	TwoPi = float64(2 * math.Pi)
+	TwoPi = float32(2 * math.Pi)
 )
 
 const (
@@ -25,23 +25,24 @@ const (
 
 // Sine takes an input value from -Pi to Pi
 // and returns a value between -1 and 1
-func Sine(x float64) float64 {
-	y := SineB*x + SineC*x*math.Abs(x)
-	y = SineP*(y*math.Abs(y)-y) + y
-	return y
+func Sine(x32 float32) float32 {
+    x := float64(x32)
+	y := SineB*x + SineC*x*(math.Abs(x))
+	y = SineP*(y*(math.Abs(y))-y) + y
+	return float32(y)
 }
 
 const TringleA = 2.0 / math.Pi
 
 // Triangle takes an input value from -Pi to Pi
 // and returns a value between -1 and 1
-func Triangle(x float64) float64 {
-	return float64(TringleA*x) - 1.0
+func Triangle(x float32) float32 {
+	return float32(TringleA*x) - 1.0
 }
 
 // Square takes an input value from -Pi to Pi
 // and returns -1 or 1
-func Square(x float64) float64 {
+func Square(x float32) float32 {
 	if x >= 0.0 {
 		return 1
 	}
@@ -52,6 +53,6 @@ const SawtoothA = 1.0 / math.Pi
 
 // Triangle takes an input value from -Pi to Pi
 // and returns a value between -1 and 1
-func Sawtooth(x float64) float64 {
+func Sawtooth(x float32) float32 {
 	return SawtoothA * x
 }
