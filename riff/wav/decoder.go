@@ -27,7 +27,7 @@ func NewDecoder(r io.Reader, c chan *audio.Chunk) *Decoder {
 
 // Decode reads from a Read Seeker and converts the input to a PCM
 // clip output.
-func Decode(r io.ReadSeeker) (audio.Clip, error) {
+func Decode(r io.ReadSeeker) (*Clip, error) {
 	d := &Decoder{r: r, parser: riff.New(r)}
 	nfo, err := d.Info()
 	if err != nil {
