@@ -7,10 +7,10 @@ import (
 
 func TestSine(t *testing.T) {
 	testCases := []struct {
-		in  float32
-		out float32
+		in  float64
+		out float64
 	}{
-		0: {float32(-math.Pi), 0},
+		0: {float64(-math.Pi), 0},
 		1: {0.007, 0.006909727339533104},
 		2: {-0.5, -0.47932893655759223},
 		3: {0.1, 0.09895415534087945},
@@ -28,17 +28,17 @@ func TestSine(t *testing.T) {
 	}
 }
 
-func nearlyEqual(a, b, epsilon float32) bool {
-    if (a == b) {
-        return true
-    }
-    absA := math.Abs(float64(a))
-    absB := math.Abs(float64(b))
-    diff := math.Abs(float64(a) - float64(b))
+func nearlyEqual(a, b, epsilon float64) bool {
+	if a == b {
+		return true
+	}
+	absA := math.Abs(float64(a))
+	absB := math.Abs(float64(b))
+	diff := math.Abs(float64(a) - float64(b))
 
-    if (a == 0 || b == 0 || diff < 0.0000001) {
-        return diff < (float64(epsilon));
-    }
-        return diff / (absA + absB) < float64(epsilon);
+	if a == 0 || b == 0 || diff < 0.0000001 {
+		return diff < (float64(epsilon))
+	}
+	return diff/(absA+absB) < float64(epsilon)
 
 }
