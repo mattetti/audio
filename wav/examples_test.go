@@ -48,7 +48,6 @@ func ExampleEncoder_Write() {
 	if err != nil {
 		panic(fmt.Sprintf("couldn't create output file - %v", err))
 	}
-	defer out.Close()
 
 	// setup the encoder and write all the frames
 	e := wav.NewEncoder(out,
@@ -75,6 +74,8 @@ func ExampleEncoder_Write() {
 	d2.ReadInfo()
 	fmt.Println("New file ->", d2)
 	out.Close()
+	os.Remove(out.Name())
+
 	// Output:
 	// Old file -> Format: WAVE - 1 channels @ 22050 / 16 bits - Duration: 0.204172 seconds
 	// New file -> Format: WAVE - 1 channels @ 22050 / 16 bits - Duration: 0.204172 seconds

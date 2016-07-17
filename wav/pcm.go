@@ -56,13 +56,13 @@ func (c *PCM) NextInts(n int) (audio.FramesInt, error) {
 	return frames[:n], err
 }
 
-// Float32s reads the PCM data and loads it into the passed frames.
+// Float64s reads the PCM data and loads it into the passed frames.
 // The number of frames read is returned so the caller can process
 // only the populated frames.
-func (c *PCM) Float32s(frames audio.FramesFloat32) (n int, err error) {
+func (c *PCM) Float64s(frames audio.FramesFloat64) (n int, err error) {
 	bytesPerSample := (c.bitDepth-1)/8 + 1
 	sampleBufData := make([]byte, bytesPerSample)
-	decodeF, err := sampleFloat32DecodeFunc(c.bitDepth)
+	decodeF, err := sampleFloat64DecodeFunc(c.bitDepth)
 	if err != nil {
 		return 0, fmt.Errorf("could not get sample decode func %v", err)
 	}
@@ -86,10 +86,10 @@ func (c *PCM) Info() (numChannels, bitDepth int, sampleRate int64, err error) {
 	return c.channels, c.bitDepth, c.sampleRate, nil
 }
 
-// NextFloat32s returns the n next audio frames
-func (c *PCM) NextFloat32s(n int) (audio.FramesFloat32, error) {
-	frames := make(audio.FramesFloat32, n)
-	n, err := c.Float32s(frames)
+// NextFloat64s returns the n next audio frames
+func (c *PCM) NextFloat64s(n int) (audio.FramesFloat64, error) {
+	frames := make(audio.FramesFloat64, n)
+	n, err := c.Float64s(frames)
 	return frames[:n], err
 }
 

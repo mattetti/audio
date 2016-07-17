@@ -272,32 +272,32 @@ func sampleDecodeFunc(bitsPerSample int) (func([]byte) int, error) {
 	}
 }
 
-// sampleDecodeFloat32Func returns a function that can be used to convert
-// a byte range into a float32 value based on the amount of bits used per sample.
-func sampleFloat32DecodeFunc(bitsPerSample int) (func([]byte) float32, error) {
+// sampleDecodeFloat64Func returns a function that can be used to convert
+// a byte range into a float64 value based on the amount of bits used per sample.
+func sampleFloat64DecodeFunc(bitsPerSample int) (func([]byte) float64, error) {
 	bytesPerSample := bitsPerSample / 8
 	switch bytesPerSample {
 	case 1:
 		// 8bit values are unsigned
-		return func(s []byte) float32 {
-			return float32(uint8(s[0]))
+		return func(s []byte) float64 {
+			return float64(uint8(s[0]))
 		}, nil
 	case 2:
-		return func(s []byte) float32 {
-			return float32(int(s[0]) + int(s[1])<<8)
+		return func(s []byte) float64 {
+			return float64(int(s[0]) + int(s[1])<<8)
 		}, nil
 	case 3:
-		return func(s []byte) float32 {
+		return func(s []byte) float64 {
 			var output int32
 			output |= int32(s[2]) << 0
 			output |= int32(s[1]) << 8
 			output |= int32(s[0]) << 16
-			return float32(output)
+			return float64(output)
 		}, nil
 	case 4:
-		// TODO: fix the float32 conversion (current int implementation)
-		return func(s []byte) float32 {
-			return float32(int(s[0]) + int(s[1])<<8 + int(s[2])<<16 + int(s[3])<<24)
+		// TODO: fix the float64 conversion (current int implementation)
+		return func(s []byte) float64 {
+			return float64(int(s[0]) + int(s[1])<<8 + int(s[2])<<16 + int(s[3])<<24)
 		}, nil
 	default:
 		return nil, fmt.Errorf("unhandled byte depth:%d", bitsPerSample)

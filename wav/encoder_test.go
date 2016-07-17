@@ -42,7 +42,6 @@ func TestEncoderRoundTrip(t *testing.T) {
 		if err != nil {
 			t.Fatalf("couldn't create %s %v", tc.out, err)
 		}
-		defer out.Close()
 
 		e := wav.NewEncoder(out,
 			int(sampleRate),
@@ -77,6 +76,12 @@ func TestEncoderRoundTrip(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		defer func() {
+			if err := os.Remove(nf.Name()); err != nil {
+				panic(err)
+			}
+		}()
+
 		if nSampleRate != sampleRate {
 			t.Fatalf("sample rate didn't support roundtripping exp: %d, got: %d", sampleRate, nSampleRate)
 		}
@@ -97,6 +102,6 @@ func TestEncoderRoundTrip(t *testing.T) {
 				t.Fatalf("frame value at position %d: %d didn't match nframes position %d: %d", i, frames[i], i, nframes[i])
 			}
 		}
-		os.Remove(nf.Name())
+
 	}
 }

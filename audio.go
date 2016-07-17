@@ -7,25 +7,26 @@ import (
 
 type FramesInt []int
 
-func(f FramesInt) Get(channel, n int) int {
-  return f[n*channel]
+func (f FramesInt) Get(channel, n int) int {
+	return f[n*channel]
 }
 
-type FramesFloat32 []float32
+type FramesFloat64 []float64
 
-func(f FramesFloat32) Get(channel, n int) float32 {
-  return f[n*channel]
+func (f FramesFloat64) Get(channel, n int) float64 {
+	return f[n*channel]
 }
 
 type PCM interface {
-  Ints(frames FramesInt) (n int, err error)
-  Float32s(frames FramesFloat32) (n int, err error)
-  NextInts(n int) (FramesInt, error)
-  NextFloat32s(n int) (FramesFloat32, error)
-  Offset() int64
-  Seek(frameOffset int64, whence int) (offset int64, err error)
-  Info() (numChannels, bitDepth int, sampleRate int64, err error)
-  Size() int64
+	Ints(frames FramesInt) (n int, err error)
+	Float64s(frames FramesFloat64) (n int, err error)
+	NextInts(n int) (FramesInt, error)
+	NextFloat64s(n int) (FramesFloat64, error)
+	Read(buf []byte) (n int, err error)
+	Offset() int64
+	Seek(frameOffset int64, whence int) (offset int64, err error)
+	Info() (numChannels, bitDepth int, sampleRate int64, err error)
+	Size() int64
 }
 
 // FrameInfo represents the frame-level information.
