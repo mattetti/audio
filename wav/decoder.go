@@ -244,6 +244,7 @@ func (d *Decoder) readHeaders() error {
 // a byte range into an int value based on the amount of bits used per sample.
 // Note that 8bit samples are unsigned, all other values are signed.
 func sampleDecodeFunc(bitsPerSample int) (func([]byte) int, error) {
+	// NOTE: WAV PCM data is stored usign little-endian
 	bytesPerSample := bitsPerSample / 8
 	switch bytesPerSample {
 	case 1:

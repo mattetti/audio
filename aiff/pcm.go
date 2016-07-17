@@ -9,14 +9,17 @@ import (
 	"github.com/mattetti/audio"
 )
 
-// Clip represents the PCM data contained in the aiff stream.
-type Clip struct {
+// static check that PCM struct implements audio.PCM
+var _ audio.PCM = (*PCM)(nil)
+
+// PCM represents the PCM data contained in the aiff stream.
+type PCM struct {
 	r            io.ReadSeeker
 	channels     int
 	bitDepth     int
 	sampleRate   int64
-	sampleFrames int
-	readFrames   int
+	sampleFrames int64
+	readFrames   int64
 
 	// decoder info
 	offset     uint32
@@ -24,10 +27,112 @@ type Clip struct {
 	offsetRead bool
 }
 
+// Offset returns the current frame offset
+func (c *PCM) Offset() int64 {
+	return c.readFrames
+}
+
+// Size returns the total number of frames available in this clip.
+func (c *PCM) Size() int64 {
+	if c == nil {
+		return 0
+	}
+	return c.sampleFrames
+}
+
+// Seek seeks to the frame offset
+func (c *PCM) Seek(offset int64, whence int) (int64, error) {
+	if c == nil {
+		return 0, nil
+	}
+
+	bytesPerSample := (c.bitDepth-1)/8 + 1
+	frameSize := int64(bytesPerSample * c.channels)
+	switch whence {
+	case 0:
+		c.readFrames = offset
+	case 1:
+		c.readFrames += offset
+	case 2:
+		c.readFrames = c.Size() - offset
+	}
+	return c.r.Seek(offset*frameSize, whence)
+}
+
+// Ints reads the PCM data and loads it into the passed frames.
+// The number of frames read is returned so the caller can process
+// only the populated frames.
+func (c *PCM) Ints(frames audio.FramesInt) (n int, err error) {
+	if c == nil || c.sampleFrames == 0 {
+		return 0, nil
+	}
+	if err := c.readOffsetBlockSize(); err != nil {
+		return 0, err
+	}
+	// TODO(mattetti): respect offset and block size
+
+	decodeF, err := sampleDecodeFunc(c.bitDepth)
+	if err != nil {
+		return 0, fmt.Errorf("could not get sample decode func %v", err)
+	}
+
+	var v int
+	for i := 0; i < len(frames); i++ {
+		v, err = decodeF(c.r)
+		if err != nil {
+			if err == io.EOF {
+				err = nil
+			}
+			break
+		}
+		frames[i] = v
+		n++
+	}
+	return n, err
+}
+
+// NextInts returns the n next audio frames
+func (c *PCM) NextInts(n int) (audio.FramesInt, error) {
+	frames := make(audio.FramesInt, n)
+	n, err := c.Ints(frames)
+	return frames[:n], err
+}
+
+// Float64s reads the PCM data and loads it into the passed frames.
+// The number of frames read is returned so the caller can process
+// only the populated frames.
+func (c *PCM) Float64s(frames audio.FramesFloat64) (n int, err error) {
+	decodeF, err := sampleFloat64DecodeFunc(c.bitDepth)
+	if err != nil {
+		return 0, fmt.Errorf("could not get sample decode func %v", err)
+	}
+
+	var v float64
+	for i := 0; i < len(frames); i++ {
+		v, err = decodeF(c.r)
+		if err != nil {
+			if err == io.EOF {
+				err = nil
+			}
+			break
+		}
+		frames[i] = v
+		n++
+	}
+	return n, err
+}
+
+// NextFloat64s returns the n next audio frames
+func (c *PCM) NextFloat64s(n int) (audio.FramesFloat64, error) {
+	frames := make(audio.FramesFloat64, n)
+	n, err := c.Float64s(frames)
+	return frames[:n], err
+}
+
 // Next reads up to n frames from the clip.
 // The frames as well as the number of full frames read are returned.
 // This API is somewhat similar to https://golang.org/pkg/bytes/#Buffer.Next
-func (c *Clip) Next(nFrames int) (frames audio.Frames, n int, err error) {
+func (c *PCM) Next(nFrames int) (frames audio.Frames, n int, err error) {
 	if c == nil || c.sampleFrames == 0 {
 		return nil, 0, nil
 	}
@@ -95,7 +200,7 @@ outter:
 
 // Read reads frames into the passed buffer and returns the number of full frames
 // read.
-func (c *Clip) Read(buf []byte) (n int, err error) {
+func (c *PCM) Read(buf []byte) (n int, err error) {
 	if c == nil || c.sampleFrames == 0 {
 		return n, nil
 	}
@@ -135,37 +240,16 @@ outter:
 		}
 	}
 
-	n = c.readFrames - startingAtFrame
+	n = int(c.readFrames - startingAtFrame)
 	return n, err
 }
 
-// Size returns the total number of frames available in this clip.
-func (c *Clip) Size() int64 {
-	if c == nil {
-		return 0
-	}
-	return int64(c.sampleFrames)
+// Info returns the frame info for the PCM data
+func (c *PCM) Info() (numChannels, bitDepth int, sampleRate int64, err error) {
+	return c.channels, c.bitDepth, c.sampleRate, nil
 }
 
-// Seek seeks into the clip
-// TODO(mattetti): Seek offset should be in frames, not bytes
-func (c *Clip) Seek(offset int64, whence int) (int64, error) {
-	if c == nil {
-		return 0, nil
-	}
-
-	return c.r.Seek(offset, whence)
-}
-
-func (c *Clip) FrameInfo() audio.FrameInfo {
-	return audio.FrameInfo{
-		Channels:   c.channels,
-		BitDepth:   c.bitDepth,
-		SampleRate: c.sampleRate,
-	}
-}
-
-func (c *Clip) readOffsetBlockSize() error {
+func (c *PCM) readOffsetBlockSize() error {
 	// reading the offset and blocksize should only happen once per chunk
 	if c == nil || c.offsetRead == true {
 		return nil

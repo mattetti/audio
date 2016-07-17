@@ -66,7 +66,7 @@ func TestEncoderRoundTrip(t *testing.T) {
 		}
 
 		d2 := aiff.NewDecoder(nf)
-		d2.Clip()
+		d2.PCM()
 		// TODO(mattetti): using d2.Duration() messes the later Frames() call
 		info, err := nf.Stat()
 		if err != nil {

@@ -33,7 +33,7 @@ func ExampleClip() {
 	defer f.Close()
 
 	d := aiff.NewDecoder(f)
-	clip := d.Clip()
+	clip := d.PCM()
 	totalFrames := int(clip.Size())
 	buf := make([]byte, 4096)
 	var (

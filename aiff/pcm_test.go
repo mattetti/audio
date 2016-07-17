@@ -26,7 +26,7 @@ func TestClip_Read(t *testing.T) {
 		}
 		defer f.Close()
 		d := aiff.NewDecoder(f)
-		clip := d.Clip()
+		clip := d.PCM()
 		totalFrames := int(clip.Size())
 		if totalFrames != exp.totalFrames {
 			t.Fatalf("Expected %d frames, got %d\n", exp.totalFrames, totalFrames)
@@ -80,7 +80,7 @@ func TestClip_Next(t *testing.T) {
 		}
 		defer f.Close()
 		d := aiff.NewDecoder(f)
-		clip := d.Clip()
+		clip := d.PCM()
 		if d.Err() != nil {
 			t.Fatal(d.Err())
 		}

@@ -34,22 +34,25 @@ func TestContainerAttributes(t *testing.T) {
 		}
 		defer f.Close()
 		d := NewDecoder(f)
-		clip := d.Clip()
+		clip := d.PCM()
 		if d.Err() != nil {
 			t.Fatal(d.Err())
 		}
 
-		fi := clip.FrameInfo()
-		if fi.BitDepth != int(exp.sampleSize) {
-			t.Fatalf("%s of %s didn't match %d, got %d", "Clip bit depth", exp.input, exp.sampleSize, fi.BitDepth)
+		numChannels, bitDepth, sampleRate, err := clip.Info()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if bitDepth != int(exp.sampleSize) {
+			t.Fatalf("%s of %s didn't match %d, got %d", "Clip bit depth", exp.input, exp.sampleSize, bitDepth)
 		}
 
-		if fi.SampleRate != int64(exp.sampleRate) {
-			t.Fatalf("%s of %s didn't match %d, got %d", "Clip sample rate", exp.input, exp.sampleRate, fi.SampleRate)
+		if sampleRate != int64(exp.sampleRate) {
+			t.Fatalf("%s of %s didn't match %d, got %d", "Clip sample rate", exp.input, exp.sampleRate, sampleRate)
 		}
 
-		if fi.Channels != int(exp.numChans) {
-			t.Fatalf("%s of %s didn't match %d, got %d", "Clip sample channels", exp.input, exp.numChans, fi.Channels)
+		if numChannels != int(exp.numChans) {
+			t.Fatalf("%s of %s didn't match %d, got %d", "Clip sample channels", exp.input, exp.numChans, numChannels)
 		}
 
 		if clip.Size() != exp.totalFrames {
@@ -111,7 +114,7 @@ func Test_Frames(t *testing.T) {
 			t.Fatalf("couldn't open %s %v", tc.input, err)
 		}
 		d := NewDecoder(in)
-		clip := d.Clip()
+		clip := d.PCM()
 		frames, err := d.Frames()
 		if err != nil {
 			t.Fatal(err)
