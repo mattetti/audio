@@ -7,6 +7,9 @@ import (
 	"github.com/mattetti/audio"
 )
 
+// static check that PCM struct implements audio.PCM
+var _ audio.PCM = (*PCM)(nil)
+
 type PCM struct {
 	r          io.ReadSeeker
 	channels   int

@@ -115,7 +115,7 @@ func Test_Frames(t *testing.T) {
 		}
 		d := NewDecoder(in)
 		clip := d.PCM()
-		frames, err := d.Frames()
+		frames, err := d.FramesInt()
 		if err != nil {
 			t.Fatal(err)
 		}

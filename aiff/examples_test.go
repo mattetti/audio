@@ -24,7 +24,7 @@ func ExampleDecoder_Duration() {
 	// kick.aif has a duration of 0.203356 seconds
 }
 
-func ExampleClip() {
+func ExamplePCM() {
 	path, _ := filepath.Abs("fixtures/kick.aif")
 	f, err := os.Open(path)
 	if err != nil {
@@ -33,30 +33,28 @@ func ExampleClip() {
 	defer f.Close()
 
 	d := aiff.NewDecoder(f)
-	clip := d.PCM()
-	totalFrames := int(clip.Size())
-	buf := make([]byte, 4096)
+	pcm := d.PCM()
+	totalFrames := int(pcm.Size())
+	buf := make(audio.FramesInt, 2048)
 	var (
-		extractedFrames audio.Frames
+		extractedFrames audio.FramesInt
 		readFrames      int
 		n               int
 	)
 
 	for readFrames < totalFrames {
-		n, err = clip.Read(buf)
+		n, err = pcm.Ints(buf)
 		if err != nil || n == 0 {
 			break
 		}
 		readFrames += n
-		frames, err := d.DecodeFrames(buf)
-		if err != nil {
-			break
-		}
 		// It's very important to limit the number of frames we append
 		// based on the number of frames contained in the buffer.
 		// Otherwise if the buffer is bigger than the available frames,
 		// we end up with blank/bad frames.
-		extractedFrames = append(extractedFrames, frames[:n]...)
+		// We could have also used pcm.NextInts(2048) if we didn't care to reuse
+		// a buffer.
+		extractedFrames = append(extractedFrames, buf[:n]...)
 	}
 
 	if err != nil {
@@ -64,7 +62,7 @@ func ExampleClip() {
 		os.Exit(1)
 	}
 
-	fmt.Printf("%d PCM frames extracted, expected %d", len(extractedFrames), clip.Size())
+	fmt.Printf("%d PCM frames extracted", len(extractedFrames))
 	// Output:
-	// 4484 PCM frames extracted, expected 4484
+	// 4484 PCM frames extracted
 }

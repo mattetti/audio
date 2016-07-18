@@ -50,25 +50,26 @@ func TestClip_Read(t *testing.T) {
 	}
 }
 
-func TestClip_Next(t *testing.T) {
+func TestClip_NextInts(t *testing.T) {
 	testCases := []struct {
 		desc         string
 		input        string
 		framesToRead int
-		output       audio.Frames
+		output       audio.FramesInt
 	}{
 		{"mono 16 bit, 22.5khz",
 			"fixtures/kick.aif",
 			8,
-			audio.Frames{
-				[]int{76}, []int{76}, []int{75}, []int{75}, []int{72}, []int{71}, []int{72}, []int{69},
+			audio.FramesInt{
+				76, 76, 75, 75, 72, 71, 72, 69,
 			}},
 		{"stereo 16 bit, 44khz",
 			"fixtures/bloop.aif",
 			8,
-			audio.Frames{
-				[]int{-22, -22}, []int{-110, -110}, []int{-268, -268}, []int{-441, -441}, []int{-550, -550}, []int{-553, -553}, []int{-456, -456}, []int{-269, -269},
-			}},
+			audio.FramesInt{
+				-22, -110, -268, -441, -550, -553, -456, -269, -1, 316, 622, 875, 1070, 1211, 1299, 1355,
+			},
+		},
 	}
 
 	for i, tc := range testCases {
@@ -80,26 +81,31 @@ func TestClip_Next(t *testing.T) {
 		}
 		defer f.Close()
 		d := aiff.NewDecoder(f)
-		clip := d.PCM()
+		pcm := d.PCM()
 		if d.Err() != nil {
 			t.Fatal(d.Err())
 		}
-		frames, n, err := clip.Next(tc.framesToRead)
+		numChannels, _, _, _ := pcm.Info()
+
+		frames, err := pcm.NextInts(tc.framesToRead)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if n != tc.framesToRead {
-			t.Fatalf("expected to read %d frames but read %d", tc.framesToRead, n)
+		if len(frames) != tc.framesToRead*numChannels {
+			t.Fatalf("expected to read %d samples but read %d", tc.framesToRead, len(frames))
 		}
 		if len(frames) <= 0 {
 			t.Fatal("unexpected empty frames")
 		}
-		for i := 0; i < len(frames); i++ {
-			for j := 0; j < len(frames[i]); j++ {
-				if frames[i][j] != tc.output[i][j] {
-					t.Fatalf("unexpected frame - ch: %d, frame #: %d, got: %d, expected: %d",
-						j, i, frames[i][j], tc.output[i][j])
+
+		for i := 0; i+numChannels < len(frames); {
+			for j := 0; j < numChannels; j++ {
+				if frames[i] != tc.output[i] {
+					t.Logf("%#v\n", frames)
+					t.Logf("%#v\n", tc.output)
+					t.Fatalf("frame value at position %d: %d didn't match expected: %d", i, frames[i], tc.output[i])
 				}
+				i++
 			}
 		}
 	}

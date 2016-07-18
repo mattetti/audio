@@ -1,7 +1,6 @@
 package aiff
 
 import (
-	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -22,6 +21,7 @@ type PCM struct {
 	readFrames   int64
 
 	// decoder info
+	byteSize   int
 	offset     uint32
 	blockSize  uint32
 	offsetRead bool
@@ -60,9 +60,9 @@ func (c *PCM) Seek(offset int64, whence int) (int64, error) {
 }
 
 // Ints reads the PCM data and loads it into the passed frames.
-// The number of frames read is returned so the caller can process
+// The number of full frames (with value for each channel) read is returned so the caller can process
 // only the populated frames.
-func (c *PCM) Ints(frames audio.FramesInt) (n int, err error) {
+func (c *PCM) Ints(samples audio.FramesInt) (n int, err error) {
 	if c == nil || c.sampleFrames == 0 {
 		return 0, nil
 	}
@@ -76,24 +76,32 @@ func (c *PCM) Ints(frames audio.FramesInt) (n int, err error) {
 		return 0, fmt.Errorf("could not get sample decode func %v", err)
 	}
 
+	maxBytes := int(c.sampleFrames) * c.channels
 	var v int
-	for i := 0; i < len(frames); i++ {
-		v, err = decodeF(c.r)
-		if err != nil {
-			if err == io.EOF {
-				err = nil
-			}
+outter:
+	for i := 0; i < len(samples); i++ {
+		if int(c.readFrames)*c.channels >= maxBytes {
 			break
 		}
-		frames[i] = v
+		for j := 0; j < c.channels; j++ {
+			v, err = decodeF(c.r)
+			if err != nil {
+				if err == io.EOF {
+					err = nil
+				}
+				break outter
+			}
+			samples[i] = v
+		}
 		n++
+		c.readFrames++
 	}
 	return n, err
 }
 
 // NextInts returns the n next audio frames
 func (c *PCM) NextInts(n int) (audio.FramesInt, error) {
-	frames := make(audio.FramesInt, n)
+	frames := make(audio.FramesInt, n*c.channels)
 	n, err := c.Ints(frames)
 	return frames[:n], err
 }
@@ -101,23 +109,30 @@ func (c *PCM) NextInts(n int) (audio.FramesInt, error) {
 // Float64s reads the PCM data and loads it into the passed frames.
 // The number of frames read is returned so the caller can process
 // only the populated frames.
-func (c *PCM) Float64s(frames audio.FramesFloat64) (n int, err error) {
+func (c *PCM) Float64s(samples audio.FramesFloat64) (n int, err error) {
 	decodeF, err := sampleFloat64DecodeFunc(c.bitDepth)
 	if err != nil {
 		return 0, fmt.Errorf("could not get sample decode func %v", err)
 	}
 
+	maxBytes := int(c.sampleFrames) * c.channels
 	var v float64
-	for i := 0; i < len(frames); i++ {
-		v, err = decodeF(c.r)
-		if err != nil {
-			if err == io.EOF {
-				err = nil
-			}
+	for i := 0; i < len(samples); i++ {
+		if int(c.readFrames)*c.channels >= maxBytes {
 			break
 		}
-		frames[i] = v
+		for j := 0; j < c.channels; j++ {
+			v, err = decodeF(c.r)
+			if err != nil {
+				if err == io.EOF {
+					err = nil
+				}
+				break
+			}
+			samples[i] = v
+		}
 		n++
+		c.readFrames++
 	}
 	return n, err
 }
@@ -127,75 +142,6 @@ func (c *PCM) NextFloat64s(n int) (audio.FramesFloat64, error) {
 	frames := make(audio.FramesFloat64, n)
 	n, err := c.Float64s(frames)
 	return frames[:n], err
-}
-
-// Next reads up to n frames from the clip.
-// The frames as well as the number of full frames read are returned.
-// This API is somewhat similar to https://golang.org/pkg/bytes/#Buffer.Next
-func (c *PCM) Next(nFrames int) (frames audio.Frames, n int, err error) {
-	if c == nil || c.sampleFrames == 0 {
-		return nil, 0, nil
-	}
-	if err := c.readOffsetBlockSize(); err != nil {
-		return nil, 0, err
-	}
-	// TODO(mattetti): respect offset and block size
-
-	bytesPerSample := (c.bitDepth-1)/8 + 1
-	sampleBufData := make([]byte, bytesPerSample)
-	frames = make(audio.Frames, nFrames)
-	for i := 0; i < c.channels; i++ {
-		frames[i] = make([]int, c.channels)
-	}
-
-outter:
-	for frameIDX := 0; frameIDX < nFrames; frameIDX++ {
-		if frameIDX > len(frames) {
-			break
-		}
-
-		frame := make([]int, c.channels)
-		for j := 0; j < c.channels; j++ {
-			_, err := c.r.Read(sampleBufData)
-			if err != nil {
-				if err == io.EOF {
-					err = nil
-				}
-				break outter
-			}
-
-			sampleBuf := bytes.NewBuffer(sampleBufData)
-			switch c.bitDepth {
-			case 8:
-				var v uint8
-				binary.Read(sampleBuf, binary.BigEndian, &v)
-				frame[j] = int(v)
-			case 16:
-				var v int16
-				binary.Read(sampleBuf, binary.BigEndian, &v)
-				frame[j] = int(v)
-			case 24:
-				// TODO: check if the conversion might not be inversed depending on
-				// the encoding (BE vs LE)
-				var output int32
-				output |= int32(sampleBufData[2]) << 0
-				output |= int32(sampleBufData[1]) << 8
-				output |= int32(sampleBufData[0]) << 16
-				frame[j] = int(output)
-			case 32:
-				var v int32
-				binary.Read(sampleBuf, binary.BigEndian, &v)
-				frame[j] = int(v)
-			default:
-				err = fmt.Errorf("%v bit depth not supported", c.bitDepth)
-				break outter
-			}
-		}
-		frames[frameIDX] = frame
-		n++
-	}
-
-	return frames, n, err
 }
 
 // Read reads frames into the passed buffer and returns the number of full frames

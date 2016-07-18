@@ -95,11 +95,15 @@ func TestEncoderRoundTrip(t *testing.T) {
 			t.Fatalf("the reported number of frames didn't support roundtripping, exp: %d, got: %d", totalFrames, nTotalFrames)
 		}
 		if len(frames) != len(nframes) {
-			t.Fatalf("the number of frames didn't support roundtripping, exp: %d, got: %d", len(frames), len(nframes))
+			t.Fatalf("the number of frame entries didn't support roundtripping, exp: %d, got: %d", len(frames), len(nframes))
 		}
-		for i := 0; i < len(frames); i++ {
-			if frames[i] != nframes[i] {
-				t.Fatalf("frame value at position %d: %d didn't match nframes position %d: %d", i, frames[i], i, nframes[i])
+		for i := 0; i+nNumChannels < len(frames); {
+			for j := 0; j < nNumChannels; j++ {
+				t.Logf("length: %d, nlength: %d, i: %d\n", len(frames), len(nframes), i)
+				if frames[i] != nframes[i] {
+					t.Fatalf("frame value at position %d: %d didn't match nframes position %d: %d", i, frames[i], i, nframes[i])
+				}
+				i++
 			}
 		}
 
