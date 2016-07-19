@@ -52,10 +52,10 @@ func TestClip_Read(t *testing.T) {
 
 func TestClip_NextInts(t *testing.T) {
 	testCases := []struct {
-		desc         string
-		input        string
-		framesToRead int
-		output       audio.FramesInt
+		desc          string
+		input         string
+		samplesToRead int
+		output        audio.FramesInt
 	}{
 		{"mono 16 bit, 22.5khz",
 			"fixtures/kick.aif",
@@ -67,7 +67,7 @@ func TestClip_NextInts(t *testing.T) {
 			"fixtures/bloop.aif",
 			8,
 			audio.FramesInt{
-				-22, -110, -268, -441, -550, -553, -456, -269, -1, 316, 622, 875, 1070, 1211, 1299, 1355,
+				-22, -22, -110, -110, -268, -268, -441, -441,
 			},
 		},
 	}
@@ -87,12 +87,12 @@ func TestClip_NextInts(t *testing.T) {
 		}
 		numChannels, _, _, _ := pcm.Info()
 
-		frames, err := pcm.NextInts(tc.framesToRead)
+		frames, err := pcm.NextInts(tc.samplesToRead)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(frames) != tc.framesToRead*numChannels {
-			t.Fatalf("expected to read %d samples but read %d", tc.framesToRead, len(frames))
+		if len(frames) != tc.samplesToRead {
+			t.Fatalf("expected to read %d samples but read %d", tc.samplesToRead, len(frames))
 		}
 		if len(frames) <= 0 {
 			t.Fatal("unexpected empty frames")

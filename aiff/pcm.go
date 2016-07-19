@@ -79,7 +79,7 @@ func (c *PCM) Ints(samples audio.FramesInt) (n int, err error) {
 	maxBytes := int(c.sampleFrames) * c.channels
 	var v int
 outter:
-	for i := 0; i < len(samples); i++ {
+	for i := 0; i < len(samples); {
 		if int(c.readFrames)*c.channels >= maxBytes {
 			break
 		}
@@ -92,6 +92,7 @@ outter:
 				break outter
 			}
 			samples[i] = v
+			i++
 		}
 		n++
 		c.readFrames++

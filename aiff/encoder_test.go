@@ -3,6 +3,7 @@ package aiff_test
 import (
 	"bytes"
 	"encoding/hex"
+	"fmt"
 	"os"
 	"testing"
 
@@ -52,6 +53,9 @@ func TestEncoderRoundTrip(t *testing.T) {
 		out, err := os.Create(tc.out)
 		if err != nil {
 			t.Fatalf("couldn't create %s %v", tc.out, err)
+		}
+		if tc.in == "fixtures/bloop.aif" {
+			fmt.Println(d)
 		}
 
 		e := aiff.NewEncoder(out, int(d.SampleRate), int(d.BitDepth), int(d.NumChans))

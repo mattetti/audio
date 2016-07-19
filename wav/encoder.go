@@ -155,6 +155,7 @@ func (e *Encoder) Write(frames audio.FramesInt) error {
 	}
 
 	if !e.pcmChunkStarted {
+		e.pcmChunkStarted = true
 		// sound header
 		if err := e.AddLE(riff.DataFormatID); err != nil {
 			return fmt.Errorf("error encoding sound header %v", err)

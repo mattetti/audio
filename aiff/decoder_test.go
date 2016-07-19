@@ -119,8 +119,8 @@ func Test_Frames(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if int(clip.Size()) != len(frames) {
-			t.Fatalf("expected %d frames, got %d", clip.Size(), len(frames))
+		if int(clip.Size()) != len(frames)/int(d.NumChans) {
+			t.Fatalf("expected %d frames, got %d", clip.Size(), len(frames)/int(d.NumChans))
 		}
 	}
 }
