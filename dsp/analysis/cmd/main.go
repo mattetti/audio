@@ -9,7 +9,7 @@ import (
 	"github.com/mattetti/audio"
 	"github.com/mattetti/audio/aiff"
 	"github.com/mattetti/audio/dsp/analysis"
-	"github.com/mattetti/audio/riff/wav"
+	"github.com/mattetti/audio/wav"
 )
 
 func main() {
@@ -31,39 +31,39 @@ func main() {
 	}
 	defer f.Close()
 
-	var monoFrames audio.Frames
+	var monoFrames audio.FramesInt
 	var sampleRate int
 	var sampleSize int
 	switch codec {
 	case "aiff":
 		d := aiff.NewDecoder(f)
-		frames, err := d.Frames()
+		frames, err := d.FramesInt()
 		if err != nil {
 			panic(err)
 		}
 		sampleRate = d.SampleRate
 		sampleSize = int(d.BitDepth)
-		monoFrames = audio.ToMonoFrames(frames)
-
+		monoFrames = frames.StereoToMono()
 	case "wav":
-		info, frames, err := wav.NewDecoder(f, nil).ReadFrames()
+		d := wav.NewDecoder(f)
+		frames, err := d.FramesInt()
 		if err != nil {
 			panic(err)
 		}
-		sampleRate = int(info.SampleRate)
-		sampleSize = int(info.BitsPerSample)
-		monoFrames = audio.ToMonoFrames(frames)
+		sampleRate = int(d.SampleRate)
+		sampleSize = int(d.BitDepth)
+		monoFrames = frames.StereoToMono()
 	}
 
 	data := make([]float64, len(monoFrames))
 	for i, f := range monoFrames {
-		data[i] = float64(f[0])
+		data[i] = float64(f)
 	}
 	dft := analysis.NewDFT(sampleRate, data)
 	sndData := dft.IFFT()
-	frames := make([][]int, len(sndData))
+	frames := make([]int, len(sndData))
 	for i := 0; i < len(frames); i++ {
-		frames[i] = []int{int(sndData[i])}
+		frames[i] = int(sndData[i])
 	}
 	of, err := os.Create("roundtripped.aiff")
 	if err != nil {
@@ -71,8 +71,10 @@ func main() {
 	}
 	defer of.Close()
 	aiffe := aiff.NewEncoder(of, sampleRate, sampleSize, 1)
-	aiffe.Frames = frames
-	if err := aiffe.Write(); err != nil {
+	if err := aiffe.Write(frames); err != nil {
+		panic(err)
+	}
+	if err := aiffe.Close(); err != nil {
 		panic(err)
 	}
 }

@@ -11,6 +11,21 @@ func (f FramesInt) Get(channel, n int) int {
 	return f[n*channel]
 }
 
+func (f FramesInt) StereoToMono() FramesInt {
+	if f == nil {
+		return nil
+	}
+
+	mono := make(FramesInt, len(f)/2)
+	var j int
+	for i := 0; i+2 <= len(f); {
+		mono[j] = AvgInt(f[i], f[i+1])
+		i += 2
+		j++
+	}
+	return mono
+}
+
 type FramesFloat64 []float64
 
 func (f FramesFloat64) Get(channel, n int) float64 {
