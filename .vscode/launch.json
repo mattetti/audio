@@ -11,7 +11,7 @@
             "host": "127.0.0.1",
             "program": "${workspaceRoot}/aiff",
             "env": {},
-            "args": []
+            "args": ["run", "Example"]
         },
         {
             "name": "wav tests",

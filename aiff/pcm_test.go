@@ -50,25 +50,26 @@ func TestClip_Read(t *testing.T) {
 	}
 }
 
-func TestClip_Next(t *testing.T) {
+func TestClip_NextInts(t *testing.T) {
 	testCases := []struct {
-		desc         string
-		input        string
-		framesToRead int
-		output       audio.Frames
+		desc          string
+		input         string
+		samplesToRead int
+		output        audio.SamplesInt
 	}{
 		{"mono 16 bit, 22.5khz",
 			"fixtures/kick.aif",
 			8,
-			audio.Frames{
-				[]int{76}, []int{76}, []int{75}, []int{75}, []int{72}, []int{71}, []int{72}, []int{69},
+			audio.SamplesInt{
+				76, 76, 75, 75, 72, 71, 72, 69,
 			}},
 		{"stereo 16 bit, 44khz",
 			"fixtures/bloop.aif",
 			8,
-			audio.Frames{
-				[]int{-22, -22}, []int{-110, -110}, []int{-268, -268}, []int{-441, -441}, []int{-550, -550}, []int{-553, -553}, []int{-456, -456}, []int{-269, -269},
-			}},
+			audio.SamplesInt{
+				-22, -22, -110, -110, -268, -268, -441, -441,
+			},
+		},
 	}
 
 	for i, tc := range testCases {
@@ -80,26 +81,35 @@ func TestClip_Next(t *testing.T) {
 		}
 		defer f.Close()
 		d := aiff.NewDecoder(f)
-		clip := d.PCM()
+		pcm := d.PCM()
 		if d.Err() != nil {
 			t.Fatal(d.Err())
 		}
-		frames, n, err := clip.Next(tc.framesToRead)
+		numChannels, _, _, _ := pcm.Info()
+
+		samples, err := pcm.NextInts(tc.samplesToRead / numChannels)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if n != tc.framesToRead {
-			t.Fatalf("expected to read %d frames but read %d", tc.framesToRead, n)
+		if len(samples) != tc.samplesToRead {
+			t.Fatalf("expected to read %d samples but read %d", tc.samplesToRead, len(samples))
 		}
-		if len(frames) <= 0 {
-			t.Fatal("unexpected empty frames")
+		if len(samples) <= 0 {
+			t.Fatal("unexpected empty samples")
 		}
-		for i := 0; i < len(frames); i++ {
-			for j := 0; j < len(frames[i]); j++ {
-				if frames[i][j] != tc.output[i][j] {
-					t.Fatalf("unexpected frame - ch: %d, frame #: %d, got: %d, expected: %d",
-						j, i, frames[i][j], tc.output[i][j])
+
+		if len(samples) != len(tc.output) {
+			t.Fatalf("length of samples (%d) != expected length (%d)", len(samples), len(tc.output))
+		}
+
+		for i := 0; i+numChannels < len(samples); {
+			for j := 0; j < numChannels; j++ {
+				if samples[i] != tc.output[i] {
+					t.Logf("%#v\n", samples)
+					t.Logf("%#v\n", tc.output)
+					t.Fatalf("frame value at position %d: %d didn't match expected: %d", i, samples[i], tc.output[i])
 				}
+				i++
 			}
 		}
 	}

@@ -35,7 +35,7 @@ func main() {
 	// xs of sound
 	data := osc.Signal(fs * *durationFlag)
 	// build the audio frames
-	frames := make(audio.FramesInt, len(data))
+	frames := make(audio.SamplesInt, len(data))
 	for i := 0; i < len(frames); i++ {
 		frames[i] = int(data[i])
 	}

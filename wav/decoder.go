@@ -1,7 +1,6 @@
 package wav
 
 import (
-	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -122,59 +121,32 @@ func (d *Decoder) NextChunk() (*riff.Chunk, error) {
 	return c, d.err
 }
 
-// FramesInt returns the audio frames contained in reader.
+// SamplesInt returns the audio frames contained in reader.
 // Notes that this method allocates a lot of memory (depending on the duration of the underlying file).
 // Consider using the decoder clip and reading/decoding using a buffer.
-func (d *Decoder) FramesInt() (frames audio.FramesInt, err error) {
+func (d *Decoder) SamplesInt() (frames audio.SamplesInt, err error) {
 	pcm := d.PCM()
 	if pcm == nil {
 		return nil, fmt.Errorf("no PCM data available")
 	}
 	totalFrames := int(pcm.Size()) * int(d.NumChans)
-	frames = make(audio.FramesInt, totalFrames)
+	frames = make(audio.SamplesInt, totalFrames)
 	n, err := pcm.Ints(frames)
 	return frames[:n], err
 }
 
-// DecodeFrames decodes PCM bytes into audio frames based on the decoder context.
-// This function is usually used in conjunction with Clip.Read which returns the amount
-// of frames read into the buffer. It's highly recommended to slice the returned frames
-// of this function by the amount of total frames reads into the buffer.
-// The reason being that if the buffer didn't match the exact size of the frames,
-// some of the data might be garbage but will still be converted into frames.
-func (d *Decoder) DecodeFrames(data []byte) (frames audio.Frames, err error) {
-	numChannels := int(d.NumChans)
-	r := bytes.NewBuffer(data)
-
-	bytesPerSample := int((d.BitDepth-1)/8 + 1)
-	sampleBufData := make([]byte, bytesPerSample)
-	decodeF, err := sampleDecodeFunc(int(d.BitDepth))
-	if err != nil {
-		return nil, fmt.Errorf("could not get sample decode func %v", err)
+// SamplesFloat64 returns the audio frames contained in reader.
+// Notes that this method allocates a lot of memory (depending on the duration of the underlying file).
+// Consider using the decoder clip and reading/decoding using a buffer.
+func (d *Decoder) SamplesFloat64() (frames audio.SamplesFloat64, err error) {
+	pcm := d.PCM()
+	if pcm == nil {
+		return nil, fmt.Errorf("no PCM data available")
 	}
-
-	frames = make(audio.Frames, len(data)/bytesPerSample)
-	for j := 0; j < int(numChannels); j++ {
-		frames[j] = make([]int, numChannels)
-	}
-	n := 0
-
-outter:
-	for i := 0; (i + (bytesPerSample * numChannels)) <= len(data); {
-		frame := make([]int, numChannels)
-		for j := 0; j < numChannels; j++ {
-			_, err = r.Read(sampleBufData)
-			if err != nil {
-				break outter
-			}
-			frame[j] = decodeF(sampleBufData)
-			i += bytesPerSample
-		}
-		frames[n] = frame
-		n++
-	}
-
-	return frames, err
+	totalFrames := int(pcm.Size()) * int(d.NumChans)
+	frames = make(audio.SamplesFloat64, totalFrames)
+	n, err := pcm.Float64s(frames)
+	return frames[:n], err
 }
 
 // Duration returns the time duration for the current audio container

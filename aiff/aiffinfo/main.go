@@ -102,7 +102,7 @@ func analyze(path string) {
 	}
 
 	d := aiff.NewDecoder(f)
-	frames, err := d.Frames()
+	pcm := d.PCM()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -110,17 +110,20 @@ func analyze(path string) {
 	fmt.Println("sample Rate", d.SampleRate)
 	fmt.Println("sample Size", d.BitDepth)
 	fmt.Println("number of Channels", d.NumChans)
-	fmt.Printf("frames: %d\n", len(frames))
+	fmt.Printf("frames: %d\n", pcm.Size())
 	fmt.Println(d)
+
+	frames, err := d.SamplesInt()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	max := 0
 	for _, f := range frames {
-		for _, v := range f {
-			if v > max {
-				max = v
-			} else if v*-1 > max {
-				max = v * -1
-			}
+		if f > max {
+			max = f
+		} else if f*-1 > max {
+			max = f * -1
 		}
 	}
 
@@ -157,7 +160,7 @@ func analyze(path string) {
 	// instead of graphing all points, we only take an average sample based on
 	// the width of the image
 	// TODO: smarter sampling based on duration
-	sampling := len(frames) / ImgWidth
+	sampling := (len(frames) / int(d.NumChans)) / ImgWidth
 	samplingCounter := make([]int, d.NumChans)
 	smplBuf := make([][]int, d.NumChans)
 	for i := 0; i < int(d.NumChans); i++ {
@@ -167,7 +170,7 @@ func analyze(path string) {
 	// last channel position so we can better render multi channel files
 	lastChanPos := make([]*point, d.NumChans)
 
-	for i := 0; i < len(frames); i++ {
+	for i := 0; i < len(frames); {
 		for channel := 0; channel < int(d.NumChans); channel++ {
 			if i == 0 {
 				lastChanPos[channel] = &point{
@@ -176,9 +179,10 @@ func analyze(path string) {
 				}
 			}
 			lastPos := lastChanPos[channel]
+			fmt.Println(channel, lastPos)
 			gc.MoveTo(lastPos.X, lastPos.Y)
-
-			v := frames[i][channel]
+			i++
+			v := frames[i]
 
 			// y=0 is the max, y=height-1 = is the minimun
 			// y=height/2 is the halfway point. We need to convert our values

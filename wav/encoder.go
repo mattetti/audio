@@ -149,12 +149,13 @@ func (e *Encoder) writeHeader() error {
 	return nil
 }
 
-func (e *Encoder) Write(frames audio.FramesInt) error {
+func (e *Encoder) Write(frames audio.SamplesInt) error {
 	if err := e.writeHeader(); err != nil {
 		return err
 	}
 
 	if !e.pcmChunkStarted {
+		e.pcmChunkStarted = true
 		// sound header
 		if err := e.AddLE(riff.DataFormatID); err != nil {
 			return fmt.Errorf("error encoding sound header %v", err)

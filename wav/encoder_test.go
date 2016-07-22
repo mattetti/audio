@@ -32,7 +32,7 @@ func TestEncoderRoundTrip(t *testing.T) {
 			t.Fatal(err)
 		}
 		totalFrames := pcm.Size()
-		frames, err := d.FramesInt()
+		frames, err := d.SamplesInt()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -67,7 +67,7 @@ func TestEncoderRoundTrip(t *testing.T) {
 		}
 		nNumChannels, nBitDepth, nSampleRate, err := nPCM.Info()
 		nTotalFrames := nPCM.Size()
-		nframes, err := nd.FramesInt()
+		nframes, err := nd.SamplesInt()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -95,11 +95,14 @@ func TestEncoderRoundTrip(t *testing.T) {
 			t.Fatalf("the reported number of frames didn't support roundtripping, exp: %d, got: %d", totalFrames, nTotalFrames)
 		}
 		if len(frames) != len(nframes) {
-			t.Fatalf("the number of frames didn't support roundtripping, exp: %d, got: %d", len(frames), len(nframes))
+			t.Fatalf("the number of frame entries didn't support roundtripping, exp: %d, got: %d", len(frames), len(nframes))
 		}
-		for i := 0; i < len(frames); i++ {
-			if frames[i] != nframes[i] {
-				t.Fatalf("frame value at position %d: %d didn't match nframes position %d: %d", i, frames[i], i, nframes[i])
+		for i := 0; i+nNumChannels < len(frames); {
+			for j := 0; j < nNumChannels; j++ {
+				if frames[i] != nframes[i] {
+					t.Fatalf("frame value at position %d: %d didn't match nframes position %d: %d", i, frames[i], i, nframes[i])
+				}
+				i++
 			}
 		}
 

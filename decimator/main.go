@@ -20,7 +20,7 @@ import (
 	"github.com/mattetti/audio/dsp/filters"
 	"github.com/mattetti/audio/dsp/windows"
 	"github.com/mattetti/audio/generator"
-	"github.com/mattetti/audio/riff/wav"
+	"github.com/mattetti/audio/wav"
 )
 
 var (
@@ -58,9 +58,9 @@ func main() {
 		// our osc generates values from -1 to 1, we need to go back to PCM scale
 		factor := float64(intMaxSignedValue(bitSize))
 		// build the audio frames
-		frames := make([][]int, len(data) / *factorFlag)
+		frames := make(audio.SamplesInt, len(data) / *factorFlag)
 		for i := 0; i < len(frames); i++ {
-			frames[i] = []int{int(filtered[i**factorFlag] * factor)}
+			frames[i] = int(filtered[i**factorFlag] * factor)
 		}
 
 		// generate the sound file
@@ -70,10 +70,13 @@ func main() {
 		}
 		defer o.Close()
 		e := aiff.NewEncoder(o, fs / *factorFlag, 16, 1)
-		e.Frames = frames
-		if err := e.Write(); err != nil {
+		if err := e.Write(frames); err != nil {
 			panic(err)
 		}
+		if err := e.Close(); err != nil {
+			panic(err)
+		}
+		fmt.Println("generated resampled file: resampled.aiff")
 		return
 	}
 
@@ -94,28 +97,29 @@ func main() {
 	}
 	defer f.Close()
 
-	var monoFrames audio.Frames
+	var monoFrames audio.SamplesFloat64
 	var sampleRate int
 	var sampleSize int
 	switch codec {
 	case "aiff":
 		d := aiff.NewDecoder(f)
-		frames, err := d.Frames()
+		frames, err := d.SamplesFloat64()
 		if err != nil {
 			panic(err)
 		}
 		sampleRate = d.SampleRate
 		sampleSize = int(d.BitDepth)
-		monoFrames = audio.ToMonoFrames(frames)
+		monoFrames = frames.StereoToMono()
 
 	case "wav":
-		info, frames, err := wav.NewDecoder(f, nil).ReadFrames()
+		d := wav.NewDecoder(f)
+		frames, err := d.SamplesFloat64()
 		if err != nil {
 			panic(err)
 		}
-		sampleRate = int(info.SampleRate)
-		sampleSize = int(info.BitsPerSample)
-		monoFrames = audio.ToMonoFrames(frames)
+		sampleRate = int(d.SampleRate)
+		sampleSize = int(d.BitDepth)
+		monoFrames = frames.StereoToMono()
 	}
 
 	fmt.Printf("undersampling -> %s file at %dHz to %d samples (%d)\n", codec, sampleRate, sampleRate / *factorFlag, sampleSize)
@@ -127,10 +131,7 @@ func main() {
 		log.Fatalf("input sample rate of %dHz not supported", sampleRate)
 	}
 
-	amplitudesF := make([]float64, len(monoFrames))
-	for i, f := range monoFrames {
-		amplitudesF[i] = float64(f[0])
-	}
+	amplitudesF := monoFrames
 
 	// low pass filter before we drop some samples to avoid aliasing
 	s := &filters.Sinc{Taps: 62, SamplingFreq: sampleRate, CutOffFreq: float64(sampleRate / 2), Window: windows.Blackman}
@@ -139,9 +140,9 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	frames := make([][]int, len(amplitudesF) / *factorFlag)
+	frames := make([]int, len(amplitudesF) / *factorFlag)
 	for i := 0; i < len(frames); i++ {
-		frames[i] = []int{int(filtered[i**factorFlag])}
+		frames[i] = int(filtered[i**factorFlag])
 	}
 
 	of, err := os.Create("resampled.aiff")
@@ -150,10 +151,13 @@ func main() {
 	}
 	defer of.Close()
 	aiffe := aiff.NewEncoder(of, sampleRate / *factorFlag, sampleSize, 1)
-	aiffe.Frames = frames
-	if err := aiffe.Write(); err != nil {
+	if err := aiffe.Write(frames); err != nil {
 		panic(err)
 	}
+	if err := aiffe.Close(); err != nil {
+		panic(err)
+	}
+	fmt.Println("downsampled file saved as resampled.aiff")
 }
 
 func intMaxSignedValue(b int) int {

@@ -115,12 +115,12 @@ func Test_Frames(t *testing.T) {
 		}
 		d := NewDecoder(in)
 		clip := d.PCM()
-		frames, err := d.Frames()
+		frames, err := d.SamplesInt()
 		if err != nil {
 			t.Fatal(err)
 		}
-		if int(clip.Size()) != len(frames) {
-			t.Fatalf("expected %d frames, got %d", clip.Size(), len(frames))
+		if int(clip.Size()) != len(frames)/int(d.NumChans) {
+			t.Fatalf("expected %d frames, got %d", clip.Size(), len(frames)/int(d.NumChans))
 		}
 	}
 }

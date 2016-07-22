@@ -1,7 +1,6 @@
 package aiff
 
 import (
-	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -97,7 +96,7 @@ func (d *Decoder) PCM() *PCM {
 			d.pcmClip.bitDepth = int(d.BitDepth)
 			d.pcmClip.sampleRate = int64(d.SampleRate)
 			d.pcmClip.sampleFrames = int64(d.numSampleFrames)
-			d.pcmClip.blockSize = size
+			d.pcmClip.byteSize = int(size)
 			// if we found the sound data before the COMM,
 			// we need to rewind the reader so we can properly
 			// set the clip reader.
@@ -157,96 +156,30 @@ func (d *Decoder) NextChunk() (*Chunk, error) {
 	return c, d.err
 }
 
-// Frames returns the audio frames contained in reader.
+// SamplesInt returns the audio frames contained in the reader.
 // Notes that this method allocates a lot of memory (depending on the duration of the underlying file).
-// Consider using the decoder clip and reading/decoding using a buffer.
-func (d *Decoder) Frames() (frames audio.Frames, err error) {
-	clip := d.PCM()
-	totalFrames := int(clip.Size())
-	readFrames := 0
-
-	bufSize := 4096
-	buf := make([]byte, bufSize)
-	var tFrames audio.Frames
-	var n int
-	for readFrames < totalFrames {
-		n, err = clip.Read(buf)
-		if err != nil || n == 0 {
-			break
-		}
-		readFrames += n
-		tFrames, err = d.DecodeFrames(buf)
-		if err != nil {
-			break
-		}
-		frames = append(frames, tFrames[:n]...)
+func (d *Decoder) SamplesInt() (samples audio.SamplesInt, err error) {
+	pcm := d.PCM()
+	if pcm == nil {
+		return nil, fmt.Errorf("no PCM data available")
 	}
-	return frames, err
+	totalSamples := int(d.numSampleFrames) * int(d.NumChans)
+	samples = make(audio.SamplesInt, totalSamples)
+	n, err := pcm.Ints(samples)
+	return samples[:n*int(d.NumChans)], err
 }
 
-// DecodeFrames decodes PCM bytes into audio frames based on the decoder context
-func (d *Decoder) DecodeFrames(data []byte) (frames audio.Frames, err error) {
-	numChannels := int(d.NumChans)
-	r := bytes.NewBuffer(data)
-
-	bytesPerSample := int((d.BitDepth-1)/8 + 1)
-	sampleBufData := make([]byte, bytesPerSample)
-
-	frames = make(audio.Frames, len(data)/bytesPerSample)
-	for j := 0; j < int(numChannels); j++ {
-		frames[j] = make([]int, numChannels)
+// SamplesFloat64 returns the audio frames contained in the reader.
+// Notes that this method allocates a lot of memory (depending on the duration of the underlying file).
+func (d *Decoder) SamplesFloat64() (samples audio.SamplesFloat64, err error) {
+	pcm := d.PCM()
+	if pcm == nil {
+		return nil, fmt.Errorf("no PCM data available")
 	}
-	n := 0
-
-outter:
-	for i := 0; (i + (bytesPerSample * numChannels)) <= len(data); {
-		frame := make([]int, numChannels)
-		for j := 0; j < numChannels; j++ {
-			switch d.BitDepth {
-			case 8:
-				var v uint8
-				err = binary.Read(r, binary.BigEndian, &v)
-				if err != nil {
-					if err == io.EOF {
-						err = nil
-					}
-					break outter
-				}
-				frame[j] = int(v)
-			case 16:
-				var v int16
-				binary.Read(r, binary.BigEndian, &v)
-				frame[j] = int(v)
-			case 24:
-				_, err = r.Read(sampleBufData)
-				if err != nil {
-					if err == io.EOF {
-						err = nil
-					}
-					break outter
-				}
-				// TODO: check if the conversion might not be inversed depending on
-				// the encoding (BE vs LE)
-				var output int32
-				output |= int32(sampleBufData[2]) << 0
-				output |= int32(sampleBufData[1]) << 8
-				output |= int32(sampleBufData[0]) << 16
-				frame[j] = int(output)
-			case 32:
-				var v int32
-				binary.Read(r, binary.BigEndian, &v)
-				frame[j] = int(v)
-			default:
-				err = fmt.Errorf("%v bit depth not supported", d.BitDepth)
-				break outter
-			}
-			i += bytesPerSample
-		}
-		frames[n] = frame
-		n++
-	}
-
-	return frames, err
+	totalSamples := int(d.numSampleFrames) * int(d.NumChans)
+	samples = make(audio.SamplesFloat64, totalSamples)
+	n, err := pcm.Float64s(samples)
+	return samples[:n*int(d.NumChans)], err
 }
 
 // Duration returns the time duration for the current AIFF container
