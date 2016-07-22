@@ -73,6 +73,10 @@ func main() {
 		if err := e.Write(frames); err != nil {
 			panic(err)
 		}
+		if err := e.Close(); err != nil {
+			panic(err)
+		}
+		fmt.Println("generated resampled file: resampled.aiff")
 		return
 	}
 
@@ -150,6 +154,10 @@ func main() {
 	if err := aiffe.Write(frames); err != nil {
 		panic(err)
 	}
+	if err := aiffe.Close(); err != nil {
+		panic(err)
+	}
+	fmt.Println("downsampled file saved as resampled.aiff")
 }
 
 func intMaxSignedValue(b int) int {
