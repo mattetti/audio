@@ -135,6 +135,20 @@ func (d *Decoder) SamplesInt() (frames audio.SamplesInt, err error) {
 	return frames[:n], err
 }
 
+// SamplesFloat64 returns the audio frames contained in reader.
+// Notes that this method allocates a lot of memory (depending on the duration of the underlying file).
+// Consider using the decoder clip and reading/decoding using a buffer.
+func (d *Decoder) SamplesFloat64() (frames audio.SamplesFloat64, err error) {
+	pcm := d.PCM()
+	if pcm == nil {
+		return nil, fmt.Errorf("no PCM data available")
+	}
+	totalFrames := int(pcm.Size()) * int(d.NumChans)
+	frames = make(audio.SamplesFloat64, totalFrames)
+	n, err := pcm.Float64s(frames)
+	return frames[:n], err
+}
+
 // Duration returns the time duration for the current audio container
 func (d *Decoder) Duration() (time.Duration, error) {
 	if d == nil || d.parser == nil {

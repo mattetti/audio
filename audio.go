@@ -32,6 +32,21 @@ func (f SamplesFloat64) Get(channel, n int) float64 {
 	return f[n*channel]
 }
 
+func (f SamplesFloat64) StereoToMono() SamplesFloat64 {
+	if f == nil {
+		return nil
+	}
+
+	mono := make(SamplesFloat64, len(f)/2)
+	var j int
+	for i := 0; i+2 <= len(f); {
+		mono[j] = AvgFloat64(f[i], f[i+1])
+		i += 2
+		j++
+	}
+	return mono
+}
+
 type PCM interface {
 	Ints(samples SamplesInt) (n int, err error)
 	Float64s(samples SamplesFloat64) (n int, err error)
@@ -71,6 +86,15 @@ func AvgInt(xs ...int) int {
 		output += xs[i]
 	}
 	return output / len(xs)
+}
+
+// AvgFloat64 averages the passed float values
+func AvgFloat64(xs ...float64) float64 {
+	var output float64
+	for i := 0; i < len(xs); i++ {
+		output += xs[i]
+	}
+	return output / float64(len(xs))
 }
 
 // IntMaxSignedValue returns the max value of an integer

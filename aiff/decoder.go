@@ -169,6 +169,19 @@ func (d *Decoder) SamplesInt() (samples audio.SamplesInt, err error) {
 	return samples[:n*int(d.NumChans)], err
 }
 
+// SamplesFloat64 returns the audio frames contained in the reader.
+// Notes that this method allocates a lot of memory (depending on the duration of the underlying file).
+func (d *Decoder) SamplesFloat64() (samples audio.SamplesFloat64, err error) {
+	pcm := d.PCM()
+	if pcm == nil {
+		return nil, fmt.Errorf("no PCM data available")
+	}
+	totalSamples := int(d.numSampleFrames) * int(d.NumChans)
+	samples = make(audio.SamplesFloat64, totalSamples)
+	n, err := pcm.Float64s(samples)
+	return samples[:n*int(d.NumChans)], err
+}
+
 // Duration returns the time duration for the current AIFF container
 func (d *Decoder) Duration() (time.Duration, error) {
 	if d == nil {
