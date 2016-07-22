@@ -87,23 +87,27 @@ func TestClip_NextInts(t *testing.T) {
 		}
 		numChannels, _, _, _ := pcm.Info()
 
-		frames, err := pcm.NextInts(tc.samplesToRead)
+		samples, err := pcm.NextInts(tc.samplesToRead / numChannels)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(frames) != tc.samplesToRead {
-			t.Fatalf("expected to read %d samples but read %d", tc.samplesToRead, len(frames))
+		if len(samples) != tc.samplesToRead {
+			t.Fatalf("expected to read %d samples but read %d", tc.samplesToRead, len(samples))
 		}
-		if len(frames) <= 0 {
-			t.Fatal("unexpected empty frames")
+		if len(samples) <= 0 {
+			t.Fatal("unexpected empty samples")
 		}
 
-		for i := 0; i+numChannels < len(frames); {
+		if len(samples) != len(tc.output) {
+			t.Fatalf("length of samples (%d) != expected length (%d)", len(samples), len(tc.output))
+		}
+
+		for i := 0; i+numChannels < len(samples); {
 			for j := 0; j < numChannels; j++ {
-				if frames[i] != tc.output[i] {
-					t.Logf("%#v\n", frames)
+				if samples[i] != tc.output[i] {
+					t.Logf("%#v\n", samples)
 					t.Logf("%#v\n", tc.output)
-					t.Fatalf("frame value at position %d: %d didn't match expected: %d", i, frames[i], tc.output[i])
+					t.Fatalf("frame value at position %d: %d didn't match expected: %d", i, samples[i], tc.output[i])
 				}
 				i++
 			}
