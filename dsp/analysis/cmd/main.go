@@ -31,13 +31,13 @@ func main() {
 	}
 	defer f.Close()
 
-	var monoFrames audio.FramesInt
+	var monoFrames audio.SamplesInt
 	var sampleRate int
 	var sampleSize int
 	switch codec {
 	case "aiff":
 		d := aiff.NewDecoder(f)
-		frames, err := d.FramesInt()
+		frames, err := d.SamplesInt()
 		if err != nil {
 			panic(err)
 		}
@@ -46,7 +46,7 @@ func main() {
 		monoFrames = frames.StereoToMono()
 	case "wav":
 		d := wav.NewDecoder(f)
-		frames, err := d.FramesInt()
+		frames, err := d.SamplesInt()
 		if err != nil {
 			panic(err)
 		}

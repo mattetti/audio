@@ -36,7 +36,7 @@ func ExampleEncoder_Write() {
 	if err != nil {
 		panic(err)
 	}
-	frames, err := d.FramesInt()
+	frames, err := d.SamplesInt()
 	if err != nil {
 		panic(err)
 	}

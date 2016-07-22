@@ -35,9 +35,9 @@ func ExamplePCM() {
 	d := aiff.NewDecoder(f)
 	pcm := d.PCM()
 	totalFrames := int(pcm.Size())
-	buf := make(audio.FramesInt, 2048)
+	buf := make(audio.SamplesInt, 2048)
 	var (
-		extractedFrames audio.FramesInt
+		extractedFrames audio.SamplesInt
 		readFrames      int
 		n               int
 	)

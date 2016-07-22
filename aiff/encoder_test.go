@@ -44,7 +44,7 @@ func TestEncoderRoundTrip(t *testing.T) {
 			t.Fatalf("couldn't open %s %v", tc.in, err)
 		}
 		d := aiff.NewDecoder(in)
-		frames, err := d.FramesInt()
+		frames, err := d.SamplesInt()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -86,7 +86,7 @@ func TestEncoderRoundTrip(t *testing.T) {
 		if expectedHeaderSize != int64(d2.Size) {
 			t.Logf("wrong header size data, expected %d, got %d", expectedHeaderSize, d2.Size)
 		}
-		nframes, err := d2.FramesInt()
+		nframes, err := d2.SamplesInt()
 		if err != nil {
 			t.Fatal(err)
 		}

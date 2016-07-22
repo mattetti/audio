@@ -32,7 +32,7 @@ func TestEncoderRoundTrip(t *testing.T) {
 			t.Fatal(err)
 		}
 		totalFrames := pcm.Size()
-		frames, err := d.FramesInt()
+		frames, err := d.SamplesInt()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -67,7 +67,7 @@ func TestEncoderRoundTrip(t *testing.T) {
 		}
 		nNumChannels, nBitDepth, nSampleRate, err := nPCM.Info()
 		nTotalFrames := nPCM.Size()
-		nframes, err := nd.FramesInt()
+		nframes, err := nd.SamplesInt()
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -33,7 +33,7 @@ func TestPCM_Ints(t *testing.T) {
 		readFrames := 0
 
 		bufSize := 4096
-		buf := make(audio.FramesInt, bufSize/int(d.NumChans))
+		buf := make(audio.SamplesInt, bufSize/int(d.NumChans))
 		var n int
 		for readFrames < totalFrames {
 			n, err = pcm.Ints(buf)

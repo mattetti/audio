@@ -55,18 +55,18 @@ func TestClip_NextInts(t *testing.T) {
 		desc          string
 		input         string
 		samplesToRead int
-		output        audio.FramesInt
+		output        audio.SamplesInt
 	}{
 		{"mono 16 bit, 22.5khz",
 			"fixtures/kick.aif",
 			8,
-			audio.FramesInt{
+			audio.SamplesInt{
 				76, 76, 75, 75, 72, 71, 72, 69,
 			}},
 		{"stereo 16 bit, 44khz",
 			"fixtures/bloop.aif",
 			8,
-			audio.FramesInt{
+			audio.SamplesInt{
 				-22, -22, -110, -110, -268, -268, -441, -441,
 			},
 		},

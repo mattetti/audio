@@ -113,7 +113,7 @@ func analyze(path string) {
 	fmt.Printf("frames: %d\n", pcm.Size())
 	fmt.Println(d)
 
-	frames, err := d.FramesInt()
+	frames, err := d.SamplesInt()
 	if err != nil {
 		log.Fatal(err)
 	}

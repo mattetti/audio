@@ -5,18 +5,18 @@ import (
 	"math"
 )
 
-type FramesInt []int
+type SamplesInt []int
 
-func (f FramesInt) Get(channel, n int) int {
+func (f SamplesInt) Get(channel, n int) int {
 	return f[n*channel]
 }
 
-func (f FramesInt) StereoToMono() FramesInt {
+func (f SamplesInt) StereoToMono() SamplesInt {
 	if f == nil {
 		return nil
 	}
 
-	mono := make(FramesInt, len(f)/2)
+	mono := make(SamplesInt, len(f)/2)
 	var j int
 	for i := 0; i+2 <= len(f); {
 		mono[j] = AvgInt(f[i], f[i+1])
@@ -26,17 +26,17 @@ func (f FramesInt) StereoToMono() FramesInt {
 	return mono
 }
 
-type FramesFloat64 []float64
+type SamplesFloat64 []float64
 
-func (f FramesFloat64) Get(channel, n int) float64 {
+func (f SamplesFloat64) Get(channel, n int) float64 {
 	return f[n*channel]
 }
 
 type PCM interface {
-	Ints(frames FramesInt) (n int, err error)
-	Float64s(frames FramesFloat64) (n int, err error)
-	NextInts(n int) (FramesInt, error)
-	NextFloat64s(n int) (FramesFloat64, error)
+	Ints(samples SamplesInt) (n int, err error)
+	Float64s(samples SamplesFloat64) (n int, err error)
+	NextInts(n int) (SamplesInt, error)
+	NextFloat64s(n int) (SamplesFloat64, error)
 	Read(buf []byte) (n int, err error)
 	Offset() int64
 	Seek(frameOffset int64, whence int) (offset int64, err error)

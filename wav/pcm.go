@@ -30,7 +30,7 @@ func (c *PCM) Offset() int64 {
 // Ints reads the PCM data and loads it into the passed frames.
 // The number of frames read is returned so the caller can process
 // only the populated frames.
-func (c *PCM) Ints(frames audio.FramesInt) (n int, err error) {
+func (c *PCM) Ints(frames audio.SamplesInt) (n int, err error) {
 	bytesPerSample := (c.bitDepth-1)/8 + 1
 	sampleBufData := make([]byte, bytesPerSample)
 	decodeF, err := sampleDecodeFunc(c.bitDepth)
@@ -53,16 +53,17 @@ func (c *PCM) Ints(frames audio.FramesInt) (n int, err error) {
 }
 
 // NextInts returns the n next audio frames
-func (c *PCM) NextInts(n int) (audio.FramesInt, error) {
-	frames := make(audio.FramesInt, n)
+func (c *PCM) NextInts(n int) (audio.SamplesInt, error) {
+	totalSamples := n * c.channels
+	frames := make(audio.SamplesInt, totalSamples)
 	n, err := c.Ints(frames)
-	return frames[:n], err
+	return frames[:totalSamples], err
 }
 
 // Float64s reads the PCM data and loads it into the passed frames.
 // The number of frames read is returned so the caller can process
 // only the populated frames.
-func (c *PCM) Float64s(frames audio.FramesFloat64) (n int, err error) {
+func (c *PCM) Float64s(frames audio.SamplesFloat64) (n int, err error) {
 	bytesPerSample := (c.bitDepth-1)/8 + 1
 	sampleBufData := make([]byte, bytesPerSample)
 	decodeF, err := sampleFloat64DecodeFunc(c.bitDepth)
@@ -90,10 +91,11 @@ func (c *PCM) Info() (numChannels, bitDepth int, sampleRate int64, err error) {
 }
 
 // NextFloat64s returns the n next audio frames
-func (c *PCM) NextFloat64s(n int) (audio.FramesFloat64, error) {
-	frames := make(audio.FramesFloat64, n)
+func (c *PCM) NextFloat64s(n int) (audio.SamplesFloat64, error) {
+	totalSamples := n * c.channels
+	frames := make(audio.SamplesFloat64, totalSamples)
 	n, err := c.Float64s(frames)
-	return frames[:n], err
+	return frames[:totalSamples], err
 }
 
 // Read reads frames into the passed buffer and returns the number of full frames

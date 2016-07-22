@@ -156,15 +156,15 @@ func (d *Decoder) NextChunk() (*Chunk, error) {
 	return c, d.err
 }
 
-// FramesInt returns the audio frames contained in the reader.
+// SamplesInt returns the audio frames contained in the reader.
 // Notes that this method allocates a lot of memory (depending on the duration of the underlying file).
-func (d *Decoder) FramesInt() (samples audio.FramesInt, err error) {
+func (d *Decoder) SamplesInt() (samples audio.SamplesInt, err error) {
 	pcm := d.PCM()
 	if pcm == nil {
 		return nil, fmt.Errorf("no PCM data available")
 	}
 	totalSamples := int(d.numSampleFrames) * int(d.NumChans)
-	samples = make(audio.FramesInt, totalSamples)
+	samples = make(audio.SamplesInt, totalSamples)
 	n, err := pcm.Ints(samples)
 	return samples[:n*int(d.NumChans)], err
 }

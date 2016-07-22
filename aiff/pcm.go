@@ -62,7 +62,7 @@ func (c *PCM) Seek(offset int64, whence int) (int64, error) {
 // Ints reads the PCM data and loads it into the passed frames.
 // The number of full frames (with value for each channel) read is returned so the caller can process
 // only the populated frames.
-func (c *PCM) Ints(samples audio.FramesInt) (n int, err error) {
+func (c *PCM) Ints(samples audio.SamplesInt) (n int, err error) {
 	if c == nil || c.sampleFrames == 0 {
 		return 0, nil
 	}
@@ -101,16 +101,17 @@ outter:
 }
 
 // NextInts returns the n next audio frames
-func (c *PCM) NextInts(n int) (audio.FramesInt, error) {
-	frames := make(audio.FramesInt, n*c.channels)
+func (c *PCM) NextInts(n int) (audio.SamplesInt, error) {
+	totalSamples := n * c.channels
+	frames := make(audio.SamplesInt, totalSamples)
 	n, err := c.Ints(frames)
-	return frames[:n], err
+	return frames[:totalSamples], err
 }
 
 // Float64s reads the PCM data and loads it into the passed frames.
 // The number of frames read is returned so the caller can process
 // only the populated frames.
-func (c *PCM) Float64s(samples audio.FramesFloat64) (n int, err error) {
+func (c *PCM) Float64s(samples audio.SamplesFloat64) (n int, err error) {
 	decodeF, err := sampleFloat64DecodeFunc(c.bitDepth)
 	if err != nil {
 		return 0, fmt.Errorf("could not get sample decode func %v", err)
@@ -139,8 +140,8 @@ func (c *PCM) Float64s(samples audio.FramesFloat64) (n int, err error) {
 }
 
 // NextFloat64s returns the n next audio frames
-func (c *PCM) NextFloat64s(n int) (audio.FramesFloat64, error) {
-	frames := make(audio.FramesFloat64, n)
+func (c *PCM) NextFloat64s(n int) (audio.SamplesFloat64, error) {
+	frames := make(audio.SamplesFloat64, n)
 	n, err := c.Float64s(frames)
 	return frames[:n], err
 }
