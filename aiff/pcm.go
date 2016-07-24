@@ -40,8 +40,8 @@ func (c *PCM) Size() int64 {
 	return c.sampleFrames
 }
 
-// Seek seeks to the frame offset
-func (c *PCM) Seek(offset int64, whence int) (int64, error) {
+// SeekFrames seeks to the frame offset
+func (c *PCM) SeekFrames(offset int64, whence int) (int64, error) {
 	if c == nil {
 		return 0, nil
 	}

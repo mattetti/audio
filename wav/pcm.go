@@ -81,12 +81,12 @@ func (c *PCM) Float64s(frames audio.FramesFloat64) (n int, err error) {
 	return n, err
 }
 
-// Info returns the frame info for the PCM data
+// Info returns the frame info for the PCM data.
 func (c *PCM) Info() (numChannels, bitDepth int, sampleRate int64, err error) {
 	return c.channels, c.bitDepth, c.sampleRate, nil
 }
 
-// NextFloat64s returns the n next audio frames
+// NextFloat64s returns the n next audio frames.
 func (c *PCM) NextFloat64s(n int) (audio.FramesFloat64, error) {
 	frames := make(audio.FramesFloat64, n)
 	n, err := c.Float64s(frames)
@@ -134,7 +134,7 @@ outter:
 	return n, err
 }
 
-// Size returns the total number of frames available in this PCM.
+// Size returns the total number of frames available in the PCM data.
 func (c *PCM) Size() int64 {
 	if c == nil {
 		return 0
@@ -148,8 +148,8 @@ func (c *PCM) Size() int64 {
 	return c.sampleFrames
 }
 
-// Seek seeks to the frame offset
-func (c *PCM) Seek(offset int64, whence int) (int64, error) {
+// SeekFrames seeks to the frame offset
+func (c *PCM) SeekFrames(offset int64, whence int) (int64, error) {
 	if c == nil {
 		return 0, nil
 	}

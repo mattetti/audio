@@ -5,27 +5,43 @@ import (
 	"math"
 )
 
+// FramesInt is the representation of audio frames
+// made of of a series of samples using one or more channels.
 type FramesInt []int
 
-func (f FramesInt) Get(channel, n int) int {
-	return f[n*channel]
+// Get returns the sample contained in the given frame position.
+func (f FramesInt) Get(channels, n int) int {
+	panic("not implemented")
 }
 
 type FramesFloat64 []float64
 
 func (f FramesFloat64) Get(channel, n int) float64 {
-	return f[n*channel]
+	panic("not implemented")
 }
 
 type PCM interface {
-	Ints(frames FramesInt) (n int, err error)
+	// Ints populates the passed frames of ints and returns the number of read frames.
+	Ints(samples FramesInt) (n int, err error)
+	// Floats64s populates the passed frames of float64 and returns the number of read frames.
 	Float64s(frames FramesFloat64) (n int, err error)
+
+	// NextInts reads up to n frames (as ints)
 	NextInts(n int) (FramesInt, error)
+	// NextFloat64s reads up to n frames (as float64)
 	NextFloat64s(n int) (FramesFloat64, error)
+
+	// Read reads the PCM data into the passed buffer and returns the
+	// number of read frames.
 	Read(buf []byte) (n int, err error)
+	// Offset returns the current frame we are at.
 	Offset() int64
-	Seek(frameOffset int64, whence int) (offset int64, err error)
+
+	// SeekFrames allows to seek the audio content.
+	SeekFrames(frameOffset int64, whence int) (offset int64, err error)
+	// Info returns basic PCM information.
 	Info() (numChannels, bitDepth int, sampleRate int64, err error)
+	// Size returns the amount of frames available in the PCM data.
 	Size() int64
 }
 
