@@ -79,6 +79,7 @@ func (d *Decoder) PCM() *PCM {
 		if chunk.ID == riff.DataFormatID {
 			break
 		}
+		chunk.Drain()
 	}
 	if chunk == nil {
 		return nil
