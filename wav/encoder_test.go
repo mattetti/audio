@@ -14,13 +14,13 @@ func TestEncoderRoundTrip(t *testing.T) {
 		out  string
 		desc string
 	}{
-		// 22050, 8bit, mono
 		{"fixtures/kick.wav", "testOutput/kick.wav", "22050 Hz @ 16 bits, 1 channel(s), 44100 avg bytes/sec, duration: 204.172335ms"},
+		{"fixtures/kick-16b441k.wav", "testOutput/kick-16b441k.wav", "2 ch,  44100 Hz, 'lpcm' 16-bit little-endian signed integer"},
 		{"fixtures/bass.wav", "testOutput/bass.wav", "44100 Hz @ 24 bits, 2 channel(s), 264600 avg bytes/sec, duration: 543.378684ms"},
 	}
 
 	for i, tc := range testCases {
-		t.Logf("%d - in: %s, out: %s", i, tc.in, tc.out)
+		t.Logf("%d - in: %s, out: %s\n%s", i, tc.in, tc.out, tc.desc)
 		in, err := os.Open(tc.in)
 		if err != nil {
 			t.Fatalf("couldn't open %s %v", tc.in, err)
@@ -37,6 +37,7 @@ func TestEncoderRoundTrip(t *testing.T) {
 			t.Fatal(err)
 		}
 		in.Close()
+		t.Logf("%s - total frames %d - total samples %d", tc.in, totalFrames, len(frames))
 
 		out, err := os.Create(tc.out)
 		if err != nil {

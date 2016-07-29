@@ -15,9 +15,11 @@ func TestPCM_Ints(t *testing.T) {
 		totalFrames int
 	}{
 		{"fixtures/kick.wav", 4484},
+		{"fixtures/dirty-kick-24b441k.wav", 21340},
 	}
 
-	for _, exp := range expectations {
+	for i, exp := range expectations {
+		t.Logf("%d - %s\n", i, exp.input)
 		path, _ := filepath.Abs(exp.input)
 		f, err := os.Open(path)
 		if err != nil {

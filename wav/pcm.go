@@ -35,12 +35,16 @@ func (c *PCM) Ints(frames audio.FramesInt) (n int, err error) {
 		return 0, fmt.Errorf("could not get sample decode func %v", err)
 	}
 
-	for i := 0; i < len(frames); i++ {
-		_, err = c.r.Read(sampleBufData)
-		if err != nil {
-			break
+outter:
+	for i := 0; i+c.channels <= len(frames); {
+		for j := 0; j < c.channels; j++ {
+			_, err = c.r.Read(sampleBufData)
+			if err != nil {
+				break outter
+			}
+			frames[i] = decodeF(sampleBufData)
+			i++
 		}
-		frames[i] = decodeF(sampleBufData)
 		n++
 	}
 	if err == io.EOF {

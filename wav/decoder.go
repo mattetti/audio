@@ -134,7 +134,7 @@ func (d *Decoder) FramesInt() (frames audio.FramesInt, err error) {
 	totalFrames := int(pcm.Size()) * int(d.NumChans)
 	frames = make(audio.FramesInt, totalFrames)
 	n, err := pcm.Ints(frames)
-	return frames[:n], err
+	return frames[:n*int(d.NumChans)], err
 }
 
 // DecodeFrames decodes PCM bytes into audio frames based on the decoder context.
