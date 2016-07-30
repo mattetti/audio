@@ -12,3 +12,4 @@ ratings:
   paths: []
 exclude_paths:
 - vendor/
+- **/*_test.go
