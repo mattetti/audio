@@ -1,18 +1,27 @@
 package audio
 
+import (
+	"bytes"
+	"encoding/binary"
+)
+
 // DataFormat is an enum type to indicate the underlying data format used.
 type DataFormat int
 
 const (
-	// Integer represents the int type
-	Integer DataFormat = iota
-	// Float represents the float64 type
+	// Unknown refers to an unknown format
+	Unknown DataFormat = iota
+	// Integer represents the int type.
+	// it represents the native int format used in audio buffers.
+	Integer
+	// Float represents the float64 type.
+	// It represents the native float format used in audio buffers.
 	Float
-	// Byte represents the byte type
+	// Byte represents the byte type.
 	Byte
 )
 
-// Format is a high level representation of the underlying
+// Format is a high level representation of the underlying data.
 type Format struct {
 	// Channels is the number of channels contained in the data
 	Channels int
@@ -20,15 +29,23 @@ type Format struct {
 	SampleRate int
 	// BitDepth is the number of bits of data for each sample
 	BitDepth int
+	// Endianess indicate how the byte order of underlying bytes
+	Endianness binary.ByteOrder
 }
 
 // PCMBuffer provides useful methods to read/manipulate audio buffers in PCM format
 type PCMBuffer struct {
+	// Format describes the format of the buffer data.
 	Format *Format
-	Ints   []int
+	// Ints is a store for audio sample data as integers.
+	Ints []int
+	// Floats is a store for audio samples data as float64.
 	Floats []float64
-	Bytes  []byte
-	// DataType indicates the format used for the underlying data
+	// Bytes is a store for audio samples data as raw bytes.
+	Bytes []byte
+	// DataType indicates the primary format used for the underlying data.
+	// The consumer of the buffer might want to look at this value to know what store
+	// to use to optimaly retrieve data.
 	DataType DataFormat
 }
 
@@ -80,8 +97,28 @@ func (b *PCMBuffer) Size() (numFrames int) {
 	return numFrames
 }
 
-func (b *PCMBuffer) Int16() []int16 {
-	panic("not implemented")
+// Int16 returns the buffer samples as int16 sample values.
+func (b *PCMBuffer) Int16() (out []int16) {
+	if b == nil {
+		return nil
+	}
+	switch b.DataType {
+	case Integer, Float:
+		out = make([]int16, len(b.Ints))
+		for i := 0; i < len(b.Ints); i++ {
+			out[i] = int16(b.Ints[i])
+		}
+	case Byte:
+		// if the format isn't defined, we can't read the byte data
+		if b.Format == nil || b.Format.Endianness == nil || b.Format.BitDepth == 0 {
+			return out
+		}
+		bytesPerSample := int((b.Format.BitDepth-1)/8 + 1)
+		buf := bytes.NewBuffer(b.Bytes)
+		out := make([]int16, len(b.Bytes)/bytesPerSample)
+		binary.Read(buf, b.Format.Endianness, &out)
+	}
+	return out
 }
 
 func (b *PCMBuffer) Int32() []int32 {
