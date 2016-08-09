@@ -1,6 +1,7 @@
 package wav
 
 import (
+	"encoding/binary"
 	"fmt"
 	"io"
 
@@ -22,6 +23,50 @@ type PCM struct {
 // Offset returns the current frame offset
 func (c *PCM) Offset() int64 {
 	return c.readFrames
+}
+
+// Buffer returns a populatef PCM buffer, if nil is passed, a default
+// size PCM buffer is returned.
+func (c *PCM) Buffer(buf *audio.PCMBuffer) (*audio.PCMBuffer, error) {
+	format := &audio.Format{
+		Channels:   c.channels,
+		SampleRate: int(c.sampleRate),
+		BitDepth:   int(c.bitDepth),
+		Endianness: binary.BigEndian,
+	}
+
+	// default size buffer
+	if buf == nil {
+		buf = audio.NewPCMIntBuffer(make([]int, 4096), nil)
+	}
+
+	bytesPerSample := (c.bitDepth-1)/8 + 1
+	sampleBufData := make([]byte, bytesPerSample)
+	decodeF, err := sampleDecodeFunc(c.bitDepth)
+	if err != nil {
+		return nil, fmt.Errorf("could not get sample decode func %v", err)
+	}
+
+outter:
+	for i := 0; i+c.channels <= buf.Len(); {
+		for j := 0; j < c.channels; j++ {
+			_, err = c.r.Read(sampleBufData)
+			if err != nil {
+				break outter
+			}
+			buf.Ints[i] = decodeF(sampleBufData)
+			i++
+		}
+	}
+	if err == io.EOF {
+		err = nil
+	}
+	buf.Format = format
+	if buf.DataType != audio.Integer {
+		buf.DataType = audio.Integer
+	}
+
+	return buf, err
 }
 
 // Ints reads the PCM data and loads it into the passed frames.
