@@ -76,6 +76,24 @@ func NewPCMByteBuffer(data []byte, format *Format) *PCMBuffer {
 	}
 }
 
+// Len returns the length of the underlying data.
+func (b *PCMBuffer) Len() int {
+	if b == nil {
+		return 0
+	}
+
+	switch b.DataType {
+	case Integer:
+		return len(b.Ints)
+	case Float:
+		return len(b.Floats)
+	case Byte:
+		return len(b.Bytes)
+	default:
+		return 0
+	}
+}
+
 // Size returns the number of frames contained in the buffer.
 func (b *PCMBuffer) Size() (numFrames int) {
 	if b == nil || b.Format == nil {
