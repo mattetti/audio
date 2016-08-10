@@ -5,6 +5,10 @@ import (
 	"encoding/binary"
 )
 
+// TODO(mattetti): define a transform interface
+// so we can easily implement RMS, channel reduction
+// or other straightforward DSP operations.
+
 // DataFormat is an enum type to indicate the underlying data format used.
 type DataFormat int
 
