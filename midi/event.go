@@ -12,7 +12,7 @@ import (
 func NoteOn(channel, key, vel int) *Event {
 	return &Event{
 		MsgChan:  uint8(channel),
-		MsgType:  uint8(eventByteMap["NoteOn"]),
+		MsgType:  uint8(EventByteMap["NoteOn"]),
 		Note:     uint8(key),
 		Velocity: uint8(vel),
 	}
@@ -22,7 +22,7 @@ func NoteOn(channel, key, vel int) *Event {
 func NoteOff(channel, key int) *Event {
 	return &Event{
 		MsgChan:  uint8(channel),
-		MsgType:  uint8(eventByteMap["NoteOff"]),
+		MsgType:  uint8(EventByteMap["NoteOff"]),
 		Note:     uint8(key),
 		Velocity: 64,
 	}
@@ -32,7 +32,7 @@ func NoteOff(channel, key int) *Event {
 func Aftertouch(channel, key, vel int) *Event {
 	return &Event{
 		MsgChan:  uint8(channel),
-		MsgType:  uint8(eventByteMap["AfterTouch"]),
+		MsgType:  uint8(EventByteMap["AfterTouch"]),
 		Note:     uint8(key),
 		Velocity: uint8(vel),
 	}
@@ -44,7 +44,7 @@ func Aftertouch(channel, key, vel int) *Event {
 func ControlChange(channel, controller, newVal int) *Event {
 	return &Event{
 		MsgChan:    uint8(channel),
-		MsgType:    uint8(eventByteMap["ControlChange"]),
+		MsgType:    uint8(EventByteMap["ControlChange"]),
 		Controller: uint8(controller),
 		NewValue:   uint8(newVal),
 	}
@@ -55,7 +55,7 @@ func ControlChange(channel, controller, newVal int) *Event {
 func ProgramChange(channel, controller, newVal int) *Event {
 	return &Event{
 		MsgChan:    uint8(channel),
-		MsgType:    uint8(eventByteMap["ProgramChange"]),
+		MsgType:    uint8(EventByteMap["ProgramChange"]),
 		Controller: uint8(controller),
 		NewValue:   uint8(newVal),
 	}
@@ -65,7 +65,7 @@ func ProgramChange(channel, controller, newVal int) *Event {
 func ChannelAfterTouch(channel, vel int) *Event {
 	return &Event{
 		MsgChan:  uint8(channel),
-		MsgType:  uint8(eventByteMap["ChannelAfterTouch"]),
+		MsgType:  uint8(EventByteMap["ChannelAfterTouch"]),
 		Pressure: uint8(vel),
 	}
 }
@@ -75,7 +75,7 @@ func ChannelAfterTouch(channel, vel int) *Event {
 func PitchWheelChange(channel, int, val int) *Event {
 	return &Event{
 		MsgChan:      uint8(channel),
-		MsgType:      uint8(eventByteMap["PitchWheelChange"]),
+		MsgType:      uint8(EventByteMap["PitchWheelChange"]),
 		AbsPitchBend: uint16(val),
 	}
 }
@@ -83,7 +83,7 @@ func PitchWheelChange(channel, int, val int) *Event {
 // CopyrightEvent returns a copyright event with the passed string in it.
 func CopyrightEvent(txt string) *Event {
 	return &Event{
-		MsgType:   uint8(eventByteMap["Meta"]),
+		MsgType:   uint8(EventByteMap["Meta"]),
 		Cmd:       uint8(metaByteMap["Copyright"]),
 		Copyright: txt,
 	}
@@ -107,7 +107,7 @@ func TempoEvent(bpmF float64) *Event {
 	// devices so that a time signature/tempo map stored in this format may
 	// easily be transferred to another device.
 	return &Event{
-		MsgType:        uint8(eventByteMap["Meta"]),
+		MsgType:        uint8(EventByteMap["Meta"]),
 		Cmd:            uint8(metaByteMap["Tempo"]),
 		MsPerQuartNote: ms,
 	}
@@ -169,14 +169,14 @@ func (e *Event) String() string {
 	}
 	var k string
 	var ok bool
-	if k, ok = eventMap[e.MsgType]; !ok {
+	if k, ok = EventMap[e.MsgType]; !ok {
 		k = fmt.Sprintf("%#X", e.MsgType)
 	}
 	out := fmt.Sprintf("Ch %d @ %d \t%s", e.MsgChan, e.TimeDelta, k)
 	if e.Velocity > 0 {
 		out += fmt.Sprintf(" Vel: %d", e.Velocity)
 	}
-	if e.MsgType == eventByteMap["NoteOn"] || e.MsgType == eventByteMap["NoteOff"] {
+	if e.MsgType == EventByteMap["NoteOn"] || e.MsgType == EventByteMap["NoteOff"] {
 		out += fmt.Sprintf(" Note: %s", MidiNoteToName(int(e.Note)))
 	}
 	if e.Cmd != 0 {
@@ -203,7 +203,7 @@ func (e *Event) Encode() []byte {
 
 	// msg type and chan are stored together
 	msgData := []byte{(e.MsgType << 4) | e.MsgChan}
-	if e.MsgType == eventByteMap["Meta"] {
+	if e.MsgType == EventByteMap["Meta"] {
 		msgData = []byte{0xFF}
 	}
 	buff.Write(msgData)

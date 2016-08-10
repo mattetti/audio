@@ -1,7 +1,8 @@
 package midi
 
+// EventMap takes a event byte and returns its matching event name.
 // http://www.midi.org/techspecs/midimessages.php
-var eventMap = map[byte]string{
+var EventMap = map[byte]string{
 	0x8: "NoteOff",
 	0x9: "NoteOn",
 	0xA: "AfterTouch",
@@ -12,7 +13,8 @@ var eventMap = map[byte]string{
 	0xF: "Meta",
 }
 
-var eventByteMap = map[string]byte{
+// EventByteMap takes an event name and returns its equivalent MIDI byte
+var EventByteMap = map[string]byte{
 	"NoteOff":           0x8,
 	"NoteOn":            0x9,
 	"AfterTouch":        0xA,
