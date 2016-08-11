@@ -26,6 +26,48 @@ func (c *PCM) Offset() int64 {
 	return c.readFrames
 }
 
+// FullBuffer is an inneficient way to access all the PCM data contained in the
+// audio container. The entire PCM data is held in memory.
+// Consider using Buffer() instead.
+func (c *PCM) FullBuffer() (*audio.PCMBuffer, error) {
+	format := &audio.Format{
+		Channels:   c.channels,
+		SampleRate: int(c.sampleRate),
+		BitDepth:   int(c.bitDepth),
+		Endianness: binary.BigEndian,
+	}
+
+	buf := audio.NewPCMIntBuffer(make([]int, 4096), format)
+
+	bytesPerSample := (c.bitDepth-1)/8 + 1
+	sampleBufData := make([]byte, bytesPerSample)
+	decodeF, err := sampleDecodeFunc(c.bitDepth)
+	if err != nil {
+		return nil, fmt.Errorf("could not get sample decode func %v", err)
+	}
+
+	i := 0
+	for err == nil {
+		_, err = c.r.Read(sampleBufData)
+		if err != nil {
+			break
+		}
+		buf.Ints[i] = decodeF(sampleBufData)
+		i++
+		// grow the underlying slice if needed
+		if i == len(buf.Ints) {
+			buf.Ints = append(buf.Ints, make([]int, 4096)...)
+		}
+	}
+	buf.Ints = buf.Ints[:i]
+
+	if err == io.EOF {
+		err = nil
+	}
+
+	return buf, err
+}
+
 // Buffer populates the passed PCM buffer
 func (c *PCM) Buffer(buf *audio.PCMBuffer) error {
 	if buf == nil {
@@ -37,11 +79,6 @@ func (c *PCM) Buffer(buf *audio.PCMBuffer) error {
 		SampleRate: int(c.sampleRate),
 		BitDepth:   int(c.bitDepth),
 		Endianness: binary.BigEndian,
-	}
-
-	// default size buffer
-	if buf == nil {
-		buf = audio.NewPCMIntBuffer(make([]int, 4096), nil)
 	}
 
 	bytesPerSample := (c.bitDepth-1)/8 + 1
@@ -74,6 +111,7 @@ func (c *PCM) Buffer(buf *audio.PCMBuffer) error {
 // Ints reads the PCM data and loads it into the passed frames.
 // The number of frames read is returned so the caller can process
 // only the populated frames.
+// DEPRECATED
 func (c *PCM) Ints(frames audio.FramesInt) (n int, err error) {
 	bytesPerSample := (c.bitDepth-1)/8 + 1
 	sampleBufData := make([]byte, bytesPerSample)
@@ -101,6 +139,7 @@ outter:
 }
 
 // NextInts returns the n next audio frames
+// DEPRECATED
 func (c *PCM) NextInts(n int) (audio.FramesInt, error) {
 	frames := make(audio.FramesInt, n)
 	n, err := c.Ints(frames)
@@ -110,6 +149,7 @@ func (c *PCM) NextInts(n int) (audio.FramesInt, error) {
 // Float64s reads the PCM data and loads it into the passed frames.
 // The number of frames read is returned so the caller can process
 // only the populated frames.
+// DEPRECATED
 func (c *PCM) Float64s(frames audio.FramesFloat64) (n int, err error) {
 	bytesPerSample := (c.bitDepth-1)/8 + 1
 	sampleBufData := make([]byte, bytesPerSample)
@@ -138,6 +178,7 @@ func (c *PCM) Info() (numChannels, bitDepth int, sampleRate int64, err error) {
 }
 
 // NextFloat64s returns the n next audio frames.
+// DEPRECATED
 func (c *PCM) NextFloat64s(n int) (audio.FramesFloat64, error) {
 	frames := make(audio.FramesFloat64, n)
 	n, err := c.Float64s(frames)
@@ -146,6 +187,7 @@ func (c *PCM) NextFloat64s(n int) (audio.FramesFloat64, error) {
 
 // Read reads frames into the passed buffer and returns the number of full frames
 // read.
+// DEPRECATED
 func (c *PCM) Read(buf []byte) (n int, err error) {
 	if c == nil || c.Size() == 0 {
 		return n, nil

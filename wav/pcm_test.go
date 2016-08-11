@@ -9,6 +9,37 @@ import (
 	"github.com/mattetti/audio/wav"
 )
 
+func TestPCM_FullBuffer(t *testing.T) {
+	expectations := []struct {
+		input       string
+		totalFrames int
+	}{
+		{"fixtures/kick.wav", 4484},
+		{"fixtures/dirty-kick-24b441k.wav", 21340},
+	}
+
+	for i, exp := range expectations {
+		t.Logf("%d - %s\n", i, exp.input)
+		path, _ := filepath.Abs(exp.input)
+		f, err := os.Open(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer f.Close()
+		d := wav.NewDecoder(f)
+		pcm := d.PCM()
+		buf, err := pcm.FullBuffer()
+		if err != nil {
+			t.Fatal(err)
+		}
+		framesNbr := buf.Size()
+		if framesNbr != exp.totalFrames {
+			t.Fatalf("Expected %d frames, got %d\n", exp.totalFrames, framesNbr)
+		}
+	}
+
+}
+
 func TestPCM_Ints(t *testing.T) {
 	expectations := []struct {
 		input       string
