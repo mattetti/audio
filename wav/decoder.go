@@ -245,27 +245,24 @@ func (d *Decoder) readHeaders() error {
 // a byte range into an int value based on the amount of bits used per sample.
 // Note that 8bit samples are unsigned, all other values are signed.
 func sampleDecodeFunc(bitsPerSample int) (func([]byte) int, error) {
-	// NOTE: WAV PCM data is stored usign little-endian
-	bytesPerSample := bitsPerSample / 8
-	switch bytesPerSample {
-	case 1:
+	// NOTE: WAV PCM data is stored using little-endian
+	switch bitsPerSample {
+	case 8:
 		// 8bit values are unsigned
 		return func(s []byte) int {
 			return int(uint8(s[0]))
 		}, nil
-	case 2:
+	case 16:
+		// -32,768	(0x7FFF) to	32,767	(0x8000)
 		return func(s []byte) int {
 			return int(s[0]) + int(s[1])<<8
 		}, nil
-	case 3:
+	case 24:
+		// -34,359,738,367 (0x7FFFFF) to 34,359,738,368	(0x800000)
 		return func(s []byte) int {
-			var output int32
-			output |= int32(s[2]) << 0
-			output |= int32(s[1]) << 8
-			output |= int32(s[0]) << 16
-			return int(output)
+			return int(int32(s[0])<<8 | int32(s[1])<<16 | int32(s[2])<<24)
 		}, nil
-	case 4:
+	case 32:
 		return func(s []byte) int {
 			return int(s[0]) + int(s[1])<<8 + int(s[2])<<16 + int(s[3])<<24
 		}, nil

@@ -67,15 +67,15 @@ func (e *Encoder) addFrames(frames []int) error {
 					return err
 				}
 			case 16:
-				if err := e.AddLE(uint16(frames[i])); err != nil {
+				if err := e.AddLE(int16(frames[i])); err != nil {
 					return err
 				}
 			case 24:
-				if err := e.AddLE(audio.Uint32toUint24Bytes(uint32(frames[i]))); err != nil {
+				if err := e.AddLE(audio.Int32toInt24LEBytes(int32(frames[i]))); err != nil {
 					return err
 				}
 			case 32:
-				if err := e.AddLE(uint32(frames[i])); err != nil {
+				if err := e.AddLE(int32(frames[i])); err != nil {
 					return err
 				}
 			default:

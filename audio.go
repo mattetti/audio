@@ -177,6 +177,7 @@ func IntToIeeeFloat(i int) [10]byte {
 }
 
 // Uint24to32 converts a 3 byte uint23 into a uint32
+// BigEndian!
 func Uint24to32(bytes []byte) uint32 {
 	var output uint32
 	output |= uint32(bytes[2]) << 0
@@ -193,5 +194,14 @@ func Uint32toUint24Bytes(n uint32) []byte {
 	bytes[1] = byte(n >> 8)
 	bytes[2] = byte(n >> 0)
 
+	return bytes
+}
+
+// Int32toInt24LEBytes converts a int32 into a 3 byte int24 representation
+func Int32toInt24LEBytes(n int32) []byte {
+	bytes := make([]byte, 3)
+	bytes[2] = byte(n >> 24)
+	bytes[1] = byte(n >> 16)
+	bytes[0] = byte(n >> 8)
 	return bytes
 }

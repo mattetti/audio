@@ -8,6 +8,7 @@ import (
 	"github.com/mattetti/audio"
 )
 
+// PCM is a data structure representing the underlying PCM data.
 type PCM struct {
 	r          io.ReadSeeker
 	channels   int
@@ -25,9 +26,12 @@ func (c *PCM) Offset() int64 {
 	return c.readFrames
 }
 
-// Buffer returns a populatef PCM buffer, if nil is passed, a default
-// size PCM buffer is returned.
-func (c *PCM) Buffer(buf *audio.PCMBuffer) (*audio.PCMBuffer, error) {
+// Buffer populates the passed PCM buffer
+func (c *PCM) Buffer(buf *audio.PCMBuffer) error {
+	if buf == nil {
+		return nil
+	}
+	// TODO: avoid a potentially unecessary allocation
 	format := &audio.Format{
 		Channels:   c.channels,
 		SampleRate: int(c.sampleRate),
@@ -44,19 +48,17 @@ func (c *PCM) Buffer(buf *audio.PCMBuffer) (*audio.PCMBuffer, error) {
 	sampleBufData := make([]byte, bytesPerSample)
 	decodeF, err := sampleDecodeFunc(c.bitDepth)
 	if err != nil {
-		return nil, fmt.Errorf("could not get sample decode func %v", err)
+		return fmt.Errorf("could not get sample decode func %v", err)
 	}
 
-outter:
-	for i := 0; i+c.channels <= buf.Len(); {
-		for j := 0; j < c.channels; j++ {
-			_, err = c.r.Read(sampleBufData)
-			if err != nil {
-				break outter
-			}
-			buf.Ints[i] = decodeF(sampleBufData)
-			i++
+	// Note that we populate the buffer even if the
+	// size of the buffer doesn't fit an even number of frames.
+	for i := 0; i < len(buf.Ints); i++ {
+		_, err = c.r.Read(sampleBufData)
+		if err != nil {
+			break
 		}
+		buf.Ints[i] = decodeF(sampleBufData)
 	}
 	if err == io.EOF {
 		err = nil
@@ -66,7 +68,7 @@ outter:
 		buf.DataType = audio.Integer
 	}
 
-	return buf, err
+	return err
 }
 
 // Ints reads the PCM data and loads it into the passed frames.
