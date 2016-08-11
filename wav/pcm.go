@@ -21,6 +21,8 @@ type PCM struct {
 	blockSize    int
 }
 
+// TODO(mattetti): update readFrames when reading the buffer
+
 // Offset returns the current frame offset
 func (c *PCM) Offset() int64 {
 	return c.readFrames
