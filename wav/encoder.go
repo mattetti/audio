@@ -178,13 +178,17 @@ func (e *Encoder) Close() error {
 	}
 
 	// go back and write total size in header
-	e.w.Seek(4, 0)
+	if _, err := e.w.Seek(4, 0); err != nil {
+		return err
+	}
 	if err := e.AddLE(uint32(e.WrittenBytes) - 8); err != nil {
 		return fmt.Errorf("%v when writing the total written bytes", err)
 	}
 	// rewrite the audio chunk length header
 	if e.pcmChunkSizePos > 0 {
-		e.w.Seek(int64(e.pcmChunkSizePos), 0)
+		if _, err := e.w.Seek(int64(e.pcmChunkSizePos), 0); err != nil {
+			return err
+		}
 		chunksize := uint32((int(e.BitDepth) / 8) * int(e.NumChans) * e.frames)
 		if err := e.AddLE(uint32(chunksize)); err != nil {
 			return fmt.Errorf("%v when writing wav data chunk size header", err)
@@ -192,7 +196,9 @@ func (e *Encoder) Close() error {
 	}
 
 	// jump back to the end of the file.
-	e.w.Seek(0, 2)
+	if _, err := e.w.Seek(0, 2); err != nil {
+		return err
+	}
 	switch e.w.(type) {
 	case *os.File:
 		return e.w.(*os.File).Sync()
