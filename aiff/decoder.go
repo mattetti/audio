@@ -66,6 +66,7 @@ func (d *Decoder) EOF() bool {
 
 // PCM returns an audio.PCM compatible value to consume the PCM data
 // contained in the underlying aiff data.
+// DEPRECATED
 func (d *Decoder) PCM() *PCM {
 	if d.pcmClip != nil {
 		return d.pcmClip
@@ -160,6 +161,7 @@ func (d *Decoder) NextChunk() (*Chunk, error) {
 // FramesInt returns the audio frames contained in reader.
 // Notes that this method allocates a lot of memory (depending on the duration of the underlying file).
 // Consider using the decoder clip and reading/decoding using a buffer.
+// DEPRECATED
 func (d *Decoder) FramesInt() (frames audio.FramesInt, err error) {
 	pcm := d.PCM()
 	if pcm == nil {
@@ -174,6 +176,7 @@ func (d *Decoder) FramesInt() (frames audio.FramesInt, err error) {
 // Frames returns the audio frames contained in reader.
 // Notes that this method allocates a lot of memory (depending on the duration of the underlying file).
 // Consider using the decoder clip and reading/decoding using a buffer.
+// DEPRECATED
 func (d *Decoder) Frames() (frames audio.Frames, err error) {
 	clip := d.PCM()
 	totalFrames := int(clip.Size())
@@ -199,6 +202,7 @@ func (d *Decoder) Frames() (frames audio.Frames, err error) {
 }
 
 // DecodeFrames decodes PCM bytes into audio frames based on the decoder context
+// DEPRECATED
 func (d *Decoder) DecodeFrames(data []byte) (frames audio.Frames, err error) {
 	numChannels := int(d.NumChans)
 	r := bytes.NewBuffer(data)
@@ -274,6 +278,81 @@ func (d *Decoder) Duration() (time.Duration, error) {
 	}
 	duration := time.Duration(float64(d.numSampleFrames) / float64(d.SampleRate) * float64(time.Second))
 	return duration, nil
+}
+
+// FullBuffer is an inneficient way to access all the PCM data contained in the
+// audio container. The entire PCM data is held in memory.
+// Consider using Buffer() instead.
+func (d *Decoder) FullBuffer() (*audio.PCMBuffer, error) {
+	format := &audio.Format{
+		NumChannels: int(d.NumChans),
+		SampleRate:  int(d.SampleRate),
+		BitDepth:    int(d.BitDepth),
+		Endianness:  binary.LittleEndian,
+	}
+
+	buf := audio.NewPCMIntBuffer(make([]int, 4096), format)
+	decodeF, err := sampleDecodeFunc(int(d.BitDepth))
+	if err != nil {
+		return nil, fmt.Errorf("could not get sample decode func %v", err)
+	}
+
+	i := 0
+	for err == nil {
+		buf.Ints[i], err = decodeF(d.r)
+		i++
+		if err != nil {
+			break
+		}
+		// grow the underlying slice if needed
+		if i == len(buf.Ints) {
+			buf.Ints = append(buf.Ints, make([]int, 4096)...)
+		}
+	}
+	buf.Ints = buf.Ints[:i]
+
+	if err == io.EOF {
+		err = nil
+	}
+
+	return buf, err
+}
+
+// Buffer populates the passed PCM buffer
+func (d *Decoder) Buffer(buf *audio.PCMBuffer) error {
+	if buf == nil {
+		return nil
+	}
+	// TODO: avoid a potentially unecessary allocation
+	format := &audio.Format{
+		NumChannels: int(d.NumChans),
+		SampleRate:  int(d.SampleRate),
+		BitDepth:    int(d.BitDepth),
+		Endianness:  binary.LittleEndian,
+	}
+
+	decodeF, err := sampleDecodeFunc(int(d.BitDepth))
+	if err != nil {
+		return fmt.Errorf("could not get sample decode func %v", err)
+	}
+
+	// Note that we populate the buffer even if the
+	// size of the buffer doesn't fit an even number of frames.
+	for i := 0; i < len(buf.Ints); i++ {
+		buf.Ints[i], err = decodeF(d.r)
+		if err != nil {
+			break
+		}
+	}
+	if err == io.EOF {
+		err = nil
+	}
+	buf.Format = format
+	if buf.DataType != audio.Integer {
+		buf.DataType = audio.Integer
+	}
+
+	return err
 }
 
 // String implements the Stringer interface.
