@@ -33,10 +33,10 @@ func (c *PCM) Offset() int64 {
 // Consider using Buffer() instead.
 func (c *PCM) FullBuffer() (*audio.PCMBuffer, error) {
 	format := &audio.Format{
-		Channels:   c.channels,
-		SampleRate: int(c.sampleRate),
-		BitDepth:   int(c.bitDepth),
-		Endianness: binary.BigEndian,
+		NumChannels: c.channels,
+		SampleRate:  int(c.sampleRate),
+		BitDepth:    int(c.bitDepth),
+		Endianness:  binary.BigEndian,
 	}
 
 	buf := audio.NewPCMIntBuffer(make([]int, 4096), format)
@@ -77,10 +77,10 @@ func (c *PCM) Buffer(buf *audio.PCMBuffer) error {
 	}
 	// TODO: avoid a potentially unecessary allocation
 	format := &audio.Format{
-		Channels:   c.channels,
-		SampleRate: int(c.sampleRate),
-		BitDepth:   int(c.bitDepth),
-		Endianness: binary.BigEndian,
+		NumChannels: c.channels,
+		SampleRate:  int(c.sampleRate),
+		BitDepth:    int(c.bitDepth),
+		Endianness:  binary.BigEndian,
 	}
 
 	bytesPerSample := (c.bitDepth-1)/8 + 1
