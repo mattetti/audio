@@ -27,8 +27,8 @@ const (
 
 // Format is a high level representation of the underlying data.
 type Format struct {
-	// Channels is the number of channels contained in the data
-	Channels int
+	// NumChannels is the number of channels contained in the data
+	NumChannels int
 	// SampleRate is the sampling rate in Hz
 	SampleRate int
 	// BitDepth is the number of bits of data for each sample
@@ -37,7 +37,8 @@ type Format struct {
 	Endianness binary.ByteOrder
 }
 
-// PCMBuffer provides useful methods to read/manipulate audio buffers in PCM format
+// PCMBuffer encapsulates uncompressed audio data
+// and provides useful methods to read/manipulate this PCM data.
 type PCMBuffer struct {
 	// Format describes the format of the buffer data.
 	Format *Format
@@ -103,7 +104,7 @@ func (b *PCMBuffer) Size() (numFrames int) {
 	if b == nil || b.Format == nil {
 		return 0
 	}
-	numChannels := b.Format.Channels
+	numChannels := b.Format.NumChannels
 	if numChannels == 0 {
 		numChannels = 1
 	}
@@ -119,8 +120,8 @@ func (b *PCMBuffer) Size() (numFrames int) {
 	return numFrames
 }
 
-// Int16 returns the buffer samples as int16 sample values.
-func (b *PCMBuffer) Int16() (out []int16) {
+// Int16s returns the buffer samples as int16 sample values.
+func (b *PCMBuffer) Int16s() (out []int16) {
 	if b == nil {
 		return nil
 	}
@@ -143,14 +144,18 @@ func (b *PCMBuffer) Int16() (out []int16) {
 	return out
 }
 
-func (b *PCMBuffer) Int32() []int32 {
+func (b *PCMBuffer) Int32s() []int32 {
 	panic("not implemented")
 }
 
-func (b *PCMBuffer) Float32() []float32 {
+func (b *PCMBuffer) Int64s() []int64 {
 	panic("not implemented")
 }
 
-func (b *PCMBuffer) Float64() []float64 {
+func (b *PCMBuffer) Float32s() []float32 {
+	panic("not implemented")
+}
+
+func (b *PCMBuffer) Float64s() []float64 {
 	panic("not implemented")
 }
