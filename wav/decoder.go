@@ -1,7 +1,6 @@
 package wav
 
 import (
-	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -24,11 +23,12 @@ type Decoder struct {
 	AvgBytesPerSec uint32
 	WavAudioFormat uint16
 
-	err     error
-	pcmClip *PCM
+	err             error
+	pcmClip         *PCM
+	pcmDataAccessed bool
 }
 
-// New creates a decoder for the passed wav reader.
+// NewDecoder creates a decoder for the passed wav reader.
 // Note that the reader doesn't get rewinded as the container is processed.
 func NewDecoder(r io.ReadSeeker) *Decoder {
 	return &Decoder{
@@ -59,10 +59,60 @@ func (d *Decoder) ReadInfo() {
 	d.err = d.readHeaders()
 }
 
+// Reset resets the decoder (and rewind the underlying reader)
+func (d *Decoder) Reset() {
+	d.err = nil
+	d.pcmClip = nil
+	d.pcmDataAccessed = false
+	d.NumChans = 0
+	d.BitDepth = 0
+	d.SampleRate = 0
+	d.AvgBytesPerSec = 0
+	d.WavAudioFormat = 0
+	d.r.Seek(0, 0)
+	d.parser = riff.New(d.r)
+}
+
+// FwdToPCM forwards the underlying reader until the start of the PCM chunk.
+// If the PCM chunk was already read, no data will be found (you need to rewind).
+func (d *Decoder) FwdToPCM() error {
+	if d == nil {
+		return fmt.Errorf("PCM data not found")
+	}
+	d.err = d.readHeaders()
+	if d.err != nil {
+		return nil
+	}
+
+	var chunk *riff.Chunk
+	for d.err == nil {
+		chunk, d.err = d.parser.NextChunk()
+		if d.err != nil {
+			break
+		}
+		if chunk.ID == riff.DataFormatID {
+			break
+		}
+		chunk.Drain()
+	}
+	if chunk == nil {
+		return fmt.Errorf("PCM data not found")
+	}
+	d.pcmDataAccessed = true
+
+	return nil
+}
+
 // FullBuffer is an inneficient way to access all the PCM data contained in the
 // audio container. The entire PCM data is held in memory.
 // Consider using Buffer() instead.
 func (d *Decoder) FullBuffer() (*audio.PCMBuffer, error) {
+	if !d.pcmDataAccessed {
+		err := d.FwdToPCM()
+		if err != nil {
+			return nil, d.err
+		}
+	}
 	format := &audio.Format{
 		NumChannels: int(d.NumChans),
 		SampleRate:  int(d.SampleRate),
@@ -105,6 +155,14 @@ func (d *Decoder) Buffer(buf *audio.PCMBuffer) error {
 	if buf == nil {
 		return nil
 	}
+
+	if !d.pcmDataAccessed {
+		err := d.FwdToPCM()
+		if err != nil {
+			return d.err
+		}
+	}
+
 	// TODO: avoid a potentially unecessary allocation
 	format := &audio.Format{
 		NumChannels: int(d.NumChans),
@@ -140,45 +198,6 @@ func (d *Decoder) Buffer(buf *audio.PCMBuffer) error {
 	return err
 }
 
-// PCM returns an audio.PCM compatible value to consume the PCM data
-// contained in the underlying wav data.
-// DEPRECATED
-func (d *Decoder) PCM() *PCM {
-	if d.pcmClip != nil {
-		return d.pcmClip
-	}
-	d.err = d.readHeaders()
-	if d.err != nil {
-		return nil
-	}
-
-	var chunk *riff.Chunk
-	for d.err == nil {
-		chunk, d.err = d.parser.NextChunk()
-		if d.err != nil {
-			break
-		}
-		if chunk.ID == riff.DataFormatID {
-			break
-		}
-		chunk.Drain()
-	}
-	if chunk == nil {
-		return nil
-	}
-
-	d.pcmClip = &PCM{
-		r:          d.r,
-		byteSize:   chunk.Size,
-		channels:   int(d.NumChans),
-		bitDepth:   int(d.BitDepth),
-		sampleRate: int64(d.SampleRate),
-		blockSize:  chunk.Size,
-	}
-
-	return d.pcmClip
-}
-
 // NextChunk returns the next available chunk
 func (d *Decoder) NextChunk() (*riff.Chunk, error) {
 	if d.err = d.readHeaders(); d.err != nil {
@@ -203,63 +222,6 @@ func (d *Decoder) NextChunk() (*riff.Chunk, error) {
 		R:    io.LimitReader(d.r, int64(size)),
 	}
 	return c, d.err
-}
-
-// FramesInt returns the audio frames contained in reader.
-// Notes that this method allocates a lot of memory (depending on the duration of the underlying file).
-// Consider using the decoder clip and reading/decoding using a buffer.
-// DEPRECATED
-func (d *Decoder) FramesInt() (frames audio.FramesInt, err error) {
-	pcm := d.PCM()
-	if pcm == nil {
-		return nil, fmt.Errorf("no PCM data available")
-	}
-	totalFrames := int(pcm.Size()) * int(d.NumChans)
-	frames = make(audio.FramesInt, totalFrames)
-	n, err := pcm.Ints(frames)
-	return frames[:n*int(d.NumChans)], err
-}
-
-// DecodeFrames decodes PCM bytes into audio frames based on the decoder context.
-// This function is usually used in conjunction with Clip.Read which returns the amount
-// of frames read into the buffer. It's highly recommended to slice the returned frames
-// of this function by the amount of total frames reads into the buffer.
-// The reason being that if the buffer didn't match the exact size of the frames,
-// some of the data might be garbage but will still be converted into frames.
-// DEPRECATED
-func (d *Decoder) DecodeFrames(data []byte) (frames audio.Frames, err error) {
-	numChannels := int(d.NumChans)
-	r := bytes.NewBuffer(data)
-
-	bytesPerSample := int((d.BitDepth-1)/8 + 1)
-	sampleBufData := make([]byte, bytesPerSample)
-	decodeF, err := sampleDecodeFunc(int(d.BitDepth))
-	if err != nil {
-		return nil, fmt.Errorf("could not get sample decode func %v", err)
-	}
-
-	frames = make(audio.Frames, len(data)/bytesPerSample)
-	for j := 0; j < int(numChannels); j++ {
-		frames[j] = make([]int, numChannels)
-	}
-	n := 0
-
-outter:
-	for i := 0; (i + (bytesPerSample * numChannels)) <= len(data); {
-		frame := make([]int, numChannels)
-		for j := 0; j < numChannels; j++ {
-			_, err = r.Read(sampleBufData)
-			if err != nil {
-				break outter
-			}
-			frame[j] = decodeF(sampleBufData)
-			i += bytesPerSample
-		}
-		frames[n] = frame
-		n++
-	}
-
-	return frames, err
 }
 
 // Duration returns the time duration for the current audio container
