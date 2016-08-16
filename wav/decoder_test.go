@@ -98,7 +98,7 @@ func TestDecoder_Buffer(t *testing.T) {
 
 		intBuf := make([]int, len(tc.samples))
 		buf := audio.NewPCMIntBuffer(intBuf, nil)
-		err = d.Buffer(buf)
+		err = d.PCMBuffer(buf)
 		if err != nil {
 			t.Fatal(err)
 		}
