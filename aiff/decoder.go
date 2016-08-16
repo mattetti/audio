@@ -1,7 +1,6 @@
 package aiff
 
 import (
-	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -33,12 +32,17 @@ type Decoder struct {
 	numSampleFrames uint32
 	BitDepth        uint16
 	SampleRate      int
+	//
+	PCMSize uint32
 
 	// AIFC data
 	Encoding     [4]byte
 	EncodingName string
 
-	err     error
+	err             error
+	pcmDataAccessed bool
+
+	// DEPRECATED
 	pcmClip *PCM
 }
 
@@ -62,74 +66,6 @@ func (d *Decoder) EOF() bool {
 		return true
 	}
 	return false
-}
-
-// PCM returns an audio.PCM compatible value to consume the PCM data
-// contained in the underlying aiff data.
-// DEPRECATED
-func (d *Decoder) PCM() *PCM {
-	if d.pcmClip != nil {
-		return d.pcmClip
-	}
-	if d.err = d.readHeaders(); d.err != nil {
-		d.err = fmt.Errorf("failed to read header - %v", d.err)
-		return nil
-	}
-
-	d.pcmClip = &PCM{}
-
-	// read the file information to setup the audio clip
-	// find the beginning of the SSND chunk and set the clip reader to it.
-	var (
-		id          [4]byte
-		size        uint32
-		rewindBytes int64
-	)
-	for d.err != io.EOF {
-		id, size, d.err = d.iDnSize()
-		if d.err != nil {
-			d.err = fmt.Errorf("error reading chunk header - %v", d.err)
-			break
-		}
-		switch id {
-		case COMMID:
-			d.parseCommChunk(size)
-			d.pcmClip.channels = int(d.NumChans)
-			d.pcmClip.bitDepth = int(d.BitDepth)
-			d.pcmClip.sampleRate = int64(d.SampleRate)
-			d.pcmClip.sampleFrames = int64(d.numSampleFrames)
-			d.pcmClip.blockSize = size
-			// if we found the sound data before the COMM,
-			// we need to rewind the reader so we can properly
-			// set the clip reader.
-			if rewindBytes > 0 {
-				d.r.Seek(-rewindBytes, 1)
-				break
-			}
-		case SSNDID:
-			d.pcmClip.blockSize = size
-			// if we didn't read the COMM, we are going to need to come back
-			if d.pcmClip.sampleRate == 0 {
-				rewindBytes += int64(size)
-				if d.err = d.jumpTo(int(size)); d.err != nil {
-					return nil
-				}
-			}
-			d.pcmClip.r = d.r
-			return d.pcmClip
-
-		default:
-			// if we read SSN but didn't read the COMM, we need to track location
-			if d.pcmClip.sampleRate == 0 {
-				rewindBytes += int64(size)
-			}
-			if d.err = d.jumpTo(int(size)); d.err != nil {
-				return nil
-			}
-		}
-	}
-
-	return d.pcmClip
 }
 
 // NextChunk returns the next available chunk
@@ -158,115 +94,6 @@ func (d *Decoder) NextChunk() (*Chunk, error) {
 	return c, d.err
 }
 
-// FramesInt returns the audio frames contained in reader.
-// Notes that this method allocates a lot of memory (depending on the duration of the underlying file).
-// Consider using the decoder clip and reading/decoding using a buffer.
-// DEPRECATED
-func (d *Decoder) FramesInt() (frames audio.FramesInt, err error) {
-	pcm := d.PCM()
-	if pcm == nil {
-		return nil, fmt.Errorf("no PCM data available")
-	}
-	totalFrames := int(pcm.Size()) * int(d.NumChans)
-	frames = make(audio.FramesInt, totalFrames)
-	n, err := pcm.Ints(frames)
-	return frames[:n*int(d.NumChans)], err
-}
-
-// Frames returns the audio frames contained in reader.
-// Notes that this method allocates a lot of memory (depending on the duration of the underlying file).
-// Consider using the decoder clip and reading/decoding using a buffer.
-// DEPRECATED
-func (d *Decoder) Frames() (frames audio.Frames, err error) {
-	clip := d.PCM()
-	totalFrames := int(clip.Size())
-	readFrames := 0
-
-	bufSize := 4096
-	buf := make([]byte, bufSize)
-	var tFrames audio.Frames
-	var n int
-	for readFrames < totalFrames {
-		n, err = clip.Read(buf)
-		if err != nil || n == 0 {
-			break
-		}
-		readFrames += n
-		tFrames, err = d.DecodeFrames(buf)
-		if err != nil {
-			break
-		}
-		frames = append(frames, tFrames[:n]...)
-	}
-	return frames, err
-}
-
-// DecodeFrames decodes PCM bytes into audio frames based on the decoder context
-// DEPRECATED
-func (d *Decoder) DecodeFrames(data []byte) (frames audio.Frames, err error) {
-	numChannels := int(d.NumChans)
-	r := bytes.NewBuffer(data)
-
-	bytesPerSample := int((d.BitDepth-1)/8 + 1)
-	sampleBufData := make([]byte, bytesPerSample)
-
-	frames = make(audio.Frames, len(data)/bytesPerSample)
-	for j := 0; j < int(numChannels); j++ {
-		frames[j] = make([]int, numChannels)
-	}
-	n := 0
-
-outter:
-	for i := 0; (i + (bytesPerSample * numChannels)) <= len(data); {
-		frame := make([]int, numChannels)
-		for j := 0; j < numChannels; j++ {
-			switch d.BitDepth {
-			case 8:
-				var v uint8
-				err = binary.Read(r, binary.BigEndian, &v)
-				if err != nil {
-					if err == io.EOF {
-						err = nil
-					}
-					break outter
-				}
-				frame[j] = int(v)
-			case 16:
-				var v int16
-				binary.Read(r, binary.BigEndian, &v)
-				frame[j] = int(v)
-			case 24:
-				_, err = r.Read(sampleBufData)
-				if err != nil {
-					if err == io.EOF {
-						err = nil
-					}
-					break outter
-				}
-				// TODO: check if the conversion might not be inversed depending on
-				// the encoding (BE vs LE)
-				var output int32
-				output |= int32(sampleBufData[2]) << 0
-				output |= int32(sampleBufData[1]) << 8
-				output |= int32(sampleBufData[0]) << 16
-				frame[j] = int(output)
-			case 32:
-				var v int32
-				binary.Read(r, binary.BigEndian, &v)
-				frame[j] = int(v)
-			default:
-				err = fmt.Errorf("%v bit depth not supported", d.BitDepth)
-				break outter
-			}
-			i += bytesPerSample
-		}
-		frames[n] = frame
-		n++
-	}
-
-	return frames, err
-}
-
 // Duration returns the time duration for the current AIFF container
 func (d *Decoder) Duration() (time.Duration, error) {
 	if d == nil {
@@ -280,10 +107,121 @@ func (d *Decoder) Duration() (time.Duration, error) {
 	return duration, nil
 }
 
-// FullBuffer is an inneficient way to access all the PCM data contained in the
+// FwdToPCM forwards the underlying reader until the start of the PCM chunk.
+// If the PCM chunk was already read, no data will be found (you need to rewind).
+func (d *Decoder) FwdToPCM() error {
+	if d.err = d.readHeaders(); d.err != nil {
+		d.err = fmt.Errorf("failed to read header - %v", d.err)
+		return nil
+	}
+
+	// read the file information to setup the audio clip
+	// find the beginning of the SSND chunk and set the clip reader to it.
+	var (
+		id          [4]byte
+		size        uint32
+		rewindBytes int64
+	)
+	for d.err != io.EOF {
+		id, size, d.err = d.iDnSize()
+		if d.err != nil {
+			d.err = fmt.Errorf("error reading chunk header - %v", d.err)
+			break
+		}
+		switch id {
+		case COMMID:
+			if err := d.parseCommChunk(size); err != nil {
+				return err
+			}
+			// if we found the sound data before the COMM,
+			// we need to rewind the reader so we can properly
+			// set the clip reader.
+			if rewindBytes > 0 {
+				d.r.Seek(-rewindBytes, 1)
+			}
+		case SSNDID:
+			//            SSND chunk: Must be defined
+			//   0      4 bytes  "SSND"
+			//   4      4 bytes  <Chunk size(x)>
+			//   8      4 bytes  <Offset(n)>
+			//  12      4 bytes  <block size>
+			//  16     (n)bytes  Comment
+			//  16+(n) (s)bytes  <Sample data>
+
+			// TODO: should we consider fast forward and miss the PCM data?
+			// Keeping that off for now.
+			//
+			// if we didn't read the COMM, we are going to need to come back
+			// if d.SampleRate == 0 {
+			// 	rewindBytes += int64(size)
+			// 	if d.err = d.jumpTo(int(size)); d.err != nil {
+			// 		return d.err
+			// 	}
+			// }
+
+			var offset uint32
+			if d.err = binary.Read(d.r, binary.BigEndian, &offset); d.err != nil {
+				d.err = fmt.Errorf("PCM offset failed to parse - %s", d.err)
+				return d.err
+			}
+
+			if d.err = binary.Read(d.r, binary.BigEndian, &d.PCMSize); d.err != nil {
+				d.err = fmt.Errorf("PCMSize failed to parse - %s", d.err)
+				return d.err
+			}
+			if offset > 0 {
+				// skip pcm comment
+				if _, err := d.r.Seek(int64(offset), 1); err != nil {
+					return err
+				}
+			}
+
+			d.pcmDataAccessed = true
+			return nil
+
+		default:
+			// if we read SSN but didn't read the COMM, we need to track location
+			if d.SampleRate == 0 {
+				rewindBytes += int64(size)
+			}
+			if d.err = d.jumpTo(int(size)); d.err != nil {
+				return d.err
+			}
+		}
+	}
+	return nil
+}
+
+// Reset resets the decoder (and rewind the underlying reader)
+func (d *Decoder) Reset() {
+	d.ID = [4]byte{}
+	d.Size = 0
+	d.Format = [4]byte{}
+	d.commSize = 0
+	d.NumChans = 0
+	d.numSampleFrames = 0
+	d.BitDepth = 0
+	d.SampleRate = 0
+	d.Encoding = [4]byte{}
+	d.EncodingName = ""
+	d.err = nil
+	d.pcmDataAccessed = false
+	d.r.Seek(0, 0)
+
+	// DEPRECATED
+	d.pcmClip = nil
+}
+
+// FullPCMBuffer is an inneficient way to access all the PCM data contained in the
 // audio container. The entire PCM data is held in memory.
 // Consider using Buffer() instead.
-func (d *Decoder) FullBuffer() (*audio.PCMBuffer, error) {
+func (d *Decoder) FullPCMBuffer() (*audio.PCMBuffer, error) {
+	if !d.pcmDataAccessed {
+		err := d.FwdToPCM()
+		if err != nil {
+			return nil, d.err
+		}
+	}
 	format := &audio.Format{
 		NumChannels: int(d.NumChans),
 		SampleRate:  int(d.SampleRate),
@@ -318,11 +256,19 @@ func (d *Decoder) FullBuffer() (*audio.PCMBuffer, error) {
 	return buf, err
 }
 
-// Buffer populates the passed PCM buffer
-func (d *Decoder) Buffer(buf *audio.PCMBuffer) error {
+// PCMBuffer populates the passed PCM buffer
+func (d *Decoder) PCMBuffer(buf *audio.PCMBuffer) error {
 	if buf == nil {
 		return nil
 	}
+
+	if !d.pcmDataAccessed {
+		err := d.FwdToPCM()
+		if err != nil {
+			return d.err
+		}
+	}
+
 	// TODO: avoid a potentially unecessary allocation
 	format := &audio.Format{
 		NumChannels: int(d.NumChans),

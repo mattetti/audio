@@ -103,10 +103,10 @@ func (d *Decoder) FwdToPCM() error {
 	return nil
 }
 
-// FullBuffer is an inneficient way to access all the PCM data contained in the
+// FullPCMBuffer is an inneficient way to access all the PCM data contained in the
 // audio container. The entire PCM data is held in memory.
 // Consider using Buffer() instead.
-func (d *Decoder) FullBuffer() (*audio.PCMBuffer, error) {
+func (d *Decoder) FullPCMBuffer() (*audio.PCMBuffer, error) {
 	if !d.pcmDataAccessed {
 		err := d.FwdToPCM()
 		if err != nil {
@@ -150,8 +150,8 @@ func (d *Decoder) FullBuffer() (*audio.PCMBuffer, error) {
 	return buf, err
 }
 
-// Buffer populates the passed PCM buffer
-func (d *Decoder) Buffer(buf *audio.PCMBuffer) error {
+// PCMBuffer populates the passed PCM buffer
+func (d *Decoder) PCMBuffer(buf *audio.PCMBuffer) error {
 	if buf == nil {
 		return nil
 	}

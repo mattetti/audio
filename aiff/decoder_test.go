@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/mattetti/audio"
 )
 
 // TODO(mattetti): benchmark allocations
@@ -147,6 +149,45 @@ func TestDecoder_Duration(t *testing.T) {
 		}
 		if d != exp.duration {
 			t.Fatalf("duration of %s didn't match %d milliseconds, got %d", exp.input, exp.duration, d)
+		}
+	}
+}
+
+func TestDecoderPCMBuffer(t *testing.T) {
+	testCases := []struct {
+		input   string
+		desc    string
+		samples []int
+	}{
+		{"fixtures/kick.aif",
+			"1 ch,  22050 Hz, 'lpcm' (0x0000000E) 16-bit big-endian signed integer",
+			[]int{76, 76, 75, 75, 72, 71, 72, 69, 70, 68, 65, 73, 529, 1425, 2245, 2941, 3514, 3952, 4258, 4436, 4486, 4413, 4218, 3903, 3474, 2938, 2295, 1553, 711, -214, -1230, -2321, -3489, -4721, -6007, -7352, -8738, -10172, -11631, -13127, -14642, -16029, -17322, -18528, -19710, -20877},
+		},
+	}
+
+	for i, tc := range testCases {
+		t.Logf("%d - %s - %s\n", i, tc.input, tc.desc)
+		path, _ := filepath.Abs(tc.input)
+		f, err := os.Open(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer f.Close()
+		d := NewDecoder(f)
+
+		intBuf := make([]int, len(tc.samples))
+		buf := audio.NewPCMIntBuffer(intBuf, nil)
+		err = d.PCMBuffer(buf)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(buf.Ints) != len(tc.samples) {
+			t.Fatalf("the length of the buffer (%d) didn't match what we expected (%d)", len(buf.Ints), len(tc.samples))
+		}
+		for i := 0; i < len(buf.Ints); i++ {
+			if buf.Ints[i] != tc.samples[i] {
+				t.Fatalf("Expected %d at position %d, but got %d", tc.samples[i], i, buf.Ints[i])
+			}
 		}
 	}
 }
