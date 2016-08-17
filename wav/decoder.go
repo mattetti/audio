@@ -301,7 +301,7 @@ func sampleDecodeFunc(bitsPerSample int) (func([]byte) int, error) {
 	case 16:
 		// -32,768	(0x7FFF) to	32,767	(0x8000)
 		return func(s []byte) int {
-			return int(s[0]) + int(s[1])<<8
+			return int(int16(binary.LittleEndian.Uint16(s)))
 		}, nil
 	case 24:
 		// -34,359,738,367 (0x7FFFFF) to 34,359,738,368	(0x800000)
