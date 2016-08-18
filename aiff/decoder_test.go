@@ -184,7 +184,7 @@ func TestDecoder_FullPCMBuffer(t *testing.T) {
 		if len(buf.Ints) != tc.numSamples {
 			t.Fatalf("the length of the buffer (%d) didn't match what we expected (%d)", len(buf.Ints), tc.numSamples)
 		}
-		for i := 0; i < len(buf.Ints); i++ {
+		for i := 0; i < len(tc.samples); i++ {
 			if buf.Ints[i] != tc.samples[i] {
 				t.Fatalf("Expected %d at position %d, but got %d", tc.samples[i], i, buf.Ints[i])
 			}

@@ -38,6 +38,16 @@ func (ch *Chunk) drain() error {
 	return nil
 }
 
+// Read implements the reader interface
+func (ch *Chunk) Read(p []byte) (n int, err error) {
+	if ch == nil || ch.R == nil {
+		return 0, errors.New("nil chunk/reader pointer")
+	}
+	n, err = ch.R.Read(p)
+	ch.Pos += n
+	return n, err
+}
+
 // ReadLE reads the Little Endian chunk data into the passed struct
 func (ch *Chunk) ReadLE(dst interface{}) error {
 	if ch == nil || ch.R == nil {
@@ -75,4 +85,15 @@ func (ch *Chunk) IsFullyRead() bool {
 		return true
 	}
 	return ch.Size <= ch.Pos
+}
+
+// Jump jumps ahead in the chunk
+func (ch *Chunk) Jump(bytesAhead int) error {
+	var err error
+	var n int64
+	if bytesAhead > 0 {
+		n, err = io.CopyN(ioutil.Discard, ch.R, int64(bytesAhead))
+		ch.Pos += int(n)
+	}
+	return err
 }

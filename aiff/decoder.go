@@ -33,7 +33,8 @@ type Decoder struct {
 	BitDepth        uint16
 	SampleRate      int
 	//
-	PCMSize uint32
+	PCMSize  uint32
+	PCMChunk *Chunk
 
 	// AIFC data
 	Encoding     [4]byte
@@ -117,20 +118,17 @@ func (d *Decoder) FwdToPCM() error {
 
 	// read the file information to setup the audio clip
 	// find the beginning of the SSND chunk and set the clip reader to it.
-	var (
-		id          [4]byte
-		size        uint32
-		rewindBytes int64
-	)
-	for d.err != io.EOF {
-		id, size, d.err = d.iDnSize()
+	var rewindBytes int64
+
+	var chunk *Chunk
+	for d.err == nil {
+		chunk, d.err = d.NextChunk()
 		if d.err != nil {
-			d.err = fmt.Errorf("error reading chunk header - %v", d.err)
-			break
+			return d.err
 		}
-		switch id {
+		switch chunk.ID {
 		case COMMID:
-			if err := d.parseCommChunk(size); err != nil {
+			if err := d.parseCommChunk(uint32(chunk.Size)); err != nil {
 				return err
 			}
 			// if we found the sound data before the COMM,
@@ -148,45 +146,34 @@ func (d *Decoder) FwdToPCM() error {
 			//  16     (n)bytes  Comment
 			//  16+(n) (s)bytes  <Sample data>
 
-			// TODO: should we consider fast forward and miss the PCM data?
-			// Keeping that off for now.
-			//
-			// if we didn't read the COMM, we are going to need to come back
-			// if d.SampleRate == 0 {
-			// 	rewindBytes += int64(size)
-			// 	if d.err = d.jumpTo(int(size)); d.err != nil {
-			// 		return d.err
-			// 	}
-			// }
-
 			var offset uint32
-			if d.err = binary.Read(d.r, binary.BigEndian, &offset); d.err != nil {
+			if d.err = chunk.ReadBE(&offset); d.err != nil {
 				d.err = fmt.Errorf("PCM offset failed to parse - %s", d.err)
 				return d.err
 			}
 
-			if d.err = binary.Read(d.r, binary.BigEndian, &d.PCMSize); d.err != nil {
+			if d.err = chunk.ReadBE(&d.PCMSize); d.err != nil {
 				d.err = fmt.Errorf("PCMSize failed to parse - %s", d.err)
 				return d.err
 			}
 			if offset > 0 {
+				d.PCMSize -= offset
 				// skip pcm comment
-				if _, err := d.r.Seek(int64(offset), 1); err != nil {
+				buf := make([]byte, offset)
+				if err := chunk.ReadBE(&buf); err != nil {
 					return err
 				}
 			}
-
+			d.PCMChunk = chunk
 			d.pcmDataAccessed = true
 			return nil
 
 		default:
 			// if we read SSN but didn't read the COMM, we need to track location
 			if d.SampleRate == 0 {
-				rewindBytes += int64(size)
+				rewindBytes += int64(chunk.Size)
 			}
-			if d.err = d.jumpTo(int(size)); d.err != nil {
-				return d.err
-			}
+			chunk.Done()
 		}
 	}
 	return nil
@@ -237,11 +224,11 @@ func (d *Decoder) FullPCMBuffer() (*audio.PCMBuffer, error) {
 
 	i := 0
 	for err == nil {
-		buf.Ints[i], err = decodeF(d.r)
-		i++
+		buf.Ints[i], err = decodeF(d.PCMChunk)
 		if err != nil {
 			break
 		}
+		i++
 		// grow the underlying slice if needed
 		if i == len(buf.Ints) {
 			buf.Ints = append(buf.Ints, make([]int, 4096)...)
