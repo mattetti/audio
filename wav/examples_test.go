@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/mattetti/audio"
 	"github.com/mattetti/audio/wav"
 )
 
@@ -31,12 +32,7 @@ func ExampleEncoder_Write() {
 	// Decode the original audio file
 	// and collect audio content and information.
 	d := wav.NewDecoder(f)
-	pcm := d.PCM()
-	numChannels, bitDepth, sampleRate, err := pcm.Info()
-	if err != nil {
-		panic(err)
-	}
-	frames, err := d.FramesInt()
+	buf, err := d.FullPCMBuffer()
 	if err != nil {
 		panic(err)
 	}
@@ -51,11 +47,11 @@ func ExampleEncoder_Write() {
 
 	// setup the encoder and write all the frames
 	e := wav.NewEncoder(out,
-		int(sampleRate),
-		bitDepth,
-		numChannels,
+		buf.Format.SampleRate,
+		buf.Format.BitDepth,
+		buf.Format.NumChannels,
 		int(d.WavAudioFormat))
-	if err := e.Write(frames); err != nil {
+	if err := e.Write(audio.FramesInt(buf.Ints)); err != nil {
 		panic(err)
 	}
 	// close the encoder to make sure the headers are properly

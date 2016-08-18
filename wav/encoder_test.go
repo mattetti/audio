@@ -4,6 +4,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/mattetti/audio"
 	"github.com/mattetti/audio/wav"
 )
 
@@ -26,18 +27,23 @@ func TestEncoderRoundTrip(t *testing.T) {
 			t.Fatalf("couldn't open %s %v", tc.in, err)
 		}
 		d := wav.NewDecoder(in)
-		pcm := d.PCM()
-		numChannels, bitDepth, sampleRate, err := pcm.Info()
+		buf, err := d.FullPCMBuffer()
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("couldn't read buffer %s %v", tc.in, err)
 		}
-		totalFrames := pcm.Size()
-		frames, err := d.FramesInt()
-		if err != nil {
-			t.Fatal(err)
-		}
+
+		// pcm := d.PCM()
+		// numChannels, bitDepth, sampleRate, err := pcm.Info()
+		// if err != nil {
+		// 	t.Fatal(err)
+		// }
+		// totalFrames := pcm.Size()
+		// frames, err := d.FramesInt()
+		// if err != nil {
+		// 	t.Fatal(err)
+		// }
 		in.Close()
-		t.Logf("%s - total frames %d - total samples %d", tc.in, totalFrames, len(frames))
+		// t.Logf("%s - total frames %d - total samples %d", tc.in, totalFrames, len(frames))
 
 		out, err := os.Create(tc.out)
 		if err != nil {
@@ -45,11 +51,11 @@ func TestEncoderRoundTrip(t *testing.T) {
 		}
 
 		e := wav.NewEncoder(out,
-			int(sampleRate),
-			bitDepth,
-			numChannels,
+			buf.Format.SampleRate,
+			buf.Format.BitDepth,
+			buf.Format.NumChannels,
 			int(d.WavAudioFormat))
-		if err := e.Write(frames); err != nil {
+		if err := e.Write(audio.FramesInt(buf.Ints)); err != nil {
 			t.Fatal(err)
 		}
 		if err := e.Close(); err != nil {
@@ -63,16 +69,16 @@ func TestEncoderRoundTrip(t *testing.T) {
 		}
 
 		nd := wav.NewDecoder(nf)
-		nPCM := nd.PCM()
-		if nPCM == nil {
-			t.Fatalf("couldn't extract the PCM from %s - %v", nf.Name(), d.Err())
-		}
-		nNumChannels, nBitDepth, nSampleRate, err := nPCM.Info()
-		nTotalFrames := nPCM.Size()
-		nframes, err := nd.FramesInt()
+		nBuf, err := nd.FullPCMBuffer()
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("couldn't extract the PCM from %s - %v", nf.Name(), err)
 		}
+		// nNumChannels, nBitDepth, nSampleRate, err := nPCM.Info()
+		// nTotalFrames := nPCM.Size()
+		// nframes, err := nd.FramesInt()
+		// if err != nil {
+		// 	t.Fatal(err)
+		// }
 
 		nf.Close()
 		if err != nil {
@@ -84,24 +90,21 @@ func TestEncoderRoundTrip(t *testing.T) {
 			}
 		}()
 
-		if nSampleRate != sampleRate {
-			t.Fatalf("sample rate didn't support roundtripping exp: %d, got: %d", sampleRate, nSampleRate)
+		if nBuf.Format.SampleRate != buf.Format.SampleRate {
+			t.Fatalf("sample rate didn't support roundtripping exp: %d, got: %d", buf.Format.SampleRate, nBuf.Format.SampleRate)
 		}
-		if nBitDepth != bitDepth {
-			t.Fatalf("sample size didn't support roundtripping exp: %d, got: %d", bitDepth, nBitDepth)
+		if nBuf.Format.BitDepth != buf.Format.BitDepth {
+			t.Fatalf("sample size didn't support roundtripping exp: %d, got: %d", buf.Format.BitDepth, nBuf.Format.BitDepth)
 		}
-		if nNumChannels != numChannels {
-			t.Fatalf("the number of channels didn't support roundtripping exp: %d, got: %d", numChannels, nNumChannels)
+		if nBuf.Format.NumChannels != buf.Format.NumChannels {
+			t.Fatalf("the number of channels didn't support roundtripping exp: %d, got: %d", buf.Format.NumChannels, nBuf.Format.NumChannels)
 		}
-		if totalFrames != nTotalFrames {
-			t.Fatalf("the reported number of frames didn't support roundtripping, exp: %d, got: %d", totalFrames, nTotalFrames)
+		if len(nBuf.Ints) != len(buf.Ints) {
+			t.Fatalf("the reported number of frames didn't support roundtripping, exp: %d, got: %d", len(buf.Ints), len(nBuf.Ints))
 		}
-		if len(frames) != len(nframes) {
-			t.Fatalf("the number of frames didn't support roundtripping, exp: %d, got: %d", len(frames), len(nframes))
-		}
-		for i := 0; i < len(frames); i++ {
-			if frames[i] != nframes[i] {
-				t.Fatalf("frame value at position %d: %d didn't match nframes position %d: %d", i, frames[i], i, nframes[i])
+		for i := 0; i < len(buf.Ints); i++ {
+			if buf.Ints[i] != nBuf.Ints[i] {
+				t.Fatalf("frame value at position %d: %d didn't match new buffer position %d: %d", i, buf.Ints, i, nBuf.Ints)
 			}
 		}
 

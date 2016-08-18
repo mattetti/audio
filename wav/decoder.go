@@ -28,9 +28,6 @@ type Decoder struct {
 	pcmDataAccessed bool
 	// pcmChunk is available so we can use the LimitReader
 	PCMChunk *riff.Chunk
-
-	// DEPRECATED
-	pcmClip *PCM
 }
 
 // NewDecoder creates a decoder for the passed wav reader.
@@ -77,8 +74,6 @@ func (d *Decoder) Reset() {
 	d.r.Seek(0, 0)
 	d.PCMChunk = nil
 	d.parser = riff.New(d.r)
-	// DEPRECATED
-	d.pcmClip = nil
 }
 
 // FwdToPCM forwards the underlying reader until the start of the PCM chunk.

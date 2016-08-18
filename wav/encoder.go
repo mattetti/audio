@@ -149,6 +149,8 @@ func (e *Encoder) writeHeader() error {
 	return nil
 }
 
+// TODO: switch to accepting a PCMBuffer
+
 func (e *Encoder) Write(frames audio.FramesInt) error {
 	if err := e.writeHeader(); err != nil {
 		return err
