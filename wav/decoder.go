@@ -26,7 +26,10 @@ type Decoder struct {
 	err             error
 	PCMSize         int
 	pcmDataAccessed bool
+	// pcmChunk is available so we can use the LimitReader
+	PCMChunk *riff.Chunk
 
+	// DEPRECATED
 	pcmClip *PCM
 }
 
@@ -64,7 +67,6 @@ func (d *Decoder) ReadInfo() {
 // Reset resets the decoder (and rewind the underlying reader)
 func (d *Decoder) Reset() {
 	d.err = nil
-	d.pcmClip = nil
 	d.pcmDataAccessed = false
 	d.NumChans = 0
 	d.BitDepth = 0
@@ -73,7 +75,10 @@ func (d *Decoder) Reset() {
 	d.WavAudioFormat = 0
 	d.PCMSize = 0
 	d.r.Seek(0, 0)
+	d.PCMChunk = nil
 	d.parser = riff.New(d.r)
+	// DEPRECATED
+	d.pcmClip = nil
 }
 
 // FwdToPCM forwards the underlying reader until the start of the PCM chunk.
@@ -89,12 +94,13 @@ func (d *Decoder) FwdToPCM() error {
 
 	var chunk *riff.Chunk
 	for d.err == nil {
-		chunk, d.err = d.parser.NextChunk()
+		chunk, d.err = d.NextChunk()
 		if d.err != nil {
 			return d.err
 		}
 		if chunk.ID == riff.DataFormatID {
 			d.PCMSize = chunk.Size
+			d.PCMChunk = chunk
 			break
 		}
 		chunk.Drain()
@@ -117,6 +123,9 @@ func (d *Decoder) FullPCMBuffer() (*audio.PCMBuffer, error) {
 			return nil, d.err
 		}
 	}
+	if d.PCMChunk == nil {
+		return nil, errors.New("PCM chunk not found")
+	}
 	format := &audio.Format{
 		NumChannels: int(d.NumChans),
 		SampleRate:  int(d.SampleRate),
@@ -132,10 +141,9 @@ func (d *Decoder) FullPCMBuffer() (*audio.PCMBuffer, error) {
 		return nil, fmt.Errorf("could not get sample decode func %v", err)
 	}
 
-	totalSamples := (d.PCMSize / int(bytesPerSample))
 	i := 0
-	for i < totalSamples && err == nil {
-		_, err = d.r.Read(sampleBufData)
+	for err == nil {
+		_, err = d.PCMChunk.Read(sampleBufData)
 		if err != nil {
 			break
 		}
@@ -186,7 +194,7 @@ func (d *Decoder) PCMBuffer(buf *audio.PCMBuffer) error {
 	// Note that we populate the buffer even if the
 	// size of the buffer doesn't fit an even number of frames.
 	for i := 0; i < len(buf.Ints); i++ {
-		_, err = d.r.Read(sampleBufData)
+		_, err = d.PCMChunk.Read(sampleBufData)
 		if err != nil {
 			break
 		}
