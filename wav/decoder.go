@@ -24,8 +24,10 @@ type Decoder struct {
 	WavAudioFormat uint16
 
 	err             error
-	pcmClip         *PCM
+	PCMSize         int
 	pcmDataAccessed bool
+
+	pcmClip *PCM
 }
 
 // NewDecoder creates a decoder for the passed wav reader.
@@ -69,6 +71,7 @@ func (d *Decoder) Reset() {
 	d.SampleRate = 0
 	d.AvgBytesPerSec = 0
 	d.WavAudioFormat = 0
+	d.PCMSize = 0
 	d.r.Seek(0, 0)
 	d.parser = riff.New(d.r)
 }
@@ -88,9 +91,10 @@ func (d *Decoder) FwdToPCM() error {
 	for d.err == nil {
 		chunk, d.err = d.parser.NextChunk()
 		if d.err != nil {
-			break
+			return d.err
 		}
 		if chunk.ID == riff.DataFormatID {
+			d.PCMSize = chunk.Size
 			break
 		}
 		chunk.Drain()
@@ -128,8 +132,9 @@ func (d *Decoder) FullPCMBuffer() (*audio.PCMBuffer, error) {
 		return nil, fmt.Errorf("could not get sample decode func %v", err)
 	}
 
+	totalSamples := (d.PCMSize / int(bytesPerSample))
 	i := 0
-	for err == nil {
+	for i < totalSamples && err == nil {
 		_, err = d.r.Read(sampleBufData)
 		if err != nil {
 			break
