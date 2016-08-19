@@ -178,10 +178,55 @@ func (b *PCMBuffer) AsInts() (out []int) {
 	return out
 }
 
-func (b *PCMBuffer) AsFloat32s() []float32 {
-	panic("not implemented")
+func (b *PCMBuffer) AsFloat32s() (out []float32) {
+	if b == nil {
+		return nil
+	}
+	switch b.DataType {
+	case Integer:
+		out = make([]float32, len(b.Ints))
+		for i := 0; i < len(b.Ints); i++ {
+			out[i] = float32(b.Ints[i])
+		}
+	case Float:
+		out = make([]float32, len(b.Floats))
+		for i := 0; i < len(b.Floats); i++ {
+			out[i] = float32(b.Floats[i])
+		}
+	case Byte:
+		// if the format isn't defined, we can't read the byte data
+		if b.Format == nil || b.Format.Endianness == nil || b.Format.BitDepth == 0 {
+			return out
+		}
+		bytesPerSample := int((b.Format.BitDepth-1)/8 + 1)
+		buf := bytes.NewBuffer(b.Bytes)
+		out := make([]int, len(b.Bytes)/bytesPerSample)
+		binary.Read(buf, b.Format.Endianness, &out)
+	}
+	return out
 }
 
-func (b *PCMBuffer) AsFloat64s() []float64 {
-	panic("not implemented")
+func (b *PCMBuffer) AsFloat64s() (out []float64) {
+	if b == nil {
+		return nil
+	}
+	switch b.DataType {
+	case Integer:
+		out = make([]float64, len(b.Ints))
+		for i := 0; i < len(b.Ints); i++ {
+			out[i] = float64(b.Ints[i])
+		}
+	case Float:
+		return b.Floats
+	case Byte:
+		// if the format isn't defined, we can't read the byte data
+		if b.Format == nil || b.Format.Endianness == nil || b.Format.BitDepth == 0 {
+			return out
+		}
+		bytesPerSample := int((b.Format.BitDepth-1)/8 + 1)
+		buf := bytes.NewBuffer(b.Bytes)
+		out := make([]int, len(b.Bytes)/bytesPerSample)
+		binary.Read(buf, b.Format.Endianness, &out)
+	}
+	return out
 }
