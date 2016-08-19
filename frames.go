@@ -2,10 +2,6 @@ package audio
 
 import "math"
 
-var (
-	rmsWindowSize = 400.0
-)
-
 // Frames are a representation of audio frames across multiple channels
 // [] <- channels []int <- frame int values.
 type Frames [][]int

@@ -3,11 +3,13 @@ package audio
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
+	"math"
 )
 
-// TODO(mattetti): define a transform interface
-// so we can easily implement RMS, channel reduction
-// or other straightforward DSP operations.
+var (
+	rmsWindowSize = 400.0
+)
 
 // DataFormat is an enum type to indicate the underlying data format used.
 type DataFormat int
@@ -229,4 +231,54 @@ func (b *PCMBuffer) AsFloat64s() (out []float64) {
 		binary.Read(buf, b.Format.Endianness, &out)
 	}
 	return out
+}
+
+// MonoRMS converts the buffer to mono and apply an RMS treatment.
+// rms = sqrt ( (1/n) * (x12 + x22 + … + xn2) )
+// multiplying by 1/n effectively assigns equal weights to all the terms, making it a rectangular window.
+// Other window equations can be used instead which would favor terms in the middle of the window.
+// This results in even greater accuracy of the RMS value since brand new samples (or old ones at
+// the end of the window) have less influence over the signal’s power.)
+func (b *PCMBuffer) MonoRMS() {
+	if b == nil || b.Len() == 0 {
+		return
+	}
+	out := []float64{}
+	winBuf := make([]float64, int(rmsWindowSize))
+
+	processWindow := func(idx int) {
+		total := 0.0
+		for i := 0; i < len(winBuf); i++ {
+			total += winBuf[idx]
+		}
+		out = append(out, math.Sqrt((1.0/rmsWindowSize)*total))
+	}
+
+	nbrChans := b.Format.NumChannels
+	samples := b.AsFloat64s()
+
+	fmt.Println(len(samples), nbrChans)
+	var windowIDX int
+	// process each frame, convert it to mono and them RMS it
+	for i := 0; i < len(samples); i++ {
+		v := samples[i]
+		if nbrChans > 1 {
+			for j := 1; j < nbrChans; j++ {
+				i++
+				v += samples[i]
+			}
+			v /= float64(nbrChans)
+		}
+		winBuf[windowIDX] = v
+		windowIDX++
+		if windowIDX == 400 { //|| i == (len(samples)-nbrChans) {
+			windowIDX = 0
+			processWindow(windowIDX)
+		}
+	}
+
+	fmt.Println(len(out))
+	b.Format.NumChannels = 1
+	b.DataType = Float
+	b.Floats = out
 }
