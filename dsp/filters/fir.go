@@ -13,6 +13,10 @@ func (f *FIR) LowPass(input []float64) ([]float64, error) {
 	return f.Convolve(input, f.Sinc.LowPassCoefs())
 }
 
+func (f *FIR) HighPass(input []float64) ([]float64, error) {
+	return f.Convolve(input, f.Sinc.HighPassCoefs())
+}
+
 // Convolve "mixes" two signals together
 func (f *FIR) Convolve(input, kernels []float64) ([]float64, error) {
 	if f == nil {
