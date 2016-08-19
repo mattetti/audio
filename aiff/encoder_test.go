@@ -43,7 +43,7 @@ func TestEncoderRoundTrip(t *testing.T) {
 			t.Fatalf("couldn't open %s %v", tc.in, err)
 		}
 		d := aiff.NewDecoder(in)
-		frames, err := d.Frames()
+		buf, err := d.FullPCMBuffer()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -55,8 +55,7 @@ func TestEncoderRoundTrip(t *testing.T) {
 		}
 
 		e := aiff.NewEncoder(out, int(d.SampleRate), int(d.BitDepth), int(d.NumChans))
-		e.Frames = frames
-		if err := e.Write(); err != nil {
+		if err := e.Write(buf.AsInts()); err != nil {
 			t.Fatal(err)
 		}
 
@@ -66,7 +65,6 @@ func TestEncoderRoundTrip(t *testing.T) {
 		}
 
 		d2 := aiff.NewDecoder(nf)
-		d2.PCM()
 		// TODO(mattetti): using d2.Duration() messes the later Frames() call
 		info, err := nf.Stat()
 		if err != nil {
@@ -79,7 +77,7 @@ func TestEncoderRoundTrip(t *testing.T) {
 		if expectedHeaderSize != int64(d2.Size) {
 			t.Fatalf("wrong header size data, expected %d, got %d", expectedHeaderSize, d2.Size)
 		}
-		nframes, err := d2.Frames()
+		d2buf, err := d2.FullPCMBuffer()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -93,14 +91,14 @@ func TestEncoderRoundTrip(t *testing.T) {
 			t.Fatalf("the number of channels didn't support roundtripping exp: %d, got: %d", d.NumChans, d2.NumChans)
 		}
 
-		if len(frames) != len(nframes) {
-			t.Fatalf("the number of frames didn't support roundtripping, exp: %d, got: %d", len(frames), len(nframes))
+		if buf.Size() != d2buf.Size() {
+			t.Fatalf("the number of frames didn't support roundtripping, exp: %d, got: %d", buf.Size(), d2buf.Size())
 		}
-		for i := range frames {
-			for j := 0; j < e.NumChans; j++ {
-				if frames[i][j] != nframes[i][j] {
-					t.Fatalf("frames[%d][%d]: %d didn't match nframes[%d][%d]: %d", i, j, frames[i][j], i, j, nframes[i][j])
-				}
+		originalSamples := buf.AsInts()
+		newSamples := d2buf.AsInts()
+		for i := 0; i < len(originalSamples); i++ {
+			if originalSamples[i] != newSamples[i] {
+				t.Fatalf("%d didn't match, expected %d, got %d", i, originalSamples[i], newSamples[i])
 			}
 		}
 

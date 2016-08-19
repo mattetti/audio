@@ -36,29 +36,25 @@ func TestContainerAttributes(t *testing.T) {
 		}
 		defer f.Close()
 		d := NewDecoder(f)
-		clip := d.PCM()
-		if d.Err() != nil {
-			t.Fatal(d.Err())
-		}
-
-		numChannels, bitDepth, sampleRate, err := clip.Info()
+		buf, err := d.FullPCMBuffer()
 		if err != nil {
 			t.Fatal(err)
 		}
-		if bitDepth != int(exp.sampleSize) {
-			t.Fatalf("%s of %s didn't match %d, got %d", "Clip bit depth", exp.input, exp.sampleSize, bitDepth)
+
+		if int(d.BitDepth) != int(exp.sampleSize) {
+			t.Fatalf("%s of %s didn't match %d, got %d", "Clip bit depth", exp.input, exp.sampleSize, d.BitDepth)
 		}
 
-		if sampleRate != int64(exp.sampleRate) {
-			t.Fatalf("%s of %s didn't match %d, got %d", "Clip sample rate", exp.input, exp.sampleRate, sampleRate)
+		if int(d.SampleRate) != exp.sampleRate {
+			t.Fatalf("%s of %s didn't match %d, got %d", "Clip sample rate", exp.input, exp.sampleRate, d.SampleRate)
 		}
 
-		if numChannels != int(exp.numChans) {
-			t.Fatalf("%s of %s didn't match %d, got %d", "Clip sample channels", exp.input, exp.numChans, numChannels)
+		if int(d.NumChans) != int(exp.numChans) {
+			t.Fatalf("%s of %s didn't match %d, got %d", "Clip sample channels", exp.input, exp.numChans, d.NumChans)
 		}
 
-		if clip.Size() != exp.totalFrames {
-			t.Fatalf("%s of %s didn't match %d, got %d", "Clip sample data size", exp.input, exp.totalFrames, clip.Size())
+		if buf.Size() != int(exp.totalFrames) {
+			t.Fatalf("%s of %s didn't match %d, got %d", "Clip sample data size", exp.input, exp.totalFrames, buf.Size())
 		}
 
 		if d.ID != exp.id {
@@ -85,44 +81,6 @@ func TestContainerAttributes(t *testing.T) {
 		}
 		if d.SampleRate != exp.sampleRate {
 			t.Fatalf("%s of %s didn't match %d, got %d", "SampleRate", exp.input, exp.sampleRate, d.SampleRate)
-		}
-	}
-}
-
-func Test_Frames(t *testing.T) {
-	testCases := []struct {
-		input string
-	}{
-		// 22050, 8bit, mono
-		{"fixtures/kick8b.aiff"},
-		// 22050, 16bit, mono
-		{"fixtures/kick.aif"},
-		// 22050, 16bit, mono
-		{"fixtures/kick32b.aiff"},
-		// 44100, 16bit, mono
-		{"fixtures/subsynth.aif"},
-		// 44100, 16bit, stereo
-		{"fixtures/bloop.aif"},
-		// 48000, 16bit, stereo
-		{"fixtures/zipper.aiff"},
-		// 48000, 24bit, stereo
-		{"fixtures/zipper24b.aiff"},
-	}
-
-	for i, tc := range testCases {
-		t.Logf("test case %d\n", i)
-		in, err := os.Open(tc.input)
-		if err != nil {
-			t.Fatalf("couldn't open %s %v", tc.input, err)
-		}
-		d := NewDecoder(in)
-		clip := d.PCM()
-		frames, err := d.Frames()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if int(clip.Size()) != len(frames) {
-			t.Fatalf("expected %d frames, got %d", clip.Size(), len(frames))
 		}
 	}
 }

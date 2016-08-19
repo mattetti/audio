@@ -42,9 +42,6 @@ type Decoder struct {
 
 	err             error
 	pcmDataAccessed bool
-
-	// DEPRECATED
-	pcmClip *PCM
 }
 
 // NewDecoder creates a new reader reading the given reader and pushing audio data to the given channel.
@@ -194,9 +191,6 @@ func (d *Decoder) Reset() {
 	d.err = nil
 	d.pcmDataAccessed = false
 	d.r.Seek(0, 0)
-
-	// DEPRECATED
-	d.pcmClip = nil
 }
 
 // FullPCMBuffer is an inneficient way to access all the PCM data contained in the
