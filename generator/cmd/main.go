@@ -32,13 +32,9 @@ func main() {
 	// our osc generates values from -1 to 1, we need to go back to PCM scale
 	factor := float64(audio.IntMaxSignedValue(biteDepth))
 	osc.Amplitude = factor
-	// xs of sound
-	data := osc.Signal(fs * *durationFlag)
-	// build the audio frames
-	frames := make(audio.FramesInt, len(data))
-	for i := 0; i < len(frames); i++ {
-		frames[i] = int(data[i])
-	}
+	data := make([]float64, fs**durationFlag)
+	buf := audio.NewPCMFloatBuffer(data, audio.FormatMono4410016bBE)
+	osc.Fill(buf)
 
 	// generate the sound file
 	var outName string
@@ -57,35 +53,21 @@ func main() {
 		panic(err)
 	}
 	defer o.Close()
-	if err := encode(format, frames, fs, biteDepth, o); err != nil {
+	if err := encode(format, buf, o); err != nil {
 		panic(err)
 	}
 	fmt.Println(outName, "generated")
 }
 
-func encode(format string, frames []int, fs int, bitDepth int, w io.WriteSeeker) error {
+func encode(format string, buf *audio.PCMBuffer, w io.WriteSeeker) error {
 	// switch format {
 	// case "wav":
-	e := wav.NewEncoder(w, fs, bitDepth, 1, 1)
+	e := wav.NewEncoder(w, buf.Format.SampleRate, buf.Format.BitDepth, buf.Format.NumChannels, 1)
 	// }
 	// e := aiff.NewEncoder(w, fs, bitDepth, 1)
-	if err := e.Write(frames); err != nil {
+	samples := buf.AsInts()
+	if err := e.Write(samples); err != nil {
 		return err
 	}
 	return e.Close()
-}
-
-func intMaxSignedValue(b int) int {
-	switch b {
-	case 8:
-		return 255 / 2
-	case 16:
-		return 65535 / 2
-	case 24:
-		return 16777215 / 2
-	case 32:
-		return 4294967295 / 2
-	default:
-		return 0
-	}
 }
