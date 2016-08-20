@@ -18,11 +18,9 @@ func LowPass(buf *audio.PCMBuffer, cutOff float64) (err error) {
 	}
 	fir := &filters.FIR{Sinc: s}
 	buf.Floats, err = fir.LowPass(buf.AsFloat64s())
-	if buf.DataType != audio.Float {
-		buf.DataType = audio.Float
-		buf.Ints = nil
-		buf.Bytes = nil
-	}
+	buf.DataType = audio.Float
+	buf.Ints = nil
+	buf.Bytes = nil
 	return err
 }
 
