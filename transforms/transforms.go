@@ -71,6 +71,7 @@ func MonoRMS(b *audio.PCMBuffer, windowSize int) error {
 
 	b.Format.NumChannels = 1
 	b.Format.SampleRate /= windowSize
-	b.DataType = Float
+	b.DataType = audio.Float
 	b.Floats = out
+	return nil
 }
