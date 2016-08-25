@@ -27,7 +27,9 @@ func TestDecoder_Duration(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		f.Close()
+		if err := f.Close(); err != nil {
+			t.Fatal(err)
+		}
 		if dur != tc.duration {
 			t.Fatalf("expected duration to be: %s but was %s", tc.duration, dur)
 		}

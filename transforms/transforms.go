@@ -30,6 +30,7 @@ func FullWaveRectifier(buf *audio.PCMBuffer) error {
 // Other window equations can be used instead which would favor terms in the middle of the window.
 // This results in even greater accuracy of the RMS value since brand new samples (or old ones at
 // the end of the window) have less influence over the signal’s power.)
+// TODO: use a sine wave at amplitude of 1: rectication + average = 1.4 (1/square root of 2)
 func MonoRMS(b *audio.PCMBuffer, windowSize int) error {
 	if b == nil || b.Len() == 0 {
 		return nil

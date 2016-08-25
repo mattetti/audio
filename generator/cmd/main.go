@@ -23,6 +23,7 @@ var (
 
 func main() {
 	flag.Parse()
+	var err error
 
 	freq := *freqFlag
 	fs := 44100
