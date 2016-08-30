@@ -4,7 +4,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/mattetti/audio"
 	"github.com/mattetti/audio/wav"
 )
 
@@ -55,7 +54,7 @@ func TestEncoderRoundTrip(t *testing.T) {
 			buf.Format.BitDepth,
 			buf.Format.NumChannels,
 			int(d.WavAudioFormat))
-		if err := e.Write(audio.FramesInt(buf.Ints)); err != nil {
+		if err := e.Write(buf.AsInts()); err != nil {
 			t.Fatal(err)
 		}
 		if err := e.Close(); err != nil {

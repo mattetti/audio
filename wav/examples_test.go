@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 
-	"github.com/mattetti/audio"
 	"github.com/mattetti/audio/wav"
 )
 
@@ -51,7 +50,7 @@ func ExampleEncoder_Write() {
 		buf.Format.BitDepth,
 		buf.Format.NumChannels,
 		int(d.WavAudioFormat))
-	if err := e.Write(audio.FramesInt(buf.Ints)); err != nil {
+	if err := e.Write(buf.Ints); err != nil {
 		panic(err)
 	}
 	// close the encoder to make sure the headers are properly

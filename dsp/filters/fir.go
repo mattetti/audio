@@ -18,6 +18,8 @@ func (f *FIR) HighPass(input []float64) ([]float64, error) {
 }
 
 // Convolve "mixes" two signals together
+// kernels is the imput that is not part of our signal, it might be shorter
+// than the origin signal.
 func (f *FIR) Convolve(input, kernels []float64) ([]float64, error) {
 	if f == nil {
 		return nil, nil
@@ -27,7 +29,6 @@ func (f *FIR) Convolve(input, kernels []float64) ([]float64, error) {
 	}
 
 	output := make([]float64, len(input))
-
 	for i := 0; i < len(kernels); i++ {
 		var sum float64
 

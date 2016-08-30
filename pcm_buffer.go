@@ -230,3 +230,23 @@ func (b *PCMBuffer) AsFloat64s() (out []float64) {
 	}
 	return out
 }
+
+// SwitchPrimaryType is a convenience method to switch the primary data type.
+// Use this if you process/swap a different type than the original type.
+func (b *PCMBuffer) SwitchPrimaryType(t DataFormat) {
+	if b == nil || t == b.DataType {
+		return
+	}
+	b.DataType = t
+	switch t {
+	case Integer:
+		b.Floats = nil
+		b.Bytes = nil
+	case Float:
+		b.Ints = nil
+		b.Bytes = nil
+	case Byte:
+		b.Floats = nil
+		b.Ints = nil
+	}
+}

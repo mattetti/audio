@@ -9,7 +9,11 @@ import (
 // DFT is the Discrete Fourier Transform representation of a signal
 // https://en.wikipedia.org/wiki/Discrete_Fourier_transform
 type DFT struct {
-	Bins       []complex128
+	// in audio, we only get real numbers
+	// Coefs are the amount of signal energy at those frequency,
+	// the amplitude is relative but can be compared as absolute values
+	// between buffers.
+	Coefs      []complex128
 	SampleRate int
 
 	_binWidth int
@@ -19,13 +23,13 @@ type DFT struct {
 func NewDFT(sr int, x []float64) *DFT {
 	return &DFT{
 		SampleRate: sr,
-		Bins:       fft.FFTReal(x),
+		Coefs:      fft.FFTReal(x),
 	}
 }
 
 // IFFT runs an inverse fast fourrier transform and returns the float values
 func (d *DFT) IFFT() []float64 {
-	sndDataCmplx := fft.IFFT(d.Bins)
+	sndDataCmplx := fft.IFFT(d.Coefs)
 	sndData := make([]float64, len(sndDataCmplx))
 	for i, cpx := range sndDataCmplx {
 		sndData[i] = cmplx.Abs(cpx)
@@ -43,7 +47,7 @@ func (d *DFT) BinWidth() int {
 	if d._binWidth > 0 {
 		return d._binWidth
 	}
-	d._binWidth = (d.SampleRate / 2) / len(d.Bins)
+	d._binWidth = (d.SampleRate / 2) / len(d.Coefs)
 	return d._binWidth
 }
 
@@ -52,11 +56,11 @@ func (d *DFT) ToFreqRange() map[int]float64 {
 	if d == nil {
 		return nil
 	}
-	output := make(map[int]float64, len(d.Bins)/2)
-	for i := 0; i < len(d.Bins)/2; i++ {
-		f := (i * d.SampleRate) / (len(d.Bins))
+	output := make(map[int]float64, len(d.Coefs)/2)
+	for i := 0; i < len(d.Coefs)/2; i++ {
+		f := (i * d.SampleRate) / (len(d.Coefs))
 		// calculate the magnitude
-		output[f] = math.Log10(math.Sqrt(math.Pow(real(d.Bins[i]), 2) + math.Pow(imag(d.Bins[i]), 2)))
+		output[f] = math.Log10(math.Sqrt(math.Pow(real(d.Coefs[i]), 2) + math.Pow(imag(d.Coefs[i]), 2)))
 	}
 	return output
 }

@@ -1,49 +1,6 @@
 package audio
 
-import (
-	"io"
-	"math"
-)
-
-// FramesInt is the representation of audio frames
-// made of of a series of samples using one or more channels.
-// DEPRECATED
-type FramesInt []int
-
-// Get returns the sample contained in the given frame position.
-// DEPRECATED
-func (f FramesInt) Get(channels, n int) int {
-	panic("not implemented")
-}
-
-// DEPRECATED
-type FramesFloat64 []float64
-
-// DEPRECATED
-func (f FramesFloat64) Get(channel, n int) float64 {
-	panic("not implemented")
-}
-
-// FrameInfo represents the frame-level information.
-// DEPRECATED
-type FrameInfo struct {
-	// Channels represent the number of audio channels
-	// (e.g. 1 for mono, 2 for stereo).
-	Channels int
-	// Bit depth is the number of bits used to represent
-	// a single sample.
-	BitDepth int
-
-	// Sample rate is the number of samples to be played each second.
-	SampleRate int64
-}
-
-type Chunk struct {
-	ID   [4]byte
-	Size int
-	Pos  int
-	R    io.Reader
-}
+import "math"
 
 // AvgInt averages the int values passed
 func AvgInt(xs ...int) int {

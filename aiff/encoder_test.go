@@ -55,7 +55,7 @@ func TestEncoderRoundTrip(t *testing.T) {
 		}
 
 		e := aiff.NewEncoder(out, int(d.SampleRate), int(d.BitDepth), int(d.NumChans))
-		if err := e.Write(buf.AsInts()); err != nil {
+		if err := e.Write(); err != nil {
 			t.Fatal(err)
 		}
 
