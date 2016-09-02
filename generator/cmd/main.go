@@ -2,6 +2,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"os"
 
@@ -10,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/mattetti/audio"
+	"github.com/mattetti/audio/aiff"
 	"github.com/mattetti/audio/generator"
 	"github.com/mattetti/audio/wav"
 )
@@ -61,14 +63,20 @@ func main() {
 }
 
 func encode(format string, buf *audio.PCMBuffer, w io.WriteSeeker) error {
-	// switch format {
-	// case "wav":
-	e := wav.NewEncoder(w, buf.Format.SampleRate, buf.Format.BitDepth, buf.Format.NumChannels, 1)
-	// }
-	// e := aiff.NewEncoder(w, fs, bitDepth, 1)
-	samples := buf.AsInts()
-	if err := e.Write(samples); err != nil {
-		return err
+	switch format {
+	case "wav":
+		e := wav.NewEncoder(w, buf.Format.SampleRate, buf.Format.BitDepth, buf.Format.NumChannels, 1)
+		if err := e.Write(buf); err != nil {
+			return err
+		}
+		return e.Close()
+	case "aiff":
+		e := aiff.NewEncoder(w, buf.Format.SampleRate, buf.Format.BitDepth, buf.Format.NumChannels)
+		if err := e.Write(buf); err != nil {
+			return err
+		}
+		return e.Close()
+	default:
+		return errors.New("unknown format")
 	}
-	return e.Close()
 }
