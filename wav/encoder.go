@@ -188,6 +188,7 @@ func (e *Encoder) Close() error {
 	if err := e.AddLE(uint32(e.WrittenBytes) - 8); err != nil {
 		return fmt.Errorf("%v when writing the total written bytes", err)
 	}
+
 	// rewrite the audio chunk length header
 	if e.pcmChunkSizePos > 0 {
 		if _, err := e.w.Seek(int64(e.pcmChunkSizePos), 0); err != nil {

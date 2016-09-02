@@ -49,22 +49,31 @@ func TestEncoderRoundTrip(t *testing.T) {
 		}
 		defer in.Close()
 
+		// encode the decoded file
 		out, err := os.Create(tc.out)
 		if err != nil {
 			t.Fatalf("couldn't create %s %v", tc.out, err)
 		}
 
 		e := aiff.NewEncoder(out, int(d.SampleRate), int(d.BitDepth), int(d.NumChans))
-		if err := e.Write(); err != nil {
+		if err := e.Write(buf); err != nil {
+			t.Fatal(err)
+		}
+		if err := e.Close(); err != nil {
+			t.Fatal(err)
+		}
+		if err := out.Close(); err != nil {
 			t.Fatal(err)
 		}
 
+		// open the re-encoded file
 		nf, err := os.Open(tc.out)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		d2 := aiff.NewDecoder(nf)
+		d2.ReadInfo()
 		// TODO(mattetti): using d2.Duration() messes the later Frames() call
 		info, err := nf.Stat()
 		if err != nil {
