@@ -53,35 +53,37 @@ func (e *Encoder) AddBE(src interface{}) error {
 	return binary.Write(e.w, binary.BigEndian, src)
 }
 
-func (e *Encoder) addFrames(frames []int) error {
-	if frames == nil {
-		return fmt.Errorf("can't add a nil frames")
+func (e *Encoder) addBuffer(buf *audio.PCMBuffer) error {
+	if buf == nil {
+		return fmt.Errorf("can't add a nil buffer")
 	}
-	frameSize := e.NumChans
 
-	for i := 0; i+frameSize <= len(frames); {
-		for j := 0; j < frameSize; j++ {
+	frameCount := buf.Size()
+	buf.CacheInts()
+	for i := 0; i < frameCount; i++ {
+		// TODO(mattetti): support float encoded wav files
+		for j := 0; j < buf.Format.NumChannels; j++ {
+			v := buf.Ints[i*buf.Format.NumChannels+j]
 			switch e.BitDepth {
 			case 8:
-				if err := e.AddLE(uint8(frames[i])); err != nil {
+				if err := e.AddLE(uint8(v)); err != nil {
 					return err
 				}
 			case 16:
-				if err := e.AddLE(int16(frames[i])); err != nil {
+				if err := e.AddLE(int16(v)); err != nil {
 					return err
 				}
 			case 24:
-				if err := e.AddLE(audio.Int32toInt24LEBytes(int32(frames[i]))); err != nil {
+				if err := e.AddLE(audio.Int32toInt24LEBytes(int32(v))); err != nil {
 					return err
 				}
 			case 32:
-				if err := e.AddLE(int32(frames[i])); err != nil {
+				if err := e.AddLE(int32(v)); err != nil {
 					return err
 				}
 			default:
 				return fmt.Errorf("can't add frames of bit size %d", e.BitDepth)
 			}
-			i++
 		}
 		e.frames++
 	}
@@ -149,9 +151,9 @@ func (e *Encoder) writeHeader() error {
 	return nil
 }
 
-// TODO: switch to accepting a PCMBuffer
-
-func (e *Encoder) Write(frames []int) error {
+// Write encodes and writes the passed buffer to the underlying writer.
+// Don't forger to Close() the encoder or the file won't be valid.
+func (e *Encoder) Write(buf *audio.PCMBuffer) error {
 	if err := e.writeHeader(); err != nil {
 		return err
 	}
@@ -169,7 +171,7 @@ func (e *Encoder) Write(frames []int) error {
 		}
 	}
 
-	return e.addFrames(frames)
+	return e.addBuffer(buf)
 }
 
 // Close flushes the content to disk, make sure the headers are up to date

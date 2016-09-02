@@ -52,6 +52,8 @@ type PCMBuffer struct {
 	// The consumer of the buffer might want to look at this value to know what store
 	// to use to optimaly retrieve data.
 	DataType DataFormat
+	// framePos is the position of the last frame we read
+	framePos int64
 }
 
 // NewPCMIntBuffer returns a new PCM buffer backed by the passed integer samples
@@ -144,12 +146,52 @@ func (b *PCMBuffer) AsInt16s() (out []int16) {
 	return out
 }
 
-func (b *PCMBuffer) AsInt32s() []int32 {
-	panic("not implemented")
+// AsInt32s returns the buffer samples as int32 sample values.
+func (b *PCMBuffer) AsInt32s() (out []int32) {
+	if b == nil {
+		return nil
+	}
+	switch b.DataType {
+	case Integer, Float:
+		out = make([]int32, len(b.Ints))
+		for i := 0; i < len(b.Ints); i++ {
+			out[i] = int32(b.Ints[i])
+		}
+	case Byte:
+		// if the format isn't defined, we can't read the byte data
+		if b.Format == nil || b.Format.Endianness == nil || b.Format.BitDepth == 0 {
+			return out
+		}
+		bytesPerSample := int((b.Format.BitDepth-1)/8 + 1)
+		buf := bytes.NewBuffer(b.Bytes)
+		out := make([]int32, len(b.Bytes)/bytesPerSample)
+		binary.Read(buf, b.Format.Endianness, &out)
+	}
+	return out
 }
 
-func (b *PCMBuffer) AsInt64s() []int64 {
-	panic("not implemented")
+// AsInt64s returns the buffer samples as int64 sample values.
+func (b *PCMBuffer) AsInt64s() (out []int64) {
+	if b == nil {
+		return nil
+	}
+	switch b.DataType {
+	case Integer, Float:
+		out = make([]int64, len(b.Ints))
+		for i := 0; i < len(b.Ints); i++ {
+			out[i] = int64(b.Ints[i])
+		}
+	case Byte:
+		// if the format isn't defined, we can't read the byte data
+		if b.Format == nil || b.Format.Endianness == nil || b.Format.BitDepth == 0 {
+			return out
+		}
+		bytesPerSample := int((b.Format.BitDepth-1)/8 + 1)
+		buf := bytes.NewBuffer(b.Bytes)
+		out := make([]int64, len(b.Bytes)/bytesPerSample)
+		binary.Read(buf, b.Format.Endianness, &out)
+	}
+	return out
 }
 
 // AsInts returns the content of the buffer values as ints.
@@ -178,6 +220,7 @@ func (b *PCMBuffer) AsInts() (out []int) {
 	return out
 }
 
+// AsFloat32s returns the buffer samples as float32 sample values.
 func (b *PCMBuffer) AsFloat32s() (out []float32) {
 	if b == nil {
 		return nil
@@ -206,6 +249,7 @@ func (b *PCMBuffer) AsFloat32s() (out []float32) {
 	return out
 }
 
+// AsFloat64s returns the buffer samples as float64 sample values.
 func (b *PCMBuffer) AsFloat64s() (out []float64) {
 	if b == nil {
 		return nil
@@ -229,6 +273,28 @@ func (b *PCMBuffer) AsFloat64s() (out []float64) {
 		binary.Read(buf, b.Format.Endianness, &out)
 	}
 	return out
+}
+
+// CacheInts ensures that the underlying int store is filled up
+// so Ints() can be called knowing that the data is available.
+// Note that if the underlying data is changed, it is the caller responsibility
+// to refresh the cache.
+func (b *PCMBuffer) CacheInts() {
+	if b == nil || b.DataType == Integer {
+		return
+	}
+	b.Ints = b.AsInts()
+}
+
+// CacheFloat64s ensures that the underlying int store is filled up
+// so Floats() can be called knowing that the data is available.
+// Note that if the underlying data is changed, it is the caller responsibility
+// to refresh the cache.
+func (b *PCMBuffer) CacheFloat64s() {
+	if b == nil || b.DataType == Float {
+		return
+	}
+	b.Ints = b.AsInts()
 }
 
 // SwitchPrimaryType is a convenience method to switch the primary data type.

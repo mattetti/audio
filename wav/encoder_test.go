@@ -54,7 +54,7 @@ func TestEncoderRoundTrip(t *testing.T) {
 			buf.Format.BitDepth,
 			buf.Format.NumChannels,
 			int(d.WavAudioFormat))
-		if err := e.Write(buf.AsInts()); err != nil {
+		if err := e.Write(buf); err != nil {
 			t.Fatal(err)
 		}
 		if err := e.Close(); err != nil {
@@ -72,12 +72,6 @@ func TestEncoderRoundTrip(t *testing.T) {
 		if err != nil {
 			t.Fatalf("couldn't extract the PCM from %s - %v", nf.Name(), err)
 		}
-		// nNumChannels, nBitDepth, nSampleRate, err := nPCM.Info()
-		// nTotalFrames := nPCM.Size()
-		// nframes, err := nd.FramesInt()
-		// if err != nil {
-		// 	t.Fatal(err)
-		// }
 
 		nf.Close()
 		if err != nil {
@@ -103,7 +97,11 @@ func TestEncoderRoundTrip(t *testing.T) {
 		}
 		for i := 0; i < len(buf.Ints); i++ {
 			if buf.Ints[i] != nBuf.Ints[i] {
-				t.Fatalf("frame value at position %d: %d didn't match new buffer position %d: %d", i, buf.Ints, i, nBuf.Ints)
+				max := len(buf.Ints)
+				if i+3 < max {
+					max = i + 3
+				}
+				t.Fatalf("frame value at position %d: %d -> %d\ndidn't match new buffer position %d: %d -> %d", i, buf.Ints[:i+1], buf.Ints[i+1:max], i, nBuf.Ints[:i+1], nBuf.Ints[i+1:max])
 			}
 		}
 
