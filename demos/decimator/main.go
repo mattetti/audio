@@ -29,7 +29,7 @@ func main() {
 	if *fileFlag == "" {
 		freq := 440
 		fs := 44100
-		fmt.Printf("Target fs: %d\n", fs / *factorFlag)
+		fmt.Printf("Going from %dHz to %dHz\n", fs, fs / *factorFlag)
 
 		// generate a wave sine
 		osc := generator.NewOsc(generator.WaveSine, float64(freq), fs)
@@ -39,12 +39,10 @@ func main() {
 		if err := filters.PCMScale(buf); err != nil {
 			panic(err)
 		}
-
 		// drop the sample rate
 		if err := filters.Decimate(buf, *factorFlag); err != nil {
 			panic(err)
 		}
-
 		// encode the sound file
 		o, err := os.Create("resampled.wav")
 		if err != nil {
@@ -52,10 +50,11 @@ func main() {
 		}
 		defer o.Close()
 		e := wav.NewEncoder(o, buf.Format.SampleRate, buf.Format.BitDepth, 1, 1)
-		if err := e.Write(buf.AsInts()); err != nil {
+		if err := e.Write(buf); err != nil {
 			panic(err)
 		}
 		e.Close()
+		fmt.Println("checkout resampled.wav")
 		return
 	}
 
