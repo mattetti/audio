@@ -62,3 +62,28 @@ func TestKeyFreq(t *testing.T) {
 		}
 	}
 }
+
+func TestFreqToNote(t *testing.T) {
+	testCases := []struct {
+		note int
+		freq float64
+	}{
+		{KeyInt("C", 0), 32.70319566257483},
+		{KeyInt("D", 0), 36.70809598967595},
+		{KeyInt("E", 0), 41.20344461410875},
+		{KeyInt("F", 0), 43.653528929125486},
+		{KeyInt("G", 0), 48.99942949771867},
+		{KeyInt("A", 0), 55.00},
+		{KeyInt("B", 0), 61.7354126570155},
+		{KeyInt("A", 3), 440.00},
+		{KeyInt("D#", 3), 311.12698372208087},
+		{KeyInt("C", 3), 261.6255653005986},
+	}
+
+	for i, tc := range testCases {
+		t.Logf("test case %d\n", i)
+		if note := FreqToNote(tc.freq); note != tc.note {
+			t.Fatalf("expected freq %v -> %v\ngot\n%v\n", tc.freq, tc.note, note)
+		}
+	}
+}

@@ -177,7 +177,7 @@ func (e *Event) String() string {
 		out += fmt.Sprintf(" Vel: %d", e.Velocity)
 	}
 	if e.MsgType == EventByteMap["NoteOn"] || e.MsgType == EventByteMap["NoteOff"] {
-		out += fmt.Sprintf(" Note: %s", MidiNoteToName(int(e.Note)))
+		out += fmt.Sprintf(" Note: %s", NoteToName(int(e.Note)))
 	}
 	if e.Cmd != 0 {
 		out = fmt.Sprintf("Ch %d @ %d \t%s", e.MsgChan, e.TimeDelta, metaCmdMap[e.Cmd])

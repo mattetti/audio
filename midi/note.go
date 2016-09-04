@@ -47,9 +47,20 @@ func KeyFreq(n string, octave int) float64 {
 	return 440.0 * math.Pow(2, (float64(KeyInt(n, octave)-69)/12))
 }
 
-// MidiNoteToName converts a midi note value into its English name
-func MidiNoteToName(note int) string {
+// NoteToFreq returns the frequency of the passed midi note.
+func NoteToFreq(note int) float64 {
+	return 440.0 * math.Pow(2, (float64(note)-69.0)/12.0)
+}
+
+// NoteToName converts a midi note value into its English name
+func NoteToName(note int) string {
 	key := Notes[note%12]
 	octave := ((note / 12) | 0) - 2 // The MIDI scale starts at octave = -2
 	return key + strconv.Itoa(octave)
+}
+
+// FreqToNote reports the associated midi node for a given frequency.
+func FreqToNote(freq float64) int {
+	pitch := 12.0*(math.Log(freq/(440/2.0))/math.Log(2.0)) + 57.0
+	return int(pitch + 0.00001)
 }
