@@ -26,6 +26,10 @@ func GnuplotBin(buf *audio.PCMBuffer, path string) error {
 	return err
 }
 
+// GnuplotText exports a gnuplot compatible text file for plotting.
+// After normalizing the data (for better plotting) and exported it,
+// you can use gnuplot command line, for instance:
+//      gnuplot -e "plot 'my_data.dat' with line"
 func GnuplotText(buf *audio.PCMBuffer, path string) error {
 	if buf == nil || buf.Format == nil {
 		return audio.ErrInvalidBuffer
