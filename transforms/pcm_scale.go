@@ -1,16 +1,12 @@
 package transforms
 
-import (
-	"errors"
-
-	"github.com/mattetti/audio"
-)
+import "github.com/mattetti/audio"
 
 // PCMScale converts a buffer with audio content from -1 to 1 into
 // the PCM scale based on the buffer's bitdepth.
 func PCMScale(buf *audio.PCMBuffer) error {
 	if buf == nil || buf.Format == nil {
-		return errors.New("nil buffer")
+		return audio.ErrInvalidBuffer
 	}
 	factor := float64(audio.IntMaxSignedValue(buf.Format.BitDepth))
 	data := buf.AsFloat64s()

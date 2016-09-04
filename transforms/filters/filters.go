@@ -14,6 +14,9 @@ import (
 //         'StopbandFrequency',0.35,'PassbandRipple',0.5, ...
 //         'StopbandAttenuation',65,'DesignMethod','kaiserwin');
 func LowPass(buf *audio.PCMBuffer, cutOffFreq float64) (err error) {
+	if buf == nil || buf.Format == nil {
+		return audio.ErrInvalidBuffer
+	}
 	s := &filters.Sinc{
 		// TODO: find the right taps number to do a proper
 		// audio low pass based in the sample rate
@@ -32,6 +35,9 @@ func LowPass(buf *audio.PCMBuffer, cutOffFreq float64) (err error) {
 // HighPass is a basic LowPass filter cutting off
 // the audio buffer frequencies below the cutOff frequency.
 func HighPass(buf *audio.PCMBuffer, cutOff float64) (err error) {
+	if buf == nil || buf.Format == nil {
+		return audio.ErrInvalidBuffer
+	}
 	s := &filters.Sinc{
 		Taps:         62,
 		SamplingFreq: buf.Format.SampleRate,

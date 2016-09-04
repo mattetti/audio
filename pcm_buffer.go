@@ -3,10 +3,11 @@ package audio
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 )
 
 var (
-	rmsWindowSize = 400.0
+	ErrInvalidBuffer = errors.New("invalid buffer")
 )
 
 // DataFormat is an enum type to indicate the underlying data format used.

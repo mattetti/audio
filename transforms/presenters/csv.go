@@ -10,7 +10,14 @@ import (
 )
 
 // CSV writes the content of the buffer in a CSV file.
+// Can be used to plot with R for instance:
+//      #png("my_plot.png", height = 768, width = 1024)
+//      myData <- read.csv("/path/to/output.csv")
+//      matplot(myData[, 1], type="l")
 func CSV(buf *audio.PCMBuffer, path string, format audio.DataFormat) error {
+	if buf == nil || buf.Format == nil {
+		return audio.ErrInvalidBuffer
+	}
 	csvf, err := os.Create(path)
 	if err != nil {
 		return err

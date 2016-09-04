@@ -1,30 +1,21 @@
 package transforms
 
 import (
-	"errors"
 	"math"
 
 	"github.com/mattetti/audio"
-)
-
-var (
-	errInvalidBuffer = errors.New("invalid buffer")
 )
 
 // FullWaveRectifier to make all signal positive
 // See https://en.wikipedia.org/wiki/Rectifier#Full-wave_rectification
 func FullWaveRectifier(buf *audio.PCMBuffer) error {
 	if buf == nil {
-		return nil
+		return audio.ErrInvalidBuffer
 	}
-	samples := buf.AsFloat64s()
-	buf.Floats = make([]float64, len(samples))
-	for i := 0; i < len(samples); i++ {
-		buf.Floats[i] = math.Abs(samples[i])
+	buf.SwitchPrimaryType(audio.Float)
+	for i := 0; i < buf.Len(); i++ {
+		buf.Floats[i] = math.Abs(buf.Floats[i])
 	}
-	buf.DataType = audio.Float
-	buf.Ints = nil
-	buf.Bytes = nil
 
 	return nil
 }
@@ -37,9 +28,13 @@ func FullWaveRectifier(buf *audio.PCMBuffer) error {
 // the end of the window) have less influence over the signal’s power.)
 // TODO: use a sine wave at amplitude of 1: rectication + average = 1.4 (1/square root of 2)
 func MonoRMS(b *audio.PCMBuffer, windowSize int) error {
-	if b == nil || b.Len() == 0 {
+	if b == nil {
+		return audio.ErrInvalidBuffer
+	}
+	if b.Len() == 0 {
 		return nil
 	}
+	b.SwitchPrimaryType(audio.Float)
 	out := []float64{}
 	winBuf := make([]float64, windowSize)
 	windowSizeF := float64(windowSize)
@@ -77,7 +72,6 @@ func MonoRMS(b *audio.PCMBuffer, windowSize int) error {
 
 	b.Format.NumChannels = 1
 	b.Format.SampleRate /= windowSize
-	b.DataType = audio.Float
 	b.Floats = out
 	return nil
 }

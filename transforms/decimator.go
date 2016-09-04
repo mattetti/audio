@@ -12,7 +12,7 @@ import (
 // will convert the buffer in a 22500 buffer.
 func Decimate(buf *audio.PCMBuffer, factor int) (err error) {
 	if buf == nil || buf.Format == nil {
-		return nil
+		return audio.ErrInvalidBuffer
 	}
 
 	if factor < 0 {

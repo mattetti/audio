@@ -6,7 +6,7 @@ import "github.com/mattetti/audio"
 // by downmixing the channels together.
 func MonoDownmix(buf *audio.PCMBuffer) error {
 	if buf == nil || buf.Format == nil {
-		return errInvalidBuffer
+		return audio.ErrInvalidBuffer
 	}
 	nChans := buf.Format.NumChannels
 	if nChans < 2 {
