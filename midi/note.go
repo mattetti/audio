@@ -4,6 +4,8 @@ import (
 	"math"
 	"strconv"
 	"strings"
+
+	"github.com/mattetti/audio"
 )
 
 var Notes = []string{"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"}
@@ -44,12 +46,12 @@ func KeyInt(n string, octave int) int {
 // KeyFreq returns the frequency for the given key/octave combo
 // https://en.wikipedia.org/wiki/MIDI_Tuning_Standard#Frequency_values
 func KeyFreq(n string, octave int) float64 {
-	return 440.0 * math.Pow(2, (float64(KeyInt(n, octave)-69)/12))
+	return audio.RootA * math.Pow(2, (float64(KeyInt(n, octave)-69)/12))
 }
 
 // NoteToFreq returns the frequency of the passed midi note.
 func NoteToFreq(note int) float64 {
-	return 440.0 * math.Pow(2, (float64(note)-69.0)/12.0)
+	return audio.RootA * math.Pow(2, (float64(note)-69.0)/12.0)
 }
 
 // NoteToName converts a midi note value into its English name

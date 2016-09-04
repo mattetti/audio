@@ -27,12 +27,12 @@ func main() {
 	flag.Parse()
 
 	if *fileFlag == "" {
-		freq := 440
+		freq := audio.RootA
 		fs := 44100
 		fmt.Printf("Going from %dHz to %dHz\n", fs, fs / *factorFlag)
 
 		// generate a wave sine
-		osc := generator.NewOsc(generator.WaveSine, float64(freq), fs)
+		osc := generator.NewOsc(generator.WaveSine, freq, fs)
 		data := osc.Signal(fs * 4)
 		buf := audio.NewPCMFloatBuffer(data, audio.FormatMono4410016bBE)
 		// our osc generates values from -1 to 1, we need to go back to PCM scale

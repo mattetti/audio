@@ -2,6 +2,13 @@ package audio
 
 import "math"
 
+var (
+	// RootA or concert A is the reference frequency for A4.
+	// Modify this package variable if you need to change it to 435 (classical) or
+	// 415 (baroque). Methods refering to this root A note will use this variable.
+	RootA = 440.0
+)
+
 // AvgInt averages the int values passed
 func AvgInt(xs ...int) int {
 	var output int

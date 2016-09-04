@@ -1,9 +1,13 @@
 package generator
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/mattetti/audio"
+)
 
 func TestOsc_Signal(t *testing.T) {
-	osc := NewOsc(WaveSine, 440, 44100)
+	osc := NewOsc(WaveSine, audio.RootA, 44100)
 	if osc.CurrentPhaseAngle != 0 {
 		t.Fatalf("expected the current phase to be zero")
 	}

@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	freqFlag      = flag.Int("freq", 440, "frequency to generate")
+	freqFlag      = flag.Float64("freq", audio.RootA, "frequency to generate")
 	biteDepthFlag = flag.Int("biteDepth", 16, "bit size to use when generating the auid file")
 	durationFlag  = flag.Int("duration", 4, "duration of the generated file")
 	formatFlag    = flag.String("format", "wav", "the audio format of the output file")
