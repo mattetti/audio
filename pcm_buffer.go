@@ -122,6 +122,33 @@ func (b *PCMBuffer) Size() (numFrames int) {
 	return numFrames
 }
 
+// Clone creates a clean clone that can be modified without
+// changing the source buffer.
+func (b *PCMBuffer) Clone() *PCMBuffer {
+	if b == nil {
+		return nil
+	}
+	newB := &PCMBuffer{DataType: b.DataType}
+	switch b.DataType {
+	case Integer:
+		newB.Ints = make([]int, len(b.Ints))
+		copy(newB.Ints, b.Ints)
+	case Float:
+		newB.Floats = make([]float64, len(b.Floats))
+		copy(newB.Floats, b.Floats)
+	case Byte:
+		newB.Bytes = make([]byte, len(b.Bytes))
+		copy(newB.Bytes, b.Bytes)
+	}
+	newB.Format = &Format{
+		NumChannels: b.Format.NumChannels,
+		SampleRate:  b.Format.SampleRate,
+		BitDepth:    b.Format.BitDepth,
+		Endianness:  b.Format.Endianness,
+	}
+	return newB
+}
+
 // AsInt16s returns the buffer samples as int16 sample values.
 func (b *PCMBuffer) AsInt16s() (out []int16) {
 	if b == nil {
