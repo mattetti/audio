@@ -8,12 +8,11 @@ func PCMScale(buf *audio.PCMBuffer) error {
 	if buf == nil || buf.Format == nil {
 		return audio.ErrInvalidBuffer
 	}
-	factor := float64(audio.IntMaxSignedValue(buf.Format.BitDepth))
-	data := buf.AsFloat64s()
-	for i := 0; i < len(data); i++ {
-		data[i] *= factor
-	}
 	buf.SwitchPrimaryType(audio.Float)
+	factor := float64(audio.IntMaxSignedValue(buf.Format.BitDepth))
+	for i := 0; i < buf.Len(); i++ {
+		buf.Floats[i] *= factor
+	}
 
 	return nil
 }

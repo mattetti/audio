@@ -4,17 +4,15 @@ import (
 	"encoding/csv"
 	"fmt"
 	"os"
-	"strconv"
 
 	"github.com/mattetti/audio"
 )
 
 // CSV writes the content of the buffer in a CSV file.
 // Can be used to plot with R for instance:
-//      #png("my_plot.png", height = 768, width = 1024)
-//      myData <- read.csv("/path/to/output.csv")
-//      matplot(myData[, 1], type="l")
-func CSV(buf *audio.PCMBuffer, path string, format audio.DataFormat) error {
+//      Rscript -e 'png("my_plot.png", height = 768, width = 1024);
+//      myData <- read.csv("./data.csv"); matplot(myData[,1], type="l")'
+func CSV(buf *audio.PCMBuffer, path string) error {
 	if buf == nil || buf.Format == nil {
 		return audio.ErrInvalidBuffer
 	}
@@ -24,20 +22,22 @@ func CSV(buf *audio.PCMBuffer, path string, format audio.DataFormat) error {
 	}
 	defer csvf.Close()
 	csvw := csv.NewWriter(csvf)
-	samples := buf.AsInts()
+	buf.SwitchPrimaryType(audio.Float)
 	row := make([]string, buf.Format.NumChannels)
 
 	for i := 0; i < buf.Format.NumChannels; i++ {
 		row[i] = fmt.Sprintf("Channel %d", i+1)
 	}
+
 	if err := csvw.Write(row); err != nil {
 		return fmt.Errorf("error writing header to csv: %s", err)
 	}
 
-	for i := 0; i < len(samples); i++ {
+	totalSize := buf.Len()
+	for i := 0; i < totalSize; i++ {
 		for j := 0; j < buf.Format.NumChannels; j++ {
-			row[j] = strconv.Itoa(samples[i])
-			if i >= len(samples) {
+			row[j] = fmt.Sprintf("%v", buf.Floats[i*buf.Format.NumChannels+j])
+			if i >= totalSize {
 				break
 			}
 		}
