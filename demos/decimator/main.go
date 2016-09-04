@@ -13,7 +13,7 @@ import (
 
 	"github.com/mattetti/audio"
 	"github.com/mattetti/audio/generator"
-	"github.com/mattetti/audio/transforms/filters"
+	"github.com/mattetti/audio/transforms"
 	"github.com/mattetti/audio/wav"
 )
 
@@ -36,11 +36,11 @@ func main() {
 		data := osc.Signal(fs * 4)
 		buf := audio.NewPCMFloatBuffer(data, audio.FormatMono4410016bBE)
 		// our osc generates values from -1 to 1, we need to go back to PCM scale
-		if err := filters.PCMScale(buf); err != nil {
+		if err := transforms.PCMScale(buf); err != nil {
 			panic(err)
 		}
 		// drop the sample rate
-		if err := filters.Decimate(buf, *factorFlag); err != nil {
+		if err := transforms.Decimate(buf, *factorFlag); err != nil {
 			panic(err)
 		}
 		// encode the sound file

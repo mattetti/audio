@@ -1,9 +1,10 @@
-package filters
+package transforms
 
 import (
 	"errors"
 
 	"github.com/mattetti/audio"
+	"github.com/mattetti/audio/transforms/filters"
 )
 
 // Decimate drops samples to switch to a lower sample rate.
@@ -20,7 +21,7 @@ func Decimate(buf *audio.PCMBuffer, factor int) (err error) {
 
 	// apply a low pass filter at the nyquist frequency to avoid
 	// aliasing.
-	if err := LowPass(buf, float64(buf.Format.SampleRate)/2); err != nil {
+	if err := filters.LowPass(buf, float64(buf.Format.SampleRate)/2); err != nil {
 		return err
 	}
 
