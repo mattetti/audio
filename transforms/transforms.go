@@ -1,9 +1,14 @@
 package transforms
 
 import (
+	"errors"
 	"math"
 
 	"github.com/mattetti/audio"
+)
+
+var (
+	errInvalidBuffer = errors.New("invalid buffer")
 )
 
 // FullWaveRectifier to make all signal positive

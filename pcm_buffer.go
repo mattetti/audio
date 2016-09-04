@@ -306,12 +306,15 @@ func (b *PCMBuffer) SwitchPrimaryType(t DataFormat) {
 	b.DataType = t
 	switch t {
 	case Integer:
+		b.Ints = b.AsInts()
 		b.Floats = nil
 		b.Bytes = nil
 	case Float:
+		b.Floats = b.AsFloat64s()
 		b.Ints = nil
 		b.Bytes = nil
 	case Byte:
+		// TODO: get as bytes
 		b.Floats = nil
 		b.Ints = nil
 	}
