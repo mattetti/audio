@@ -43,6 +43,20 @@ func main() {
 		if err := transforms.Decimate(buf, *factorFlag); err != nil {
 			panic(err)
 		}
+
+		// sideBuf := buf.Clone()
+		// sideBuf.SwitchPrimaryType(audio.Float)
+		// truncate
+		// sideBuf.Floats = sideBuf.Floats[:1024]
+		// transforms.NormalizeMax(sideBuf)
+		// export as a gnuplot binary file
+		// if err := presenters.GnuplotText(sideBuf, "decimator.dat"); err != nil {
+		// 	panic(err)
+		// }
+		// if err := presenters.CSV(sideBuf, "data.csv"); err != nil {
+		// 	panic(err)
+		// }
+
 		// encode the sound file
 		o, err := os.Create("resampled.wav")
 		if err != nil {
