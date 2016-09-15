@@ -27,6 +27,14 @@ func NewOsc(shape WaveType, hz float64, fs int) *Osc {
 	return &Osc{Shape: shape, Amplitude: 1, Freq: hz, Fs: fs, phaseAngleIncr: ((hz * TwoPi) / float64(fs))}
 }
 
+// SetFreq updates the oscillator frequency
+func (o *Osc) SetFreq(hz float64) {
+	if o.Freq != hz {
+		o.Freq = hz
+		o.phaseAngleIncr = ((hz * TwoPi) / float64(o.Fs))
+	}
+}
+
 // Signal uses the osc to generate a discreet signal
 func (o *Osc) Signal(length int) []float64 {
 	output := make([]float64, length)
