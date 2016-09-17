@@ -19,6 +19,11 @@ type Osc struct {
 	PhaseOffset       float64
 	CurrentPhaseAngle float64
 	phaseAngleIncr    float64
+	// currentSample allows us to track where we are at in the signal life
+	// and setup an envelope accordingly
+	currentSample int
+	// ADSR
+	attackInSamples int
 }
 
 // NewOsc returns a new oscillator, note that if you change the phase offset of the returned osc,
@@ -27,12 +32,31 @@ func NewOsc(shape WaveType, hz float64, fs int) *Osc {
 	return &Osc{Shape: shape, Amplitude: 1, Freq: hz, Fs: fs, phaseAngleIncr: ((hz * TwoPi) / float64(fs))}
 }
 
+// Reset sets the oscillator back to its starting state
+func (o *Osc) Reset() {
+	o.phaseAngleIncr = ((o.Freq * TwoPi) / float64(o.Fs))
+	o.currentSample = 0
+}
+
 // SetFreq updates the oscillator frequency
 func (o *Osc) SetFreq(hz float64) {
 	if o.Freq != hz {
 		o.Freq = hz
 		o.phaseAngleIncr = ((hz * TwoPi) / float64(o.Fs))
 	}
+}
+
+// SetAttackInMs sets the duration for the oscillator to be at full amplitude
+// after it starts.
+func (o *Osc) SetAttackInMs(ms int) {
+	if o == nil {
+		return
+	}
+	if ms <= 0 {
+		o.attackInSamples = 0
+		return
+	}
+	o.attackInSamples = o.Fs / (1000 / ms)
 }
 
 // Signal uses the osc to generate a discreet signal
@@ -69,23 +93,31 @@ func (o *Osc) Sample() (output float64) {
 	if o == nil {
 		return
 	}
-
+	o.currentSample++
 	if o.CurrentPhaseAngle < -math.Pi {
 		o.CurrentPhaseAngle += TwoPi
 	} else if o.CurrentPhaseAngle > math.Pi {
 		o.CurrentPhaseAngle -= TwoPi
 	}
 
+	var amp float64
+	if o.attackInSamples > o.currentSample {
+		// linear fade in
+		amp = float64(o.currentSample) * (o.Amplitude / float64(o.attackInSamples))
+	} else {
+		amp = o.Amplitude
+	}
+
 	switch o.Shape {
 	case WaveSine:
-		output = o.Amplitude*Sine(o.CurrentPhaseAngle) + o.DcOffset
+		output = amp*Sine(o.CurrentPhaseAngle) + o.DcOffset
 	case WaveTriangle:
-		output = o.Amplitude*Triangle(o.CurrentPhaseAngle) + o.DcOffset
+		output = amp*Triangle(o.CurrentPhaseAngle) + o.DcOffset
 	case WaveSaw:
-		output = o.Amplitude*Sawtooth(o.CurrentPhaseAngle) + o.DcOffset
+		output = amp*Sawtooth(o.CurrentPhaseAngle) + o.DcOffset
 	case WaveSqr:
 		fmt.Println(o.CurrentPhaseAngle)
-		output = o.Amplitude*Square(o.CurrentPhaseAngle) + o.DcOffset
+		output = amp*Square(o.CurrentPhaseAngle) + o.DcOffset
 	}
 
 	o.CurrentPhaseAngle += o.phaseAngleIncr
