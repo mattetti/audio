@@ -56,7 +56,7 @@ func (o *Osc) SetAttackInMs(ms int) {
 		o.attackInSamples = 0
 		return
 	}
-	o.attackInSamples = o.Fs / (1000 / ms)
+	o.attackInSamples = int(float32(o.Fs) / (1000.0 / float32(ms)))
 }
 
 // Signal uses the osc to generate a discreet signal
