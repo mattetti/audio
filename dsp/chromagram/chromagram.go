@@ -39,7 +39,7 @@ func (cg *Chromagram) Process(buf *audio.PCMBuffer) ([]float64, error) {
 	octaves := int(math.Floor(float64(cg.constantQ.ConstantQBins)/float64(cg.constantQ.Config.BinsPerOctave)) - 1)
 
 	// reset the results
-	cg.Results = make([]float64, octaves*cg.constantQ.Config.BinsPerOctave)
+	cg.Results = make([]float64, 2*cg.constantQ.ConstantQBins)
 
 	buf.SwitchPrimaryType(audio.Float)
 	windowBuf := make([]float64, cg.FrameSize)
@@ -60,7 +60,7 @@ func (cg *Chromagram) Process(buf *audio.PCMBuffer) ([]float64, error) {
 	for octave := 0; octave <= octaves; octave++ {
 		firstBin := octave * cg.constantQ.Config.BinsPerOctave
 		for i := 0; i < cg.constantQ.Config.BinsPerOctave; i++ {
-			cg.Results[i] += chromaData[firstBin+i] // kabs( m_CQRe[ firstBin + i ], m_CQIm[ firstBin + i ])
+			cg.Results[i] += chromaData[firstBin+i]
 		}
 	}
 

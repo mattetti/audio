@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"fmt"
 	"go-dsp/fft"
 	"math"
 
@@ -84,27 +85,37 @@ func (cq *ConstantQ) Process(buf *audio.PCMBuffer) []float64 {
 	if cq.Speckernel == nil {
 		cq.NewSpeckernel()
 	}
-	cq.Data = make([]float64, 2*cq.K)
 
 	fftbin := cq.Speckernel.IS
 	cqbin := cq.Speckernel.JS
-	reals := cq.Speckernel.Real
-	imags := cq.Speckernel.Imag
-	sparseCells := len(cq.Speckernel.Real)
+	// reals := cq.Speckernel.Real
+	// imags := cq.Speckernel.Imag
+	sparseCells := len(fftbin)
+	cq.Data = make([]float64, sparseCells)
 
 	var (
-		row, col       int
-		r1, r2, i1, i2 float64
+		row, col int
+		// r1, r2, i1, i2 float64
+		c1, c2 complex128
 	)
 	for i := 0; i < sparseCells; i++ {
 		row = cqbin[i]
 		col = fftbin[i]
-		r1 = reals[i]
-		i1 = imags[i]
-		r2 = real(fftData[cq.FFTLen-2*col-2])
-		i2 = imag(fftData[cq.FFTLen-2*col-2+1])
-		cq.Data[row] += (r1*r2 - i1*i2)
-		cq.Data[row+1] += (r1*r2 + i1*i2)
+		// r1 = reals[i]
+		// i1 = imags[i]
+
+		c1 = cq.Speckernel.Values[i]
+
+		idx := cq.FFTLen - col - 1
+		c2 = fftData[idx]
+
+		// r2 = real(fftData[cq.FFTLen-2*col-2])
+		// i2 = imag(fftData[cq.FFTLen-2*col-2+1])
+		cq.Data[row] += real(c1 * c2)
+		fmt.Println(cq.Data[row])
+
+		// cq.Data[row] += (r1*r2 - i1*i2)
+		// cq.Data[row+1] += (r1*r2 + i1*i2)
 	}
 
 	return cq.Data
@@ -120,22 +131,12 @@ func (cq *ConstantQ) NewSpeckernel() error {
 	hammingWindowRe := make([]float64, cq.FFTLen)
 	hammingWindowIm := make([]float64, cq.FFTLen)
 
-	for u := 0; u < cq.FFTLen; u++ {
-		hammingWindowRe[u] = 0
-		hammingWindowIm[u] = 0
-	}
-
 	// for each bin value K, calculate temporal kernel, take its fft to
 	// calculate the spectral kernel then threshold it to make it sparse and
 	// add it to the sparse kernels matrix
 	squareThreshold := cq.Config.Threshold * cq.Config.Threshold
 
 	for k := cq.K; k > 0; k-- {
-		for u := 0; u < cq.FFTLen; u++ {
-			hammingWindowRe[u] = 0
-			hammingWindowIm[u] = 0
-		}
-
 		// Computing a hamming window
 		hammingLength :=
 			math.Ceil(
@@ -184,6 +185,8 @@ func (cq *ConstantQ) NewSpeckernel() error {
 			cq.Speckernel.JS = append(cq.Speckernel.JS, k)
 
 			// take conjugate, normalise and add to array sparkernel
+			cq.Speckernel.Values = append(cq.Speckernel.Values,
+				transfHammingWindow[j]/complex(float64(cq.FFTLen), 0))
 			cq.Speckernel.Real = append(cq.Speckernel.Real, real(transfHammingWindow[j])/float64(cq.FFTLen))
 			cq.Speckernel.Imag = append(cq.Speckernel.Imag, -imag(transfHammingWindow[j])/float64(cq.FFTLen))
 		}
@@ -194,10 +197,11 @@ func (cq *ConstantQ) NewSpeckernel() error {
 
 // Speckernel is a spectral kernel matrix.
 type Speckernel struct {
-	IS   []int
-	JS   []int
-	Imag []float64
-	Real []float64
+	IS     []int
+	JS     []int
+	Imag   []float64
+	Real   []float64
+	Values []complex128
 }
 
 func hamming(len, n float64) float64 {
