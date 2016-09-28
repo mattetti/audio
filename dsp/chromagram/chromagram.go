@@ -4,6 +4,8 @@
 package chromagram
 
 import (
+	"math"
+
 	"github.com/mattetti/audio"
 	"github.com/mattetti/audio/dsp/analysis"
 	"github.com/mattetti/audio/dsp/windows"
@@ -27,12 +29,17 @@ func New(config *analysis.ConstantQConfig) *Chromagram {
 	return c
 }
 
+// Process analyses the passed buffer and returns the value for each bin
 func (cg *Chromagram) Process(buf *audio.PCMBuffer) ([]float64, error) {
 	if cg.constantQ.Speckernel == nil {
 		if err := cg.constantQ.NewSpeckernel(); err != nil {
 			return nil, err
 		}
 	}
+	octaves := int(math.Floor(float64(cg.constantQ.ConstantQBins)/float64(cg.constantQ.Config.BinsPerOctave)) - 1)
+
+	// reset the results
+	cg.Results = make([]float64, octaves*cg.constantQ.Config.BinsPerOctave)
 
 	buf.SwitchPrimaryType(audio.Float)
 	windowBuf := make([]float64, cg.FrameSize)
@@ -41,12 +48,23 @@ func (cg *Chromagram) Process(buf *audio.PCMBuffer) ([]float64, error) {
 	}
 
 	// apply the window into a buffer
-	for i := 0; i < cg.FrameSize; i++ {
+	for i := 0; i < len(buf.Floats); i++ {
 		windowBuf[i] = buf.Floats[i] * cg.Window[i]
 	}
 
-	//data := fft.FFTReal(windowBuf)
+	// winBuf := fft.FFTReal(windowBuf)
+	winBuf := audio.NewPCMFloatBuffer(windowBuf, buf.Format)
 
-	// TODO: apply constant Q
-	return nil, nil
+	// apply constant Q
+	chromaData := cg.constantQ.Process(winBuf)
+	for octave := 0; octave <= octaves; octave++ {
+		firstBin := octave * cg.constantQ.Config.BinsPerOctave
+		for i := 0; i < cg.constantQ.Config.BinsPerOctave; i++ {
+			cg.Results[i] += chromaData[firstBin+i] // kabs( m_CQRe[ firstBin + i ], m_CQIm[ firstBin + i ])
+		}
+	}
+
+	// TODO: normalize
+
+	return cg.Results, nil
 }

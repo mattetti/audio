@@ -36,6 +36,18 @@
             "program": "${workspaceRoot}/generator/cmd",
             "env": {},
             "args": []
+        },
+        {
+            "name": "chromagram",
+            "type": "go",
+            "request": "launch",
+            "mode": "test",
+            "remotePath": "",
+            "port": 2345,
+            "host": "127.0.0.1",
+            "program": "${workspaceRoot}/dsp/chromagram",
+            "env": {},
+            "args": []
         }
     ]
 }

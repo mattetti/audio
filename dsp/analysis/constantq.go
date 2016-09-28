@@ -65,7 +65,6 @@ func NewConstantQ(config *ConstantQConfig) *ConstantQ {
 			),
 		))
 	cq.HopSize = int(float64(cq.FFTLen) / 8)
-	cq.Data = make([]float64, 2*cq.ConstantQBins)
 	cq.K = int(
 		math.Ceil(
 			float64(cq.ConstantQBins) *
@@ -85,10 +84,7 @@ func (cq *ConstantQ) Process(buf *audio.PCMBuffer) []float64 {
 	if cq.Speckernel == nil {
 		cq.NewSpeckernel()
 	}
-	for row := 0; row < 2*cq.K; row++ {
-		cq.Data[row] = 0
-		cq.Data[row+1] = 0
-	}
+	cq.Data = make([]float64, 2*cq.K)
 
 	fftbin := cq.Speckernel.IS
 	cqbin := cq.Speckernel.JS
@@ -105,10 +101,10 @@ func (cq *ConstantQ) Process(buf *audio.PCMBuffer) []float64 {
 		col = fftbin[i]
 		r1 = reals[i]
 		i1 = imags[i]
-		r2 = real(fftData[(2*cq.FFTLen)-2*col-2])
-		i2 = imag(fftData[(2*cq.FFTLen)-2*col-2+1])
-		cq.Data[2*row] += (r1*r2 - i1*i2)
-		cq.Data[2*row+1] += (r1*r2 + i1*i2)
+		r2 = real(fftData[cq.FFTLen-2*col-2])
+		i2 = imag(fftData[cq.FFTLen-2*col-2+1])
+		cq.Data[row] += (r1*r2 - i1*i2)
+		cq.Data[row+1] += (r1*r2 + i1*i2)
 	}
 
 	return cq.Data
