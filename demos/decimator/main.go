@@ -35,14 +35,13 @@ func main() {
 		osc := generator.NewOsc(generator.WaveSine, freq, fs)
 		data := osc.Signal(fs * 4)
 		buf := audio.NewPCMFloatBuffer(data, audio.FormatMono4410016bBE)
-		// our osc generates values from -1 to 1, we need to go back to PCM scale
-		if err := transforms.PCMScale(buf); err != nil {
-			panic(err)
-		}
 		// drop the sample rate
 		if err := transforms.Decimate(buf, *factorFlag); err != nil {
 			panic(err)
 		}
+
+		// the bitcrusher switches the data range to PCM scale
+		transforms.BitCrush(buf, 2)
 
 		// sideBuf := buf.Clone()
 		// sideBuf.SwitchPrimaryType(audio.Float)
