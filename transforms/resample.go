@@ -13,6 +13,9 @@ func Resample(buf *audio.PCMBuffer, fs float64) error {
 	if buf == nil || buf.Format == nil {
 		return audio.ErrInvalidBuffer
 	}
+	if buf.Format.SampleRate == int(fs) {
+		return nil
+	}
 	buf.SwitchPrimaryType(audio.Float)
 
 	// downsample
