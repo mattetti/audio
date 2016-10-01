@@ -29,7 +29,7 @@ func main() {
 	if *fileFlag == "" {
 		freq := audio.RootA
 		fs := 44100
-		fmt.Printf("Going from %dHz to %dHz\n", fs, fs / *factorFlag)
+		fmt.Printf("Resampling from %dHz to %dHz back to %dHz\n", fs, fs / *factorFlag, fs)
 
 		// generate a wave sine
 		osc := generator.NewOsc(generator.WaveSine, freq, fs)
@@ -40,8 +40,10 @@ func main() {
 			panic(err)
 		}
 
+		fmt.Println("bit crushing to 8 bit sound")
 		// the bitcrusher switches the data range to PCM scale
-		transforms.BitCrush(buf, 2)
+		transforms.BitCrush(buf, 8)
+		transforms.Resample(buf, float64(fs))
 
 		// sideBuf := buf.Clone()
 		// sideBuf.SwitchPrimaryType(audio.Float)
