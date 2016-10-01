@@ -331,7 +331,6 @@ func (b *PCMBuffer) SwitchPrimaryType(t DataFormat) {
 	if b == nil || t == b.DataType {
 		return
 	}
-	b.DataType = t
 	switch t {
 	case Integer:
 		b.Ints = b.AsInts()
@@ -346,4 +345,5 @@ func (b *PCMBuffer) SwitchPrimaryType(t DataFormat) {
 		b.Floats = nil
 		b.Ints = nil
 	}
+	b.DataType = t
 }
