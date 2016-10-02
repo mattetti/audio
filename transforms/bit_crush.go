@@ -1,27 +1,32 @@
 package transforms
 
 import (
+	"math"
+
 	"github.com/mattetti/audio"
-	"github.com/mattetti/audio/dsp/analysis"
+)
+
+var (
+	crusherStepSize  = 0.000001
+	CrusherMinFactor = 1.0
+	CrusherMaxFactor = 2097152.0
 )
 
 // BitCrush reduces the resolution of the sample to the target bit depth
 // Note that bit crusher effects are usually made of this feature + a decimator
-func BitCrush(buf *audio.PCMBuffer, bitDepth int) {
+func BitCrush(buf *audio.PCMBuffer, factor float64) {
 	buf.SwitchPrimaryType(audio.Float)
-	min, max := analysis.MinMaxFloat(buf)
-	if min >= -1 && max <= 1 {
-		PCMScale(buf)
-	}
-	buf.SwitchPrimaryType(audio.Integer)
-	for i := 0; i < len(buf.Ints); i++ {
-		buf.Ints[i] = dropBit(buf.Ints[i], bitDepth)
+	stepSize := crusherStepSize * factor
+	for i := 0; i < len(buf.Floats); i++ {
+		frac, exp := math.Frexp(buf.Floats[i])
+		frac = signum(frac) * math.Floor(math.Abs(frac)/stepSize+0.5) * stepSize
+		buf.Floats[i] = math.Ldexp(frac, exp)
 	}
 }
 
-func dropBit(input, bitsToKeep int) int {
-	if bitsToKeep > 16 {
-		return input
+func signum(v float64) float64 {
+	if v >= 0.0 {
+		return 1.0
 	}
-	return input & (-1 << (16 - uint8(bitsToKeep)))
+	return -1.0
 }
