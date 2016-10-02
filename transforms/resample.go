@@ -52,7 +52,7 @@ func Resample(buf *audio.PCMBuffer, fs float64) error {
 	var idx int
 	for i := 0; i < len(buf.Floats); i++ {
 		idx = i * padding
-		if idx > len(newFloats) {
+		if idx >= len(newFloats) {
 			break
 		}
 		newFloats[idx] = buf.Floats[i]
