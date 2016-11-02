@@ -162,6 +162,56 @@ type Event struct {
 	SmpteOffset *SmpteOffset
 }
 
+// Copy returns an exact copy of the event
+func (e *Event) Copy() *Event {
+	newEv := &Event{
+		TimeDelta:    e.TimeDelta,
+		MsgType:      e.MsgType,
+		MsgChan:      e.MsgChan,
+		Note:         e.Note,
+		Velocity:     e.Velocity,
+		Pressure:     e.Pressure,
+		Controller:   e.Controller,
+		NewValue:     e.NewValue,
+		NewProgram:   e.NewProgram,
+		Channel:      e.Channel,
+		AbsPitchBend: e.AbsPitchBend,
+		RelPitchBend: e.RelPitchBend,
+		// Meta
+		Cmd:            e.Cmd,
+		SeqNum:         e.SeqNum,
+		Text:           e.Text,
+		Copyright:      e.Copyright,
+		SeqTrackName:   e.SeqTrackName,
+		InstrumentName: e.InstrumentName,
+		Lyric:          e.Lyric,
+		Marker:         e.Marker,
+		CuePoint:       e.CuePoint,
+		MsPerQuartNote: e.MsPerQuartNote,
+		Bpm:            e.Bpm,
+		Key:            e.Key,
+		Scale:          e.Scale,
+	}
+	if e.TimeSignature != nil {
+		newEv.TimeSignature = &TimeSignature{
+			Numerator:                   e.TimeSignature.Numerator,
+			Denominator:                 e.TimeSignature.Denominator,
+			ClocksPerTick:               e.TimeSignature.ClocksPerTick,
+			ThirtySecondNotesPerQuarter: e.TimeSignature.ThirtySecondNotesPerQuarter,
+		}
+	}
+	if e.SmpteOffset != nil {
+		newEv.SmpteOffset = &SmpteOffset{
+			Hour:  e.SmpteOffset.Hour,
+			Min:   e.SmpteOffset.Min,
+			Sec:   e.SmpteOffset.Sec,
+			Fr:    e.SmpteOffset.Fr,
+			SubFr: e.SmpteOffset.SubFr,
+		}
+	}
+	return newEv
+}
+
 // String implements the stringer interface
 func (e *Event) String() string {
 	if e == nil {
