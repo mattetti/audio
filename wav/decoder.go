@@ -55,6 +55,25 @@ func (d *Decoder) EOF() bool {
 	return false
 }
 
+// IsValidFile verifies that the file is valid/readable.
+func (d *Decoder) IsValidFile() bool {
+	d.err = d.readHeaders()
+	if d.err != nil {
+		return false
+	}
+	if d.NumChans < 1 {
+		return false
+	}
+	if d.BitDepth < 8 {
+		return false
+	}
+	if d, err := d.Duration(); err != nil || d <= 0 {
+		return false
+	}
+
+	return true
+}
+
 // ReadInfo reads the underlying reader until the comm header is parsed.
 // This method is safe to call multiple times.
 func (d *Decoder) ReadInfo() {

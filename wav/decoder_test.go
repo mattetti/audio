@@ -37,6 +37,33 @@ func TestDecoder_Duration(t *testing.T) {
 
 }
 
+func TestDecoder_IsValidFile(t *testing.T) {
+	testCases := []struct {
+		in      string
+		isValid bool
+	}{
+		{"fixtures/kick.wav", true},
+		{"fixtures/bass.wav", true},
+		{"fixtures/dirty-kick-24b441k.wav", true},
+		{"../riff/fixtures/sample.avi", false},
+		{"../mp3/fixtures/HousyStab.mp3", false},
+		{"../aiff/fixtures/bloop.aif", false},
+	}
+
+	for _, tc := range testCases {
+		f, err := os.Open(tc.in)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer f.Close()
+		d := wav.NewDecoder(f)
+		if d.IsValidFile() != tc.isValid {
+			t.Fatalf("validation of the wav files doesn't match expected %T, got %T", tc.isValid, d.IsValidFile())
+		}
+	}
+
+}
+
 func TestDecoder_Attributes(t *testing.T) {
 	testCases := []struct {
 		in             string
