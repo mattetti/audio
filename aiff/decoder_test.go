@@ -193,3 +193,29 @@ func TestDecoderPCMBuffer(t *testing.T) {
 		}
 	}
 }
+
+func TestDecoder_IsValidFile(t *testing.T) {
+	testCases := []struct {
+		in      string
+		isValid bool
+	}{
+		{"fixtures/bloop.aif", true},
+		{"fixtures/kick8b.aiff", true},
+		{"fixtures/zipper24b.aiff", true},
+		{"../riff/fixtures/sample.avi", false},
+		{"../wav/fixtures/kick.wav", false},
+	}
+
+	for i, tc := range testCases {
+		f, err := os.Open(tc.in)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer f.Close()
+		d := NewDecoder(f)
+		if d.IsValidFile() != tc.isValid {
+			t.Fatalf("[%d] validation of the aiff files doesn't match expected %t, got %t - %#v", i, tc.isValid, d.IsValidFile(), d)
+		}
+	}
+
+}

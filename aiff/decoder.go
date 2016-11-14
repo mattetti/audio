@@ -92,6 +92,25 @@ func (d *Decoder) NextChunk() (*Chunk, error) {
 	return c, d.err
 }
 
+// IsValidFile verifies that the file is valid/readable.
+func (d *Decoder) IsValidFile() bool {
+	d.ReadInfo()
+	if d.err != nil {
+		return false
+	}
+	if d.NumChans < 1 {
+		return false
+	}
+	if d.BitDepth < 8 {
+		return false
+	}
+	if d, err := d.Duration(); err != nil || d <= 0 {
+		return false
+	}
+
+	return true
+}
+
 // Duration returns the time duration for the current AIFF container
 func (d *Decoder) Duration() (time.Duration, error) {
 	if d == nil {

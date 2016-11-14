@@ -2,6 +2,7 @@ package aiff_test
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -21,4 +22,14 @@ func ExampleDecoder_Duration() {
 	fmt.Printf("kick.aif has a duration of %f seconds\n", d.Seconds())
 	// Output:
 	// kick.aif has a duration of 0.203356 seconds
+}
+
+func ExampleDecoder_IsValidFile() {
+	f, err := os.Open("fixtures/kick.aif")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+	fmt.Printf("is this file valid: %t", aiff.NewDecoder(f).IsValidFile())
+	// Output: is this file valid: true
 }
