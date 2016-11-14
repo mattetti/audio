@@ -22,6 +22,16 @@ func ExampleDecoder_Duration() {
 	// Output: fixtures/kick.wav duration: 204.172335ms
 }
 
+func ExampleDecoder_IsValidFile() {
+	f, err := os.Open("fixtures/kick.wav")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+	fmt.Printf("is this file valid: %t", wav.NewDecoder(f).IsValidFile())
+	// Output: is this file valid: true
+}
+
 func ExampleEncoder_Write() {
 	f, err := os.Open("fixtures/kick.wav")
 	if err != nil {

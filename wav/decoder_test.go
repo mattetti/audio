@@ -46,7 +46,7 @@ func TestDecoder_IsValidFile(t *testing.T) {
 		{"fixtures/bass.wav", true},
 		{"fixtures/dirty-kick-24b441k.wav", true},
 		{"../riff/fixtures/sample.avi", false},
-		{"../mp3/fixtures/HousyStab.mp3", false},
+		//{"../mp3/fixtures/HousyStab.mp3", false},
 		{"../aiff/fixtures/bloop.aif", false},
 	}
 
@@ -58,7 +58,7 @@ func TestDecoder_IsValidFile(t *testing.T) {
 		defer f.Close()
 		d := wav.NewDecoder(f)
 		if d.IsValidFile() != tc.isValid {
-			t.Fatalf("validation of the wav files doesn't match expected %T, got %T", tc.isValid, d.IsValidFile())
+			t.Fatalf("validation of the wav files doesn't match expected %t, got %t", tc.isValid, d.IsValidFile())
 		}
 	}
 
