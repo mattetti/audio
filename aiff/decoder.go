@@ -45,7 +45,7 @@ type Decoder struct {
 }
 
 // NewDecoder creates a new reader reading the given reader and pushing audio data to the given channel.
-// It is the caller's responsibility to call Close on the Decoder when done.
+// It is the caller's responsibility to call Close on the reader when done.
 func NewDecoder(r io.ReadSeeker) *Decoder {
 	return &Decoder{r: r}
 }
