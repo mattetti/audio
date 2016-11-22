@@ -7,6 +7,11 @@ type (
 	FrameHeader []byte
 )
 
+// IsValid tests the basic validity of the frame header by checking the sync word
+func (h FrameHeader) IsValid() bool {
+	return h[0] == 0xff
+}
+
 // Version returns the MPEG version from the header
 func (h FrameHeader) Version() FrameVersion {
 	return FrameVersion((h[1] >> 3) & 0x03)

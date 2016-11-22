@@ -37,6 +37,7 @@ func Test_Decoder_Duration(t *testing.T) {
 		duration string
 	}{
 		{"fixtures/HousyStab.mp3", "16.483264688s"},
+		{"fixtures/slayer.mp3", "28.447345872s"},
 	}
 
 	for i, tc := range testCases {

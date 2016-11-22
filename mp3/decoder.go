@@ -142,9 +142,42 @@ func (d *Decoder) Next(f *Frame) error {
 	}
 
 	f.Header = FrameHeader(f.buf)
+	if !f.Header.IsValid() {
+		f.Header, err = d.skipToNextFrame()
+		if err != nil {
+			return err
+		}
+	}
 
-	dataSize := f.Header.Size() - 4
-	f.buf = append(f.buf, make([]byte, dataSize)...)
-	_, err = io.ReadAtLeast(d.r, f.buf[4:], int(dataSize))
+	dataSize := f.Header.Size()
+	if dataSize > 4 {
+		// substract the 4 bytes we already read
+		dataSize -= 4
+		f.buf = append(f.buf, make([]byte, dataSize)...)
+		_, err = io.ReadAtLeast(d.r, f.buf[4:], int(dataSize))
+	}
 	return err
+}
+
+// skipToSyncWord reads until it finds a frame header
+func (d *Decoder) skipToNextFrame() (FrameHeader, error) {
+	if d == nil {
+		return nil, errors.New("nil decoder")
+	}
+	buf := make([]byte, 1)
+	var err error
+	for {
+		_, err = d.r.Read(buf)
+		if err != nil {
+			return nil, err
+		}
+		if buf[0] == 0xff {
+			buf = []byte{0xff, 0, 0, 0}
+			n, err := d.r.Read(buf[1:])
+			if n != 3 {
+				return nil, io.ErrUnexpectedEOF
+			}
+			return buf, err
+		}
+	}
 }
