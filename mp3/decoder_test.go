@@ -56,7 +56,7 @@ func Test_Decoder_Duration(t *testing.T) {
 	}
 }
 
-func Example_Decoder_Duration() {
+func ExampleDecoder_Duration() {
 	f, err := os.Open("fixtures/HousyStab.mp3")
 	if err != nil {
 		panic(err)
