@@ -146,6 +146,5 @@ func (d *Decoder) Next(f *Frame) error {
 	dataSize := f.Header.Size() - 4
 	f.buf = append(f.buf, make([]byte, dataSize)...)
 	_, err = io.ReadAtLeast(d.r, f.buf[4:], int(dataSize))
-	fmt.Println(f)
 	return err
 }

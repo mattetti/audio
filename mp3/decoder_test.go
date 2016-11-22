@@ -55,3 +55,17 @@ func Test_Decoder_Duration(t *testing.T) {
 		}
 	}
 }
+
+func Example_Decoder_Duration() {
+	f, err := os.Open("fixtures/HousyStab.mp3")
+	if err != nil {
+		panic(err)
+	}
+	d := mp3.New(f)
+	dur, err := d.Duration()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(dur)
+	//Output: 16.483264688s
+}
