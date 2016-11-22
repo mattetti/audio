@@ -35,7 +35,12 @@ func (f *Frame) Duration() time.Duration {
 		return 0
 	}
 	ms := (1000 / float64(f.Header.SampleRate())) * float64(f.Header.Samples())
-	return time.Duration(int(float64(time.Millisecond) * ms))
+	dur := time.Duration(int(float64(time.Millisecond) * ms))
+	if dur < 0 {
+		// we have bad data, let's ignore it
+		dur = 0
+	}
+	return dur
 }
 
 // CRC returns the CRC word stored in this frame

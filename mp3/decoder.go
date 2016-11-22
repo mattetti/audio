@@ -58,6 +58,7 @@ func (d *Decoder) Duration() (time.Duration, error) {
 		return 0, errors.New("can't calculate the duration of a nil pointer")
 	}
 	fr := &Frame{}
+	var frameDuration time.Duration
 	var duration time.Duration
 	var err error
 	for {
@@ -69,7 +70,10 @@ func (d *Decoder) Duration() (time.Duration, error) {
 			}
 			break
 		}
-		duration += fr.Duration()
+		frameDuration = fr.Duration()
+		if frameDuration > 0 {
+			duration += frameDuration
+		}
 		d.NbrFrames++
 	}
 	if err == io.EOF || err == io.ErrUnexpectedEOF || err == io.ErrShortBuffer {
@@ -103,8 +107,7 @@ func (d *Decoder) Next(f *Frame) error {
 		// so we need to read the rest.
 		buf := make([]byte, 124)
 		// TODO: parse the actual header
-		n, err := io.ReadFull(d.r, buf)
-		if err != nil || n != 124 {
+		if _, err := io.ReadAtLeast(d.r, buf, 124); err != nil {
 			return ErrInvalidHeader
 		}
 		buf = append(f.buf, buf...)
