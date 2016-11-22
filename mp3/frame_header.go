@@ -89,5 +89,21 @@ func (h FrameHeader) String() string {
 	str += fmt.Sprintf(" CopyRight: %v\n", h.CopyRight())
 	str += fmt.Sprintf(" Original: %v\n", h.Original())
 	str += fmt.Sprintf(" Emphasis: %v\n", h.Emphasis())
+	str += fmt.Sprintf(" Number Samples: %v\n", h.Samples())
+	str += fmt.Sprintf(" Size: %v\n", h.Size())
 	return str
+}
+
+// Samples is the number of samples contained in this frame
+func (h FrameHeader) Samples() int {
+	return samplesPerFrame[h.Version()][h.Layer()]
+}
+
+func (h FrameHeader) Size() int64 {
+	bps := float64(h.Samples()) / 8
+	fsize := (bps * float64(h.BitRate())) / float64(h.SampleRate())
+	if h.Pad() {
+		fsize += float64(slotSize[h.Layer()])
+	}
+	return int64(fsize)
 }

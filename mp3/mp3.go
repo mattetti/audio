@@ -41,11 +41,22 @@ const (
 )
 
 var (
+	// ID31HBytes are the 2 bytes starting the ID3 v1 tag
+	ID31HBytes = []byte{0xFF, 0xFB}
+	// XingTAGID Xing vbr tag
+	XingTAGID = []byte{0x58, 0x69, 0x6E, 0x67}
+	// InfoTAGID Info cbr tag
+	InfoTAGID = []byte{0x49, 0x6E, 0x66, 0x6F}
+)
+
+var (
 	// ErrNoSyncBits implies we could not find a valid frame header sync bit before EOF
 	ErrNoSyncBits = errors.New("EOF before sync bits found")
 
 	// ErrPrematureEOF indicates that the filed ended before a complete frame could be read
 	ErrPrematureEOF = errors.New("EOF mid stream")
+
+	ErrInvalidHeader = errors.New("invalid header")
 
 	// ErrInvalidBitrate indicates that the header information did not contain a recognized bitrate
 	ErrInvalidBitrate FrameBitRate = -1
@@ -96,10 +107,4 @@ var (
 
 func New(r io.Reader) *Decoder {
 	return &Decoder{r: r}
-}
-
-func (d *Decoder) Decode() {
-	// read ID
-	// is id3 tag?
-	// is frame?
 }

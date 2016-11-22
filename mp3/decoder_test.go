@@ -1,6 +1,7 @@
 package mp3_test
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
@@ -27,5 +28,30 @@ func Test_SeemsValid(t *testing.T) {
 			t.Fatalf("expected %t\ngot\n%t\n", tc.isValid, o)
 		}
 		f.Close()
+	}
+}
+
+func Test_Decoder_Duration(t *testing.T) {
+	testCases := []struct {
+		input    string
+		duration string
+	}{
+		{"fixtures/HousyStab.mp3", "16.483264688s"},
+	}
+
+	for i, tc := range testCases {
+		t.Logf("duration test case %d - %s\n", i, tc.input)
+		f, err := os.Open(tc.input)
+		if err != nil {
+			panic(err)
+		}
+		d := mp3.New(f)
+		dur, err := d.Duration()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if o := fmt.Sprintf("%s", dur); o != tc.duration {
+			t.Fatalf("expected %s\ngot\n%s\n", tc.duration, o)
+		}
 	}
 }

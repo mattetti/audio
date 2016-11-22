@@ -2,20 +2,23 @@ package mp3
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
-	"log"
+	"io/ioutil"
+	"time"
 
+	"github.com/mattetti/audio/mp3/id3v1"
 	"github.com/mattetti/audio/mp3/id3v2"
 )
 
 // Decoder operates on a reader and extracts important information
 // See http://www.mp3-converter.com/mp3codec/mp3_anatomy.htm
 type Decoder struct {
-	r   io.Reader
-	err error
+	r         io.Reader
+	NbrFrames int
 
-	id3v2tag *id3v2.Tag
+	ID3v2tag *id3v2.Tag
 }
 
 // NewDecoder creates a new reader reading the given reader and parsing its data.
@@ -37,14 +40,43 @@ func SeemsValid(r io.Reader) bool {
 		return false
 	}
 	// MP3 file with an ID3v2 container
-	if bytes.Compare(buf, []byte{0x49, 0x44, 0x33}) == 0 {
+	if bytes.Compare(buf, id3v2.HeaderTagID) == 0 {
 		return true
 	}
 	// MPEG-1 Layer 3 file without an ID3 tag or with an ID3v1 tag (which's appended at the end of the file)
-	if bytes.Compare(buf[:2], []byte{0xFF, 0xFB}) == 0 {
+	if bytes.Compare(buf[:2], ID31HBytes) == 0 {
 		return true
 	}
 	return false
+}
+
+// Duration returns the time duration for the current mp3 file
+// The entire reader will be consumed, the consumer might want to rewind the reader
+// if they want to read more from the feed.
+func (d *Decoder) Duration() (time.Duration, error) {
+	if d == nil {
+		return 0, errors.New("can't calculate the duration of a nil pointer")
+	}
+	fr := &Frame{}
+	var duration time.Duration
+	var err error
+	for {
+		err = d.Next(fr)
+		if err != nil {
+			// bad headers can be ignored and hopefully skipped
+			if err == ErrInvalidHeader {
+				continue
+			}
+			break
+		}
+		duration += fr.Duration()
+		d.NbrFrames++
+	}
+	if err == io.EOF || err == io.ErrUnexpectedEOF || err == io.ErrShortBuffer {
+		err = nil
+	}
+
+	return duration, err
 }
 
 // Next decodes the next frame into the provided frame structure.
@@ -60,72 +92,60 @@ func (d *Decoder) Next(f *Frame) error {
 		f.buf = f.buf[:hLen]
 	}
 
-	n, err := io.ReadFull(d.r, f.buf)
-	switch {
-	case err != nil:
+	_, err := io.ReadAtLeast(d.r, f.buf, hLen)
+	if err != nil {
 		return err
-	case n != 4:
-		return ErrPrematureEOF
 	}
 
-	skipped := 0
-	// read first 2 bytes
-	for {
-		if f.buf[0] == 0xFF &&
-			(f.buf[1]&0xE0 == 0xE0) &&
-			f.Header().Emphasis() != EmphReserved &&
-			f.Header().Layer() != LayerReserved &&
-			f.Header().Version() != MPEGReserved &&
-			f.Header().SampleRate() != -1 &&
-			f.Header().BitRate() != -1 {
-			break
+	// ID3v1 tag at the beggining
+	if bytes.Compare(f.buf[:3], id3v1.HeaderTagID) == 0 {
+		// the ID3v1 tag is always 128 bytes long, we already read 4 bytes
+		// so we need to read the rest.
+		buf := make([]byte, 124)
+		// TODO: parse the actual header
+		n, err := io.ReadFull(d.r, buf)
+		if err != nil || n != 124 {
+			return ErrInvalidHeader
 		}
-		switch {
-		// skip first byte
-		case f.buf[1] == 0xFF:
-			f.buf[0] = f.buf[1]
-			skipped++
-			_, err = io.ReadFull(d.r, f.buf[1:])
-		// discard both bytes
-		default:
-			skipped += 2
-			_, err = io.ReadFull(d.r, f.buf)
+		buf = append(f.buf, buf...)
+		// that wasn't a frame
+		f = &Frame{}
+		return nil
+	}
+
+	// ID3v2 tag
+	if bytes.Compare(f.buf[:3], id3v2.HeaderTagID) == 0 {
+		d.ID3v2tag = &id3v2.Tag{}
+		// we already read 4 bytes, an id3v2 tag header is of zie 10, read the rest
+		// and append it to what we already have.
+		buf := make([]byte, 6)
+		n, err := d.r.Read(buf)
+		if err != nil || n != 6 {
+			return ErrInvalidHeader
 		}
-		if err != nil {
-			if skipped != 0 {
-				log.Printf("Skipped %v bytes\n", skipped)
-			}
+		buf = append(f.buf, buf...)
+
+		th := id3v2.TagHeader{}
+		copy(th[:], buf)
+		if err = d.ID3v2tag.ReadHeader(th); err != nil {
 			return err
 		}
-	}
-
-	// CRC check
-	crcLen := 0
-	if f.Header().Protection() {
-		crcLen = 2
-		f.buf = append(f.buf, make([]byte, crcLen)...)
-		n, err = io.ReadFull(d.r, f.buf[hLen:hLen+crcLen])
-		if n != crcLen {
-			return ErrPrematureEOF
+		// TODO: parse the actual tag
+		// Skip the tag for now
+		bytesToSkip := int64(d.ID3v2tag.Header.Size)
+		var cn int64
+		if cn, err = io.CopyN(ioutil.Discard, d.r, bytesToSkip); cn != bytesToSkip {
+			return ErrInvalidHeader
 		}
+		f = &Frame{}
+		return err
 	}
 
-	sideLen := f.SideInfoLength()
-	f.buf = append(f.buf, make([]byte, sideLen)...)
+	f.Header = FrameHeader(f.buf)
 
-	n, err = io.ReadFull(d.r, f.buf[hLen+crcLen:hLen+crcLen+sideLen])
-	if n != sideLen {
-		return ErrPrematureEOF
-	}
-
-	dataLen := f.Size()
-	f.buf = append(f.buf, make([]byte, dataLen-len(f.buf))...)
-	f.buf = f.buf[0:dataLen]
-
-	n, err = io.ReadFull(d.r, f.buf[hLen+crcLen+sideLen:dataLen])
-	if n != dataLen-hLen-sideLen-crcLen {
-		return ErrPrematureEOF
-	}
-
-	return nil
+	dataSize := f.Header.Size() - 4
+	f.buf = append(f.buf, make([]byte, dataSize)...)
+	_, err = io.ReadAtLeast(d.r, f.buf[4:], int(dataSize))
+	fmt.Println(f)
+	return err
 }
