@@ -26,6 +26,16 @@
             "args": []
         },
         {
+            "name": "mp3 tests",
+            "type": "go",
+            "request": "launch",
+            "mode": "test",
+            "remotePath": "",
+            "program": "${workspaceRoot}/mp3",
+            "env": {},
+            "args": []
+        },
+        {
             "name": "generator",
             "type": "go",
             "request": "launch",
