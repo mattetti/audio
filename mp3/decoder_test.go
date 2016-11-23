@@ -13,13 +13,14 @@ func Test_SeemsValid(t *testing.T) {
 		input   string
 		isValid bool
 	}{
-		{"fixtures/frame.mp3", true},
+		{"fixtures/frame.mp3", false},
 		{"fixtures/HousyStab.mp3", true},
 		{"../wav/fixtures/bass.wav", false},
+		{"fixtures/nullbytes.mp3", true},
 	}
 
 	for i, tc := range testCases {
-		t.Logf("test case %d\n", i)
+		t.Logf("test case %d - %s\n", i, tc.input)
 		f, err := os.Open(tc.input)
 		if err != nil {
 			panic(err)
@@ -38,6 +39,7 @@ func Test_Decoder_Duration(t *testing.T) {
 	}{
 		{"fixtures/HousyStab.mp3", "16.483264688s"},
 		{"fixtures/slayer.mp3", "28.447345872s"},
+		{"fixtures/nullbytes.mp3", "13.505305616s"},
 	}
 
 	for i, tc := range testCases {

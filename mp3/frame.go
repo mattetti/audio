@@ -8,8 +8,12 @@ import (
 )
 
 type Frame struct {
-	buf    []byte
-	Header FrameHeader
+	buf []byte
+	// SkippedBytes is the amount of bytes we had to skip before getting to the frame
+	SkippedBytes int
+	// Counter gets incremented if the same frame is reused to parse a file
+	Counter int
+	Header  FrameHeader
 }
 
 type (
@@ -31,7 +35,7 @@ type (
 
 // Duration calculates the time duration of this frame based on the samplerate and number of samples
 func (f *Frame) Duration() time.Duration {
-	if f == nil || len(f.Header) < 4 {
+	if !f.Header.IsValid() {
 		return 0
 	}
 	ms := (1000 / float64(f.Header.SampleRate())) * float64(f.Header.Samples())

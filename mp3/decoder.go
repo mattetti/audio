@@ -31,23 +31,48 @@ func NewDecoder(r io.Reader) *Decoder {
 // The data can be corrupt but at least the header seems alright.
 // It is the caller's responsibility to rewind/close the reader when done.
 func SeemsValid(r io.Reader) bool {
-	buf := make([]byte, 3)
-	n, err := r.Read(buf)
-	if err != nil {
+	d := New(r)
+	fr := &Frame{}
+	var frameDuration time.Duration
+	var duration time.Duration
+	var err error
+	var badFrames int
+	for {
+		err = d.Next(fr)
+		if err != nil {
+			badFrames++
+			if err == ErrInvalidHeader {
+				continue
+			}
+			break
+		}
+		// garbage needing to be skipped probably means bad frame
+		if fr.SkippedBytes > 20 {
+			//fmt.Println(fr.SkippedBytes, "skipped bytes")
+			badFrames++
+		}
+		frameDuration = fr.Duration()
+
+		if frameDuration > 0 {
+			duration += frameDuration
+		}
+		d.NbrFrames++
+	}
+	if err == io.EOF || err == io.ErrUnexpectedEOF || err == io.ErrShortBuffer {
+		err = nil
+	}
+	if d.NbrFrames <= 0 {
 		return false
 	}
-	if n != 3 {
+	percentBadFrames := (float64(badFrames) * 100) / float64(d.NbrFrames)
+	// more than 10% frames with issues or a zero/negative duration means bad file
+	if percentBadFrames > 10 {
 		return false
 	}
-	// MP3 file with an ID3v2 container
-	if bytes.Compare(buf, id3v2.HeaderTagID) == 0 {
-		return true
+	if duration <= 0 {
+		return false
 	}
-	// MPEG-1 Layer 3 file without an ID3 tag or with an ID3v1 tag (which's appended at the end of the file)
-	if bytes.Compare(buf[:2], ID31HBytes) == 0 {
-		return true
-	}
-	return false
+	return true
 }
 
 // Duration returns the time duration for the current mp3 file
@@ -88,6 +113,10 @@ func (d *Decoder) Next(f *Frame) error {
 	if f == nil {
 		return fmt.Errorf("can't decode to a nil Frame")
 	}
+
+	var n int
+	f.SkippedBytes = 0
+	f.Counter++
 
 	hLen := 4
 	if f.buf == nil {
@@ -146,10 +175,11 @@ func (d *Decoder) Next(f *Frame) error {
 
 	f.Header = FrameHeader(f.buf)
 	if !f.Header.IsValid() {
-		f.Header, err = d.skipToNextFrame()
+		f.Header, n, err = d.skipToNextFrame()
 		if err != nil {
 			return err
 		}
+		f.SkippedBytes = n
 	}
 
 	dataSize := f.Header.Size()
@@ -163,24 +193,37 @@ func (d *Decoder) Next(f *Frame) error {
 }
 
 // skipToSyncWord reads until it finds a frame header
-func (d *Decoder) skipToNextFrame() (FrameHeader, error) {
+func (d *Decoder) skipToNextFrame() (fh FrameHeader, readN int, err error) {
 	if d == nil {
-		return nil, errors.New("nil decoder")
+		return nil, readN, errors.New("nil decoder")
 	}
 	buf := make([]byte, 1)
-	var err error
+	lookAheadBuf := make([]byte, 1)
+	var n int
 	for {
-		_, err = d.r.Read(buf)
+		n, err = d.r.Read(buf)
+		readN += n
 		if err != nil {
-			return nil, err
+			return nil, readN, err
 		}
-		if buf[0] == 0xff {
-			buf = []byte{0xff, 0, 0, 0}
-			n, err := d.r.Read(buf[1:])
-			if n != 3 {
-				return nil, io.ErrUnexpectedEOF
+		readN++
+		if buf[0] == 0xFF {
+			if _, err := d.r.Read(lookAheadBuf); err != nil {
+				return nil, readN, err
 			}
-			return buf, err
+			readN++
+			if lookAheadBuf[0]&0xE0 == 0xE0 {
+				buf = []byte{0xff, lookAheadBuf[0], 0, 0}
+				n, err := d.r.Read(buf[2:])
+				if err != nil {
+					return nil, readN + n, err
+				}
+				if n != 2 {
+					return nil, readN + n, io.ErrUnexpectedEOF
+				}
+				readN += 2
+			}
+			return buf, readN, err
 		}
 	}
 }
