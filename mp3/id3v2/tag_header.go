@@ -31,5 +31,5 @@ func (th TagHeader) ReadFlags() Flags {
 
 // ReadSize reads the size of the tag header
 func (th TagHeader) ReadSize() (int, error) {
-	return synchSafe(th[5:])
+	return synchSafe(th[6:])
 }

@@ -48,7 +48,6 @@ func SeemsValid(r io.Reader) bool {
 		}
 		// garbage needing to be skipped probably means bad frame
 		if fr.SkippedBytes > 20 {
-			//fmt.Println(fr.SkippedBytes, "skipped bytes")
 			badFrames++
 		}
 		frameDuration = fr.Duration()
@@ -148,7 +147,7 @@ func (d *Decoder) Next(f *Frame) error {
 	// ID3v2 tag
 	if bytes.Compare(f.buf[:3], id3v2.HeaderTagID) == 0 {
 		d.ID3v2tag = &id3v2.Tag{}
-		// we already read 4 bytes, an id3v2 tag header is of zie 10, read the rest
+		// we already read 4 bytes, an id3v2 tag header is of size 10, read the rest
 		// and append it to what we already have.
 		buf := make([]byte, 6)
 		n, err := d.r.Read(buf)

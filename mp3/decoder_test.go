@@ -17,6 +17,7 @@ func Test_SeemsValid(t *testing.T) {
 		{"fixtures/HousyStab.mp3", true},
 		{"../wav/fixtures/bass.wav", false},
 		{"fixtures/nullbytes.mp3", true},
+		{"fixtures/idv3-24.mp3", true},
 	}
 
 	for i, tc := range testCases {
@@ -40,6 +41,7 @@ func Test_Decoder_Duration(t *testing.T) {
 		{"fixtures/HousyStab.mp3", "16.483264688s"},
 		{"fixtures/slayer.mp3", "28.447345872s"},
 		{"fixtures/nullbytes.mp3", "13.505305616s"},
+		{"fixtures/idv3-24.mp3", "11.128162848s"},
 	}
 
 	for i, tc := range testCases {
