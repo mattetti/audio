@@ -77,6 +77,8 @@ func SeemsValid(r io.Reader) bool {
 // Duration returns the time duration for the current mp3 file
 // The entire reader will be consumed, the consumer might want to rewind the reader
 // if they want to read more from the feed.
+// Note that this is an estimated duration based on how the frames look. An invalid file might have
+// a duration.
 func (d *Decoder) Duration() (time.Duration, error) {
 	if d == nil {
 		return 0, errors.New("can't calculate the duration of a nil pointer")
