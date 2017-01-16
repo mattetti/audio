@@ -291,7 +291,6 @@ func (d *Decoder) readHeaders() error {
 		if err != nil {
 			break
 		}
-
 		if chunk.ID == riff.FmtID {
 			chunk.DecodeWavHeader(d.parser)
 			d.NumChans = d.parser.NumChannels
@@ -307,6 +306,7 @@ func (d *Decoder) readHeaders() error {
 		} else {
 			// unexpected chunk order
 			rewindBytes += int64(chunk.Size)
+			chunk.Drain()
 		}
 
 	}

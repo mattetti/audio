@@ -45,8 +45,8 @@ func TestDecoder_IsValidFile(t *testing.T) {
 		{"fixtures/kick.wav", true},
 		{"fixtures/bass.wav", true},
 		{"fixtures/dirty-kick-24b441k.wav", true},
+		{"fixtures/logicBounce.wav", true},
 		{"../riff/fixtures/sample.avi", false},
-		//{"../mp3/fixtures/HousyStab.mp3", false},
 		{"../aiff/fixtures/bloop.aif", false},
 	}
 
