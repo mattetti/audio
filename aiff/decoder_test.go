@@ -206,7 +206,7 @@ func TestDecoder_IsValidFile(t *testing.T) {
 		{"../wav/fixtures/kick.wav", false},
 	}
 
-	for i, tc := range testCases {
+	for _, tc := range testCases {
 		f, err := os.Open(tc.in)
 		if err != nil {
 			t.Fatal(err)
@@ -214,7 +214,7 @@ func TestDecoder_IsValidFile(t *testing.T) {
 		defer f.Close()
 		d := NewDecoder(f)
 		if d.IsValidFile() != tc.isValid {
-			t.Fatalf("[%d] validation of the aiff files doesn't match expected %t, got %t - %#v", i, tc.isValid, d.IsValidFile(), d)
+			t.Fatalf("[%s] validation of the aiff files doesn't match expected %t, got %t - %#v", tc.in, tc.isValid, d.IsValidFile(), d)
 		}
 	}
 

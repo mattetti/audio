@@ -95,7 +95,7 @@ func (d *Decoder) NextChunk() (*Chunk, error) {
 // IsValidFile verifies that the file is valid/readable.
 func (d *Decoder) IsValidFile() bool {
 	d.ReadInfo()
-	if d.err != nil {
+	if d.err != nil && d.err != io.EOF {
 		return false
 	}
 	if d.NumChans < 1 {
