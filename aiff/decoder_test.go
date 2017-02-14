@@ -63,8 +63,8 @@ func TestContainerAttributes(t *testing.T) {
 		if d.Size != exp.size {
 			t.Fatalf("%s of %s didn't match %d, got %d", "BlockSize", exp.input, exp.size, d.Size)
 		}
-		if d.Format != exp.format {
-			t.Fatalf("%s of %s didn't match %q, got %q", "Format", exp.input, exp.format, d.Format)
+		if d.Form != exp.format {
+			t.Fatalf("%s of %s didn't match %q, got %q", "Format", exp.input, exp.format, d.Form)
 		}
 		// comm chunk
 		if d.commSize != exp.commSize {

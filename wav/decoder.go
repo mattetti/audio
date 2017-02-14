@@ -39,6 +39,22 @@ func NewDecoder(r io.ReadSeeker) *Decoder {
 	}
 }
 
+// PCMLen returns the total number of bytes in the PCM data chunk
+func (d *Decoder) PCMLen() int64 {
+	if d == nil {
+		return 0
+	}
+	return int64(d.PCMSize)
+}
+
+// WasPCMAccessed returns positively if the PCM data was previously accessed.
+func (d *Decoder) WasPCMAccessed() bool {
+	if d == nil {
+		return false
+	}
+	return d.pcmDataAccessed
+}
+
 // Err returns the first non-EOF error that was encountered by the Decoder.
 func (d *Decoder) Err() error {
 	if d.err == io.EOF {
@@ -95,6 +111,19 @@ func (d *Decoder) Reset() {
 	d.parser = riff.New(d.r)
 }
 
+// Format returns the audio format of the decoded content.
+func (d *Decoder) Format() *audio.Format {
+	if d == nil {
+		return nil
+	}
+	return &audio.Format{
+		NumChannels: int(d.NumChans),
+		SampleRate:  int(d.SampleRate),
+		BitDepth:    int(d.BitDepth),
+		Endianness:  binary.BigEndian,
+	}
+}
+
 // FwdToPCM forwards the underlying reader until the start of the PCM chunk.
 // If the PCM chunk was already read, no data will be found (you need to rewind).
 func (d *Decoder) FwdToPCM() error {
@@ -131,7 +160,7 @@ func (d *Decoder) FwdToPCM() error {
 // audio container. The entire PCM data is held in memory.
 // Consider using Buffer() instead.
 func (d *Decoder) FullPCMBuffer() (*audio.PCMBuffer, error) {
-	if !d.pcmDataAccessed {
+	if !d.WasPCMAccessed() {
 		err := d.FwdToPCM()
 		if err != nil {
 			return nil, d.err
@@ -140,12 +169,7 @@ func (d *Decoder) FullPCMBuffer() (*audio.PCMBuffer, error) {
 	if d.PCMChunk == nil {
 		return nil, errors.New("PCM chunk not found")
 	}
-	format := &audio.Format{
-		NumChannels: int(d.NumChans),
-		SampleRate:  int(d.SampleRate),
-		BitDepth:    int(d.BitDepth),
-		Endianness:  binary.BigEndian,
-	}
+	format := d.Format()
 
 	buf := audio.NewPCMIntBuffer(make([]int, 4096), format)
 	bytesPerSample := (d.BitDepth-1)/8 + 1
@@ -333,7 +357,11 @@ func sampleDecodeFunc(bitsPerSample int) (func([]byte) int, error) {
 	case 24:
 		// -34,359,738,367 (0x7FFFFF) to 34,359,738,368	(0x800000)
 		return func(s []byte) int {
-			return int(int32(s[0])<<8 | int32(s[1])<<16 | int32(s[2])<<24)
+			ss := int32(s[0]) | int32(s[1])<<8 | int32(s[2])<<16
+			if (ss & 0x800000) > 0 {
+				ss |= ^0xffffff
+			}
+			return int(ss)
 		}, nil
 	case 32:
 		return func(s []byte) int {

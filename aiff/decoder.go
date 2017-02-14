@@ -21,10 +21,10 @@ type Decoder struct {
 	// Note that the data portion has been
 	// broken into two parts, formType and chunks
 	Size uint32
-	// Format describes what's in the 'FORM' chunk. For Audio IFF files,
+	// Form describes what's in the 'FORM' chunk. For Audio IFF files,
 	// formType (aka Format) is always 'AIFF'.
 	// This indicates that the chunks within the FORM pertain to sampled sound.
-	Format [4]byte
+	Form [4]byte
 
 	// Data coming from the COMM chunk
 	commSize        uint32
@@ -42,12 +42,22 @@ type Decoder struct {
 
 	err             error
 	pcmDataAccessed bool
+
+	Debug bool
 }
 
 // NewDecoder creates a new reader reading the given reader and pushing audio data to the given channel.
 // It is the caller's responsibility to call Close on the reader when done.
 func NewDecoder(r io.ReadSeeker) *Decoder {
 	return &Decoder{r: r}
+}
+
+// PCMLen returns the total number of bytes in the PCM data chunk
+func (d *Decoder) PCMLen() int64 {
+	if d == nil {
+		return 0
+	}
+	return int64(d.PCMSize)
 }
 
 // Err returns the first non-EOF error that was encountered by the Decoder.
@@ -64,6 +74,14 @@ func (d *Decoder) EOF() bool {
 		return true
 	}
 	return false
+}
+
+// WasPCMAccessed returns positively if the PCM data was previously accessed.
+func (d *Decoder) WasPCMAccessed() bool {
+	if d == nil {
+		return false
+	}
+	return d.pcmDataAccessed
 }
 
 // NextChunk returns the next available chunk
@@ -199,7 +217,7 @@ func (d *Decoder) FwdToPCM() error {
 func (d *Decoder) Reset() {
 	d.ID = [4]byte{}
 	d.Size = 0
-	d.Format = [4]byte{}
+	d.Form = [4]byte{}
 	d.commSize = 0
 	d.NumChans = 0
 	d.numSampleFrames = 0
@@ -212,22 +230,30 @@ func (d *Decoder) Reset() {
 	d.r.Seek(0, 0)
 }
 
-// FullPCMBuffer is an inneficient way to access all the PCM data contained in the
-// audio container. The entire PCM data is held in memory.
-// Consider using Buffer() instead.
-func (d *Decoder) FullPCMBuffer() (*audio.PCMBuffer, error) {
-	if !d.pcmDataAccessed {
-		err := d.FwdToPCM()
-		if err != nil {
-			return nil, d.err
-		}
+// Format returns the audio format of the decoded content.
+func (d *Decoder) Format() *audio.Format {
+	if d == nil {
+		return nil
 	}
-	format := &audio.Format{
+	return &audio.Format{
 		NumChannels: int(d.NumChans),
 		SampleRate:  int(d.SampleRate),
 		BitDepth:    int(d.BitDepth),
 		Endianness:  binary.LittleEndian,
 	}
+}
+
+// FullPCMBuffer is an inneficient way to access all the PCM data contained in the
+// audio container. The entire PCM data is held in memory.
+// Consider using Buffer() instead.
+func (d *Decoder) FullPCMBuffer() (*audio.PCMBuffer, error) {
+	if !d.WasPCMAccessed() {
+		err := d.FwdToPCM()
+		if err != nil {
+			return nil, d.err
+		}
+	}
+	format := d.Format()
 
 	buf := audio.NewPCMIntBuffer(make([]int, 4096), format)
 	decodeF, err := sampleDecodeFunc(int(d.BitDepth))
@@ -263,6 +289,9 @@ func (d *Decoder) PCMBuffer(buf *audio.PCMBuffer) error {
 	}
 
 	if !d.pcmDataAccessed {
+		if d.Debug {
+			fmt.Println("forwarding to PCM Data")
+		}
 		err := d.FwdToPCM()
 		if err != nil {
 			return d.err
@@ -284,6 +313,9 @@ func (d *Decoder) PCMBuffer(buf *audio.PCMBuffer) error {
 
 	// Note that we populate the buffer even if the
 	// size of the buffer doesn't fit an even number of frames.
+	if d.Debug {
+		fmt.Println("populating %d samples", len(buf.Ints))
+	}
 	for i := 0; i < len(buf.Ints); i++ {
 		buf.Ints[i], err = decodeF(d.r)
 		if err != nil {
@@ -303,8 +335,8 @@ func (d *Decoder) PCMBuffer(buf *audio.PCMBuffer) error {
 
 // String implements the Stringer interface.
 func (d *Decoder) String() string {
-	out := fmt.Sprintf("Format: %s - ", d.Format)
-	if d.Format == aifcID {
+	out := fmt.Sprintf("Format: %s - ", d.Form)
+	if d.Form == aifcID {
 		out += fmt.Sprintf("%s - ", d.EncodingName)
 	}
 	if d.SampleRate != 0 {
@@ -347,13 +379,13 @@ func (d *Decoder) readHeaders() error {
 	if d.err = binary.Read(d.r, binary.BigEndian, &d.Size); d.err != nil {
 		return d.err
 	}
-	if d.err = binary.Read(d.r, binary.BigEndian, &d.Format); d.err != nil {
+	if d.err = binary.Read(d.r, binary.BigEndian, &d.Form); d.err != nil {
 		return d.err
 	}
 
 	// Must be a AIFF or AIFC form type
-	if d.Format != aiffID && d.Format != aifcID {
-		d.err = fmt.Errorf("%s - %s", ErrFmtNotSupported, d.Format)
+	if d.Form != aiffID && d.Form != aifcID {
+		d.err = fmt.Errorf("%s - %s", ErrFmtNotSupported, d.Form)
 		return d.err
 	}
 
@@ -431,7 +463,7 @@ func (d *Decoder) parseCommChunk(size uint32) error {
 	}
 	d.SampleRate = audio.IeeeFloatToInt(srBytes)
 
-	if d.Format == aifcID {
+	if d.Form == aifcID {
 		if d.err = binary.Read(d.r, binary.BigEndian, &d.Encoding); d.err != nil {
 			d.err = fmt.Errorf("AIFC encoding failed to parse - %s", d.err)
 			return d.err
