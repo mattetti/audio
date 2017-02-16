@@ -29,7 +29,7 @@ type Decoder struct {
 	// Data coming from the COMM chunk
 	commSize        uint32
 	NumChans        uint16
-	numSampleFrames uint32
+	NumSampleFrames uint32
 	BitDepth        uint16
 	SampleRate      int
 	//
@@ -138,7 +138,7 @@ func (d *Decoder) Duration() (time.Duration, error) {
 	if err := d.Err(); err != nil {
 		return 0, err
 	}
-	duration := time.Duration(float64(d.numSampleFrames) / float64(d.SampleRate) * float64(time.Second))
+	duration := time.Duration(float64(d.NumSampleFrames) / float64(d.SampleRate) * float64(time.Second))
 	return duration, nil
 }
 
@@ -448,7 +448,7 @@ func (d *Decoder) parseCommChunk(size uint32) error {
 		d.err = fmt.Errorf("num of channels failed to parse - %s", d.err)
 		return d.err
 	}
-	if d.err = binary.Read(d.r, binary.BigEndian, &d.numSampleFrames); d.err != nil {
+	if d.err = binary.Read(d.r, binary.BigEndian, &d.NumSampleFrames); d.err != nil {
 		d.err = fmt.Errorf("num of sample frames failed to parse - %s", d.err)
 		return d.err
 	}

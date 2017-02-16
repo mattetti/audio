@@ -19,7 +19,7 @@ func TestContainerAttributes(t *testing.T) {
 		format          [4]byte
 		commSize        uint32
 		numChans        uint16
-		numSampleFrames uint32
+		NumSampleFrames uint32
 		sampleSize      uint16
 		sampleRate      int
 		totalFrames     int64
@@ -73,8 +73,8 @@ func TestContainerAttributes(t *testing.T) {
 		if d.NumChans != exp.numChans {
 			t.Fatalf("%s of %s didn't match %d, got %d", "NumChans", exp.input, exp.numChans, d.NumChans)
 		}
-		if d.numSampleFrames != exp.numSampleFrames {
-			t.Fatalf("%s of %s didn't match %d, got %d", "NumSampleFrames", exp.input, exp.numSampleFrames, d.numSampleFrames)
+		if d.NumSampleFrames != exp.NumSampleFrames {
+			t.Fatalf("%s of %s didn't match %d, got %d", "NumSampleFrames", exp.input, exp.NumSampleFrames, d.NumSampleFrames)
 		}
 		if d.BitDepth != exp.sampleSize {
 			t.Fatalf("%s of %s didn't match %d, got %d", "SampleSize", exp.input, exp.sampleSize, d.BitDepth)
