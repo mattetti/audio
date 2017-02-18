@@ -220,7 +220,7 @@ func (d *Decoder) Reset() {
 	d.Form = [4]byte{}
 	d.commSize = 0
 	d.NumChans = 0
-	d.numSampleFrames = 0
+	d.NumSampleFrames = 0
 	d.BitDepth = 0
 	d.SampleRate = 0
 	d.Encoding = [4]byte{}
