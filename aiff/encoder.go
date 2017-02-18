@@ -146,6 +146,7 @@ func (e *Encoder) Write(buf *audio.PCMBuffer) error {
 		}
 
 		e.pcmChunkSizePos = e.WrittenBytes
+		e.pcmChunkStarted = true
 
 		// temporary blocksize uint32
 		//chunksize := uint32((int(e.BitDepth)/8)*int(e.NumChans)*len(e.Frames) + 8)
