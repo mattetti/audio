@@ -52,6 +52,14 @@ func NewDecoder(r io.ReadSeeker) *Decoder {
 	return &Decoder{r: r}
 }
 
+// SampleBitDepth returns the bit depth encoding of each sample.
+func (d *Decoder) SampleBitDepth() int32 {
+	if d == nil {
+		return 0
+	}
+	return int32(d.BitDepth)
+}
+
 // PCMLen returns the total number of bytes in the PCM data chunk
 func (d *Decoder) PCMLen() int64 {
 	if d == nil {

@@ -29,6 +29,7 @@ type Decoder interface {
 	FwdToPCM() error
 	PCMBuffer(*audio.IntBuffer) (int, error)
 	WasPCMAccessed() bool
+	SampleBitDepth() int32
 	Format() *audio.Format
 	Err() error
 }
