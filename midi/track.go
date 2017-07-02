@@ -1,6 +1,9 @@
 package midi
 
-import "bytes"
+import (
+	"bytes"
+	"strings"
+)
 
 // Track
 // <Track Chunk> = <chunk type><length><MTrk event>
@@ -20,6 +23,34 @@ func (t *Track) Add(beatDelta float64, e *Event) {
 	e.TimeDelta = uint32(beatDelta * float64(t.ticksPerBeat))
 	t.Events = append(t.Events, e)
 	t.Size += uint32(len(EncodeVarint(e.TimeDelta))) + e.Size()
+}
+
+// Tempo returns the tempo of the track if set, 0 otherwise
+func (t *Track) Tempo() int {
+	if t == nil {
+		return 0
+	}
+	tempoEvType := metaByteMap["Tempo"]
+	for _, ev := range t.Events {
+		if ev.Cmd == tempoEvType {
+			return int(ev.Bpm)
+		}
+	}
+	return 0
+}
+
+func (t *Track) Name() string {
+	if t == nil {
+		return ""
+	}
+	nameEvType := metaByteMap["Sequence/Track name"]
+	for _, ev := range t.Events {
+		if ev.Cmd == nameEvType {
+			// trim spaces and null bytes
+			return strings.TrimRight(strings.TrimSpace(ev.SeqTrackName), "\x00")
+		}
+	}
+	return ""
 }
 
 // ChunkData converts the track and its events into a binary byte slice (chunk header included)
