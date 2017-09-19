@@ -2,7 +2,6 @@ package caf
 
 import (
 	"bytes"
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -31,6 +30,8 @@ func TestParsingFile(t *testing.T) {
 	}{
 		{"fixtures/ring.caf", fileHeaderID, 1, 0},
 		{"fixtures/bass.caf", fileHeaderID, 1, 0},
+		// from Logic
+		{"fixtures/Bricklayer Bass.caf", fileHeaderID, 1, 0},
 	}
 
 	for _, exp := range expectations {
@@ -45,8 +46,8 @@ func TestParsingFile(t *testing.T) {
 		if err := d.Parse(); err != nil {
 			t.Fatal(err)
 		}
-		fmt.Println(d)
-		t.Logf("%+v\n", *d)
+		t.Log(d)
+		// t.Logf("%+v\n", *d)
 
 		if d.Format != exp.format {
 			t.Fatalf("%s of %s didn't match %v, got %v", "format", exp.path, exp.format, d.Format)

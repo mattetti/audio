@@ -2,6 +2,7 @@ package caf
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"time"
@@ -224,9 +225,24 @@ func (d *Decoder) parseChunk() error {
 		}
 
 	default:
-		fmt.Println(string(t[:]))
+		chunkType := string(t[:])
+		fmt.Println(chunkType)
 		buf := make([]byte, cSize)
-		return d.Read(buf)
+		err = d.Read(buf)
+		switch t {
+		case InfoStringsChunkID:
+			fmt.Println(string(buf))
+		case UUIDChunkID:
+		// user defined chunk
+		// https://developer.apple.com/library/content/documentation/MusicAudio/Reference/CAFSpec/CAF_spec/CAF_spec.html#//apple_ref/doc/uid/TP40001862-CH210-BCGHJGEC
+		case OverviewChunkID:
+		// sample description to draw the waveform
+		// https://developer.apple.com/library/content/documentation/MusicAudio/Reference/CAFSpec/CAF_spec/CAF_spec.html#//apple_ref/doc/uid/TP40001862-CH210-BCGBIJEH
+		case MIDIChunkID:
+			// TODO: use midi parser to extract data such as BPM from the buf
+			fmt.Println(hex.Dump(buf))
+		}
+		return err
 	}
 
 	return nil
