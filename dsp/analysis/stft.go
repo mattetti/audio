@@ -8,7 +8,7 @@ import (
 
 // STFT is the Short Time Fourier Transform representation of a signal
 // https://en.wikipedia.org/wiki/Short-time_Fourier_transform
-// See https://github.com/r9y9/gossp/ for the inspiration
+// See https://github.com/r9y9/gossp/ where most of this code comes from.
 type STFT struct {
 	// FFTSize is the FFT window size
 	FFTSize int

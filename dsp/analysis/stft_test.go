@@ -7,12 +7,12 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/go-audio/audio"
+	"github.com/go-audio/transforms"
 	"github.com/go-audio/wav"
 	"github.com/mattetti/audio/dsp/windows"
 )
 
-func loadFixtureData(t *testing.T, fixturePath string) *audio.FloatBuffer {
+func loadFixtureData(t *testing.T, fixturePath string) []float64 {
 	path, _ := filepath.Abs(fixturePath)
 	f, err := os.Open(path)
 	if err != nil {
@@ -25,12 +25,14 @@ func loadFixtureData(t *testing.T, fixturePath string) *audio.FloatBuffer {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return intBuf.AsFloatBuffer()
+	fBuf := intBuf.AsFloatBuffer()
+	transforms.MonoDownmix(fBuf)
+	return fBuf.Data
 }
 
 func TestRoundtripping_STFT_ISTFT(t *testing.T) {
 	var (
-		testData            = loadFixtureData(t, "../../wav/fixtures/kick-16b441k.wav")
+		testData            = loadFixtureData(t, "../../wav/fixtures/r9y916k.wav")
 		testFrameLen        = []int{4096, 2048, 1024, 512}
 		testFrameShiftDenom = []int{2, 3, 4, 5, 6, 7, 8} // 50% overlap 75% ...
 		errTolerance        = 1.2
@@ -49,12 +51,12 @@ func TestRoundtripping_STFT_ISTFT(t *testing.T) {
 						Window:     win,
 					}
 
-					reconstructed := s.ISTFT(s.STFT(testData.Data))
+					reconstructed := s.ISTFT(s.STFT(testData))
 					if containNAN(reconstructed) {
 						t.Errorf("NAN contained, want non NAN contained.")
 					}
 
-					err := absErr(reconstructed, testData.Data)
+					err := absErr(reconstructed, testData)
 					if err > errTolerance {
 						t.Errorf("[Frame length %d, hop size %d] %f error, want less than %f", frameLen, s.HopSize, err, errTolerance)
 					}
