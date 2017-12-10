@@ -25,7 +25,7 @@ type Encoder struct {
 	   Format 0 file has a header chunk followed by one track chunk. It
 	   is the most interchangable representation of data. It is very useful
 	   for a simple single-track player in a program which needs to make
-	   synthesizers make sounds, but which is primarily concerened with
+	   synthesizers make sounds, but which is primarily concerned with
 	   something else such as mixers or sound effect boxes. It is very
 	   desirable to be able to produce such a format, even if your program
 	   is track-based, in order to work with these simple programs. On the
