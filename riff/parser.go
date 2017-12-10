@@ -149,16 +149,12 @@ func (c *Parser) NextChunk() (*Chunk, error) {
 }
 
 // IDnSize returns the next ID + block size
-func (c *Parser) IDnSize() ([4]byte, uint32, error) {
-	var ID [4]byte
-	var blockSize uint32
-	if err := binary.Read(c.r, binary.BigEndian, &ID); err != nil {
+func (c *Parser) IDnSize() (ID [4]byte, blockSize uint32, err error) {
+	if err = binary.Read(c.r, binary.BigEndian, &ID); err != nil {
 		return ID, blockSize, err
 	}
-	if err := binary.Read(c.r, binary.LittleEndian, &blockSize); err != err {
-		return ID, blockSize, err
-	}
-	return ID, blockSize, nil
+	err = binary.Read(c.r, binary.LittleEndian, &blockSize)
+	return ID, blockSize, err
 }
 
 // Parse parses the content of the file and populate the useful fields.
