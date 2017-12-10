@@ -24,7 +24,11 @@ type TimeSignature struct {
 	ThirtySecondNotesPerQuarter uint8
 }
 
+// Denum returns the notation denominator (which is not how it's stored in MIDI)
+func (ts *TimeSignature) Denum() int {
+	return int(math.Exp2(float64(ts.Denominator)))
+}
+
 func (ts *TimeSignature) String() string {
-	denum := int(math.Exp2(float64(ts.Denominator)))
-	return fmt.Sprintf("%d/%d - %d clocks per tick - %d", ts.Numerator, denum, ts.ClocksPerTick, ts.ThirtySecondNotesPerQuarter)
+	return fmt.Sprintf("%d/%d - %d clocks per tick - %d", ts.Numerator, ts.Denum(), ts.ClocksPerTick, ts.ThirtySecondNotesPerQuarter)
 }
