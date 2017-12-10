@@ -84,7 +84,7 @@ func PitchWheelChange(channel, int, val int) *Event {
 func CopyrightEvent(txt string) *Event {
 	return &Event{
 		MsgType:   uint8(EventByteMap["Meta"]),
-		Cmd:       uint8(metaByteMap["Copyright"]),
+		Cmd:       uint8(MetaByteMap["Copyright"]),
 		Copyright: txt,
 	}
 }
@@ -108,7 +108,7 @@ func TempoEvent(bpmF float64) *Event {
 	// easily be transferred to another device.
 	return &Event{
 		MsgType:        uint8(EventByteMap["Meta"]),
-		Cmd:            uint8(metaByteMap["Tempo"]),
+		Cmd:            uint8(MetaByteMap["Tempo"]),
 		MsPerQuartNote: ms,
 	}
 }
@@ -230,15 +230,15 @@ func (e *Event) String() string {
 		out += fmt.Sprintf(" Note: %s", NoteToName(int(e.Note)))
 	}
 	if e.Cmd != 0 {
-		out = fmt.Sprintf("Ch %d @ %d \t%s", e.MsgChan, e.TimeDelta, metaCmdMap[e.Cmd])
+		out = fmt.Sprintf("Ch %d @ %d \t%s", e.MsgChan, e.TimeDelta, MetaCmdMap[e.Cmd])
 		switch e.Cmd {
-		case metaByteMap["Sequence/Track name"]:
+		case MetaByteMap["Sequence/Track name"]:
 			out = fmt.Sprintf("%s -> %s", out, e.SeqTrackName)
-		case metaByteMap["Time Signature"]:
+		case MetaByteMap["Time Signature"]:
 			out = fmt.Sprintf("%s -> %s", out, e.TimeSignature)
-		case metaByteMap["Copyright"]:
+		case MetaByteMap["Copyright"]:
 			out = fmt.Sprintf("%s -> %s", out, e.Copyright)
-		case metaByteMap["Tempo"]:
+		case MetaByteMap["Tempo"]:
 			out = fmt.Sprintf("%s -> %d", out, e.Bpm)
 		}
 	}

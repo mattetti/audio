@@ -25,7 +25,8 @@ var EventByteMap = map[string]byte{
 	"Meta":              0xF,
 }
 
-var metaCmdMap = map[byte]string{
+// MetaCmdMap maps metadata binary command to their names
+var MetaCmdMap = map[byte]string{
 	0x0:  "Sequence number",
 	0x01: "Text event",
 	0x02: "Copyright",
@@ -46,7 +47,8 @@ var metaCmdMap = map[byte]string{
 	0xFC: "Stop sequence",
 }
 
-var metaByteMap = map[string]byte{
+// MetaByteMap maps metadata command names to their binary cmd code
+var MetaByteMap = map[string]byte{
 	"Sequence number":                          0x0,
 	"Text event":                               0x01,
 	"Copyright":                                0x02,

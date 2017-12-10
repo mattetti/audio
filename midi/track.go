@@ -30,7 +30,7 @@ func (t *Track) Tempo() int {
 	if t == nil {
 		return 0
 	}
-	tempoEvType := metaByteMap["Tempo"]
+	tempoEvType := MetaByteMap["Tempo"]
 	for _, ev := range t.Events {
 		if ev.Cmd == tempoEvType {
 			return int(ev.Bpm)
@@ -43,7 +43,7 @@ func (t *Track) Name() string {
 	if t == nil {
 		return ""
 	}
-	nameEvType := metaByteMap["Sequence/Track name"]
+	nameEvType := MetaByteMap["Sequence/Track name"]
 	for _, ev := range t.Events {
 		if ev.Cmd == nameEvType {
 			// trim spaces and null bytes
