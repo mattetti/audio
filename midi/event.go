@@ -28,6 +28,16 @@ func NoteOff(channel, key int) *Event {
 	}
 }
 
+// EndOfTrack indicates the end of the midi track. Note that this event is
+// automatically added when encoding a normal track.
+func EndOfTrack() *Event {
+	return &Event{
+		MsgType: uint8(EventByteMap["Meta"]),
+		MsgChan: uint8(15),
+		Cmd:     MetaByteMap["End of Track"],
+	}
+}
+
 // AfterTouch returns a pointer to a new aftertouch event
 func Aftertouch(channel, key, vel int) *Event {
 	return &Event{
@@ -350,6 +360,8 @@ func (e *Event) Encode() []byte {
 		case 0x51:
 			binary.Write(buff, binary.BigEndian, EncodeVarint(3))
 			binary.Write(buff, binary.BigEndian, Uint24(e.MsPerQuartNote))
+		case 0x2f: // end of track
+			buff.WriteByte(0x0)
 		}
 	default:
 		fmt.Printf("didn't encode %#v because didn't know how to\n", e)
@@ -375,11 +387,13 @@ func (e *Event) Size() uint32 {
 			varintBytes := EncodeVarint(uint32(len(copyright)))
 			return uint32(len(copyright) + len(varintBytes))
 			// BPM (size + encoded in uint24)
-		case 0x51:
+		case 0x51: // tempo
 			return 4
+		case 0x2f: // end of track
+			return 1
 		default:
 			// NOT currently support, blowing up on purpose
-			log.Fatal(errors.New("Can't encode meta events, not supported yet"))
+			log.Fatal(errors.New("Can't encode this meta event, it is not supported yet"))
 		}
 	}
 	return 0

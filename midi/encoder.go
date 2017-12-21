@@ -109,13 +109,13 @@ func (e *Encoder) encodeTrack(t *Track) error {
 	if _, err := e.w.Write(trackChunkID[:]); err != nil {
 		return err
 	}
-	data, err := t.ChunkData()
+	data, err := t.ChunkData(true)
 	if err != nil {
 		return err
 	}
 	// chunk size
 	if err := binary.Write(e.w, binary.BigEndian, uint32(len(data))); err != nil {
-		log.Fatalf("106", err)
+		log.Fatalf("106 - %v", err)
 
 		return err
 	}

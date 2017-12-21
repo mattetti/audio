@@ -29,8 +29,7 @@ func main() {
 		tr.Add(1, midi.NoteOff(0, i))
 		j = 1
 	}
-	// empty note at the end
-	tr.Add(1, midi.NoteOff(0, 60))
+	tr.Add(1, midi.EndOfTrack())
 
 	if err := e.Write(); err != nil {
 		log.Fatal(err)
