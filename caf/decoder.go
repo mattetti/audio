@@ -1,10 +1,13 @@
 package caf
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
 	"time"
+
+	"github.com/go-audio/chunk"
 )
 
 type AudioDescChunk struct {
@@ -39,7 +42,7 @@ The format of the audio data depends on the data type. All of the other fields i
 
 */
 type Decoder struct {
-	r io.Reader
+	r io.ReadSeeker
 
 	// Ch chan *TBD
 
@@ -86,6 +89,54 @@ type Decoder struct {
 	// so that the end of the Audio Data chunk is the same as the end of the file.
 	// This placement allows you to determine the data section size.
 	AudioDataSize int64
+
+	err error
+}
+
+// ReadInfo reads the underlying reader finds the data it needs.
+// This method is safe to call multiple times.
+func (d *Decoder) ReadInfo() error {
+	if d == nil || d.SampleRate > 0 {
+		return nil
+	}
+	if d.err = d.readHeaders(); d.err != nil {
+		d.err = fmt.Errorf("failed to read header - %v", d.err)
+		return d.err
+	}
+
+	var (
+		id          [4]byte
+		size        int64
+		rewindBytes int64
+	)
+	for d.err != io.EOF {
+		id, size, d.err = d.iDnSize()
+		if d.err != nil {
+			if d.err != io.EOF {
+				d.err = fmt.Errorf("error reading chunk header - %v", d.err)
+
+			}
+			break
+		}
+		switch id {
+		default:
+			if d.SampleRate == 0 {
+				rewindBytes += int64(size) + 8 // we add 8 for the ID and size of this chunk
+			}
+			if d.err = d.jumpTo(int(size)); d.err != nil {
+				break
+			}
+		}
+	}
+	return d.Err()
+}
+
+// Err returns the last non-EOF error that was encountered by the Decoder.
+func (d *Decoder) Err() error {
+	if d.err == io.EOF {
+		return nil
+	}
+	return d.err
 }
 
 // String implements the stringer interface
@@ -97,30 +148,39 @@ func (d *Decoder) String() string {
 	return out
 }
 
-// Parse reads the file content and store it.
-func (d *Decoder) Parse() error {
-	var err error
+// readHeaders is safe to call multiple times
+// byte size of the header: 12
+func (d *Decoder) readHeaders() error {
+	// prevent the headers to be re-read
+	if d.Version > 0 {
+		return nil
+	}
+	var n int64
+	size := 8 // 4 + 2 + 2
+	src := bytes.NewBuffer(make([]byte, 0, size))
+	n, d.err = io.CopyN(src, d.r, int64(size))
+	if n < int64(size) {
+		src.Truncate(int(n))
+	}
 
-	// File header
-	if err = d.Read(&d.Format); err != nil {
-		return err
+	// format
+	if _, d.err = src.Read(d.Format[:]); d.err != nil {
+		return d.err
 	}
 	if d.Format != fileHeaderID {
 		return fmt.Errorf("%s %s", string(d.Format[:]), ErrFmtNotSupported)
 	}
-	if err = d.Read(&d.Version); err != nil {
-		return err
+
+	// version
+	if d.err = binary.Read(src, binary.BigEndian, &d.Version); d.err != nil {
+		return d.err
 	}
 	if d.Version > 1 {
-		return fmt.Errorf("CAF v%s - %s", d.Version, ErrFmtNotSupported)
-	}
-	// ignore the flags value
-	if err = d.Read(&d.Flags); err != nil {
-		return err
+		return fmt.Errorf("CAF v%d - %v", d.Version, ErrFmtNotSupported)
 	}
 
 	// The Audio Description chunk is required and must appear in a CAF file immediately following the file header. It describes the format of the audio data in the Audio Data chunk.
-	cType, _, err := d.chunkHeader()
+	cType, _, err := d.iDnSize()
 	if err != nil {
 		return err
 	}
@@ -131,16 +191,37 @@ func (d *Decoder) Parse() error {
 		return err
 	}
 
-	// parse the actual content
-	for err == nil {
-		err = d.parseChunk()
+	return d.err
+}
+
+// NextChunk returns the next available chunk
+func (d *Decoder) NextChunk() (*chunk.Reader, error) {
+	var err error
+
+	if err = d.readHeaders(); err != nil {
+		return nil, err
 	}
 
-	if err != io.EOF {
-		return err
+	var (
+		id   [4]byte
+		size int64
+	)
+
+	id, size, d.err = d.iDnSize()
+	if d.err != nil {
+		if d.err == io.EOF || d.err == io.ErrUnexpectedEOF {
+			return nil, io.EOF
+		}
+		return nil, fmt.Errorf("error reading chunk header - %v", d.err)
 	}
 
-	return nil
+	c := &chunk.Reader{
+		ID:   id,
+		Size: int(size),
+		R:    io.LimitReader(d.r, int64(size)),
+	}
+
+	return c, d.err
 }
 
 // parseDescChunk parses the first chunk called description chunk.
@@ -177,7 +258,7 @@ func (d *Decoder) Duration() time.Duration {
 	return 0
 }
 
-func (d *Decoder) chunkHeader() ([4]byte, int64, error) {
+func (d *Decoder) iDnSize() ([4]byte, int64, error) {
 	var err error
 	var cSize int64
 	var cType [4]byte
@@ -194,7 +275,7 @@ func (d *Decoder) chunkHeader() ([4]byte, int64, error) {
 
 func (d *Decoder) parseChunk() error {
 
-	cType, cSize, err := d.chunkHeader()
+	cType, cSize, err := d.iDnSize()
 	if err != nil {
 		return err
 	}
@@ -203,7 +284,6 @@ func (d *Decoder) parseChunk() error {
 	switch t {
 	case AudioDataChunkID:
 		d.AudioDataSize = cSize
-
 		// TODO:
 		// editCount uint32
 		// The modification status of the data section. You should initially set this field to 0, and should increment it each time the audio data in the file is modified.
@@ -216,14 +296,62 @@ func (d *Decoder) parseChunk() error {
 				readSize = 4000
 			}
 			buf := make([]byte, readSize)
-			err = binary.Read(d.r, binary.LittleEndian, &buf)
-			if err != nil {
+			if err = binary.Read(d.r, binary.LittleEndian, &buf); err != nil {
 				return nil
 			}
 			bytesToSkip -= readSize
 		}
+	case InfoStringsChunkID:
+		chunks := &stringsChunk{}
+		if err = binary.Read(d.r, binary.BigEndian, &chunks.numEntries); err != nil {
+			return nil
+		}
 
 	default:
+		// kuki
+		// The Magic Cookie chunk contains supplementary (“magic cookie”) data required by certain audio data formats, such as MPEG-4 AAC, for decoding of the audio data. If the audio data format contained in a CAF file requires magic cookie data, the file must have this chunk.
+		// https://developer.apple.com/library/content/documentation/MusicAudio/Reference/CAFSpec/CAF_spec/CAF_spec.html#//apple_ref/doc/uid/TP40001862-CH210-BCGFCCFA
+
+		// strg
+		// The optional Strings chunk contains any number of textual
+		// strings, along with an index for accessing them. These strings serve
+		// as labels for other chunks, such as Marker or Region chunks.
+
+		// free
+		// The optional Free chunk is for reserving space, or providing
+		// padding, in a CAF file. The contents of the Free chunk data section
+		// have no significance and should be ignored.
+
+		// info
+		// You can use the optional Information chunk to contain any number
+		// of human-readable text strings. Each string is accessed through a
+		// standard or application-defined key. You should consider information
+		// in this chunk to be secondary when the same information appears in
+		// other chunks. For example, both the Information chunk and the MIDI
+		// chunk (MIDI Chunk) may specify key signature and tempo. In that case,
+		// the MIDI chunk values overrides the values in the Information chunk.
+
+		// uuid
+		//
+		// You can define your own chunk type to extend the CAF file
+		// specification. For this purpose, this specification includes the
+		// User-Defined chunk type, which you can use to provide a unique
+		// universal identifier for your custom chunk. When parsing a CAF file,
+		// you should ignore any chunk with a UUID that you do not recognize.
+
+		// ovvw
+		//
+		// You can use the optional Overview chunk to hold sample descriptions
+		// that you can use to draw a graphical view of the audio data in a CAF
+		// file. A CAF file can include multiple Overview chunks to represent
+		// the audio at multiple graphical resolutions.
+
+		// peak
+		//
+		// You can use the optional Peak chunk to describe the peak amplitude
+		// present in each channel of a CAF file and to indicate in which frame
+		// the peak occurs for each channel.
+
 		fmt.Println(string(t[:]))
 		buf := make([]byte, cSize)
 		return d.Read(buf)
@@ -242,4 +370,15 @@ func (d *Decoder) ReadByte() (byte, error) {
 // which must be a pointer to a fixed-size value.
 func (d *Decoder) Read(dst interface{}) error {
 	return binary.Read(d.r, binary.BigEndian, dst)
+}
+
+// jumpTo advances the reader to the amount of bytes provided
+func (d *Decoder) jumpTo(bytesAhead int) error {
+	var err error
+	if bytesAhead > 0 {
+		_, err = d.r.Seek(int64(bytesAhead), io.SeekCurrent)
+		// TODO: benchmark against
+		// _, err = io.CopyN(ioutil.Discard, d.r, int64(bytesAhead))
+	}
+	return err
 }

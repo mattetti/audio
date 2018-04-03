@@ -59,10 +59,8 @@ var (
 	ErrUnexpectedData = errors.New("unexpected data content")
 )
 
-func New(r io.Reader) *Decoder {
+// NewDecoder creates a new reader reading the given reader. It is the caller's
+// responsibility to call Close on the reader when done.
+func NewDecoder(r io.ReadSeeker) *Decoder {
 	return &Decoder{r: r}
 }
-
-//func NewParser(r io.Reader, ch chan *TBD) *Decoder {
-//return &Decoder{r: r, Ch: ch}
-//}

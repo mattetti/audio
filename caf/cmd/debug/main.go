@@ -5,6 +5,8 @@ import (
 	"log"
 	"os"
 
+	"github.com/go-audio/chunk"
+
 	"github.com/mattetti/audio/caf"
 )
 
@@ -21,9 +23,14 @@ func main() {
 	}
 	defer f.Close()
 
-	decoder := caf.New(f)
-	if err := decoder.Parse(); err != nil {
-		log.Fatal(err)
+	d := caf.NewDecoder(f)
+	var chk *chunk.Reader
+	for err == nil {
+		chk, err = d.NextChunk()
+		if err == nil {
+			fmt.Println(string(chk.ID[:]))
+			chk.Done()
+		}
 	}
-	fmt.Println(decoder)
+	fmt.Println(d)
 }
