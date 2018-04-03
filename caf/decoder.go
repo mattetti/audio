@@ -104,29 +104,114 @@ func (d *Decoder) ReadInfo() error {
 		return d.err
 	}
 
-	var (
-		id          [4]byte
-		size        int64
-		rewindBytes int64
-	)
-	for d.err != io.EOF {
-		id, size, d.err = d.iDnSize()
-		if d.err != nil {
-			if d.err != io.EOF {
-				d.err = fmt.Errorf("error reading chunk header - %v", d.err)
-
-			}
+	var chk *chunk.Reader
+	var err error
+	for err == nil {
+		chk, err = d.NextChunk()
+		if err != nil {
 			break
 		}
-		switch id {
-		default:
-			if d.SampleRate == 0 {
-				rewindBytes += int64(size) + 8 // we add 8 for the ID and size of this chunk
+		switch chk.ID {
+		case AudioDataChunkID:
+			d.AudioDataSize = int64(chk.Size)
+			// TODO:
+			// editCount uint32
+			// The modification status of the data section. You should initially set this field to 0, and should increment it each time the audio data in the file is modified.
+			// the rest of the data is the actual audio data.
+		case InfoStringsChunkID:
+			strChunk := &stringsChunk{stringID: map[string]string{}}
+			if err = chk.ReadBE(&strChunk.numEntries); err != nil {
+				return fmt.Errorf("failed to read the info strings chunk data - %v", err)
 			}
-			if d.err = d.jumpTo(int(size)); d.err != nil {
-				break
+			if strChunk.numEntries > 0 {
+				for i := uint32(0); i < strChunk.numEntries; i++ {
+					// read key(max 32 bytes) + data (max 1024) both null delimited.
+					// TODO: this is terrible for performance reasons. Read the entire chunk in memory for that.
+					key := []byte{}
+					var b byte
+					msg := []byte{}
+					var msgB byte
+					for j := 0; j < 32; j++ {
+						b, err = chk.ReadByte()
+						if err != nil {
+							break
+						}
+						// end of key?
+						if b == 0x0 {
+							for k := 0; k < 1024; k++ {
+								msgB, err = chk.ReadByte()
+								if err != nil {
+									break
+								}
+								// message terminated
+								if msgB == 0x0 {
+									break
+								}
+								msg = append(msg, msgB)
+							}
+							break
+						}
+						key = append(key, b)
+					}
+					if len(key) > 0 {
+						strChunk.stringID[string(key)] = string(msg)
+					}
+				}
+
+				for k, v := range strChunk.stringID {
+					fmt.Printf("%s -> %s\n", k, v)
+				}
 			}
+
+			// kuki
+			// The Magic Cookie chunk contains supplementary (“magic cookie”) data required by certain audio data formats, such as MPEG-4 AAC, for decoding of the audio data. If the audio data format contained in a CAF file requires magic cookie data, the file must have this chunk.
+			// https://developer.apple.com/library/content/documentation/MusicAudio/Reference/CAFSpec/CAF_spec/CAF_spec.html#//apple_ref/doc/uid/TP40001862-CH210-BCGFCCFA
+
+			// strg
+			// The optional Strings chunk contains any number of textual
+			// strings, along with an index for accessing them. These strings serve
+			// as labels for other chunks, such as Marker or Region chunks.
+
+			// free
+			// The optional Free chunk is for reserving space, or providing
+			// padding, in a CAF file. The contents of the Free chunk data section
+			// have no significance and should be ignored.
+
+			// info
+			// You can use the optional Information chunk to contain any number
+			// of human-readable text strings. Each string is accessed through a
+			// standard or application-defined key. You should consider information
+			// in this chunk to be secondary when the same information appears in
+			// other chunks. For example, both the Information chunk and the MIDI
+			// chunk (MIDI Chunk) may specify key signature and tempo. In that case,
+			// the MIDI chunk values overrides the values in the Information chunk.
+
+			// uuid
+			//
+			// You can define your own chunk type to extend the CAF file
+			// specification. For this purpose, this specification includes the
+			// User-Defined chunk type, which you can use to provide a unique
+			// universal identifier for your custom chunk. When parsing a CAF file,
+			// you should ignore any chunk with a UUID that you do not recognize.
+
+			// ovvw
+			//
+			// You can use the optional Overview chunk to hold sample descriptions
+			// that you can use to draw a graphical view of the audio data in a CAF
+			// file. A CAF file can include multiple Overview chunks to represent
+			// the audio at multiple graphical resolutions.
+
+			// peak
+			//
+			// You can use the optional Peak chunk to describe the peak amplitude
+			// present in each channel of a CAF file and to indicate in which frame
+			// the peak occurs for each channel.
 		}
+		chk.Done()
+	}
+
+	if d.err == nil && d.err != nil {
+		d.err = err
 	}
 	return d.Err()
 }
@@ -146,6 +231,82 @@ func (d *Decoder) String() string {
 	out += fmt.Sprintf("data size: %d", d.AudioDataSize)
 
 	return out
+}
+
+// NextChunk returns the next available chunk
+func (d *Decoder) NextChunk() (*chunk.Reader, error) {
+	var err error
+
+	if err = d.readHeaders(); err != nil {
+		return nil, err
+	}
+
+	var (
+		id   [4]byte
+		size int64
+	)
+
+	id, size, d.err = d.iDnSize()
+	if d.err != nil {
+		if d.err == io.EOF || d.err == io.ErrUnexpectedEOF {
+			return nil, io.EOF
+		}
+		return nil, fmt.Errorf("error reading chunk header - %v", d.err)
+	}
+
+	c := &chunk.Reader{
+		ID:   id,
+		Size: int(size),
+		R:    io.LimitReader(d.r, int64(size)),
+	}
+
+	return c, d.err
+}
+
+func (d *Decoder) Duration() time.Duration {
+	//duration := time.Duration((float64(p.Size) / float64(p.AvgBytesPerSec)) * float64(time.Second))
+	//duration := time.Duration(float64(p.NumSampleFrames) / float64(p.SampleRate) * float64(time.Second))
+
+	return 0
+}
+
+func (d *Decoder) ReadByte() (byte, error) {
+	var b byte
+	err := binary.Read(d.r, binary.BigEndian, &b)
+	return b, err
+}
+
+// read reads n bytes from the parser's reader and stores them into the provided dst,
+// which must be a pointer to a fixed-size value.
+func (d *Decoder) Read(dst interface{}) error {
+	return binary.Read(d.r, binary.BigEndian, dst)
+}
+
+// parseDescChunk parses the first chunk called description chunk.
+func (d *Decoder) parseDescChunk() error {
+	if err := d.Read(&d.SampleRate); err != nil {
+		return err
+	}
+	if err := d.Read(&d.FormatID); err != nil {
+		return err
+	}
+	if err := d.Read(&d.FormatFlags); err != nil {
+		return err
+	}
+	if err := d.Read(&d.BytesPerPacket); err != nil {
+		return err
+	}
+	if err := d.Read(&d.FramesPerPacket); err != nil {
+		return err
+	}
+	if err := d.Read(&d.ChannelsPerFrame); err != nil {
+		return err
+	}
+	if err := d.Read(&d.BitsPerChannel); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // readHeaders is safe to call multiple times
@@ -192,70 +353,6 @@ func (d *Decoder) readHeaders() error {
 	}
 
 	return d.err
-}
-
-// NextChunk returns the next available chunk
-func (d *Decoder) NextChunk() (*chunk.Reader, error) {
-	var err error
-
-	if err = d.readHeaders(); err != nil {
-		return nil, err
-	}
-
-	var (
-		id   [4]byte
-		size int64
-	)
-
-	id, size, d.err = d.iDnSize()
-	if d.err != nil {
-		if d.err == io.EOF || d.err == io.ErrUnexpectedEOF {
-			return nil, io.EOF
-		}
-		return nil, fmt.Errorf("error reading chunk header - %v", d.err)
-	}
-
-	c := &chunk.Reader{
-		ID:   id,
-		Size: int(size),
-		R:    io.LimitReader(d.r, int64(size)),
-	}
-
-	return c, d.err
-}
-
-// parseDescChunk parses the first chunk called description chunk.
-func (d *Decoder) parseDescChunk() error {
-	if err := d.Read(&d.SampleRate); err != nil {
-		return err
-	}
-	if err := d.Read(&d.FormatID); err != nil {
-		return err
-	}
-	if err := d.Read(&d.FormatFlags); err != nil {
-		return err
-	}
-	if err := d.Read(&d.BytesPerPacket); err != nil {
-		return err
-	}
-	if err := d.Read(&d.FramesPerPacket); err != nil {
-		return err
-	}
-	if err := d.Read(&d.ChannelsPerFrame); err != nil {
-		return err
-	}
-	if err := d.Read(&d.BitsPerChannel); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (d *Decoder) Duration() time.Duration {
-	//duration := time.Duration((float64(p.Size) / float64(p.AvgBytesPerSec)) * float64(time.Second))
-	//duration := time.Duration(float64(p.NumSampleFrames) / float64(p.SampleRate) * float64(time.Second))
-
-	return 0
 }
 
 func (d *Decoder) iDnSize() ([4]byte, int64, error) {
@@ -360,18 +457,6 @@ func (d *Decoder) parseChunk() error {
 	return nil
 }
 
-func (d *Decoder) ReadByte() (byte, error) {
-	var b byte
-	err := binary.Read(d.r, binary.BigEndian, &b)
-	return b, err
-}
-
-// read reads n bytes from the parser's reader and stores them into the provided dst,
-// which must be a pointer to a fixed-size value.
-func (d *Decoder) Read(dst interface{}) error {
-	return binary.Read(d.r, binary.BigEndian, dst)
-}
-
 // jumpTo advances the reader to the amount of bytes provided
 func (d *Decoder) jumpTo(bytesAhead int) error {
 	var err error
@@ -381,4 +466,17 @@ func (d *Decoder) jumpTo(bytesAhead int) error {
 		// _, err = io.CopyN(ioutil.Discard, d.r, int64(bytesAhead))
 	}
 	return err
+}
+
+func nullTermStr(b []byte) string {
+	return string(b[:clen(b)])
+}
+
+func clen(n []byte) int {
+	for i := 0; i < len(n); i++ {
+		if n[i] == 0 {
+			return i
+		}
+	}
+	return len(n)
 }
