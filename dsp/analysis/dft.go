@@ -1,9 +1,10 @@
 package analysis
 
 import (
-	"go-dsp/fft"
 	"math"
 	"math/cmplx"
+
+	"github.com/mjibson/go-dsp/fft"
 )
 
 // DFT is the Discrete Fourier Transform representation of a signal
